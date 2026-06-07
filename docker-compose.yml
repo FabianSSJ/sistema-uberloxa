@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: uberloxa_db
+    environment:
+      POSTGRES_USER: uberloxa
+      POSTGRES_PASSWORD: uberloxa123
+      POSTGRES_DB: uberloxa_db
+    ports:
+      - "5436:5432"
+    volumes:
+      - uberloxa_data:/var/lib/postgresql/data
+
+volumes:
+  uberloxa_data:

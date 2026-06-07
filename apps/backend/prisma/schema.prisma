@@ -1,0 +1,117 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Usuario {
+  id           Int      @id @default(autoincrement())
+  nombre       String
+  username     String   @unique
+  passwordHash String   @map("password_hash")
+  activo       Boolean  @default(true)
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@map("usuarios")
+}
+
+model Sector {
+  id          Int       @id @default(autoincrement())
+  nombre      String    @unique
+  descripcion String?
+  clientes    Cliente[]
+
+  @@map("sectores")
+}
+
+model Cliente {
+  id             Int       @id @default(autoincrement())
+  nombre         String
+  telefono       String?
+  telefonoAlt    String?   @map("telefono_alt")
+  sectorId       Int?      @map("sector_id")
+  sector         Sector?   @relation(fields: [sectorId], references: [id])
+  direccion      String?
+  descripcion    String?
+  linkGoogleMaps String?   @map("link_google_maps")
+  activo         Boolean   @default(true)
+  createdAt      DateTime  @default(now()) @map("created_at")
+  carreras       Carrera[]
+
+  @@index([sectorId])
+  @@index([telefono])
+  @@map("clientes")
+}
+
+model Marca {
+  id      Int      @id @default(autoincrement())
+  nombre  String   @unique
+  modelos Modelo[]
+
+  @@map("marcas")
+}
+
+model Modelo {
+  id       Int      @id @default(autoincrement())
+  marcaId  Int      @map("marca_id")
+  marca    Marca    @relation(fields: [marcaId], references: [id])
+  nombre   String
+  tipo     String?
+  unidades Unidad[]
+
+  @@index([marcaId])
+  @@map("modelos")
+}
+
+model Unidad {
+  id             Int       @id @default(autoincrement())
+  placa          String    @unique
+  modeloId       Int       @map("modelo_id")
+  modelo         Modelo    @relation(fields: [modeloId], references: [id])
+  choferNombre   String    @map("chofer_nombre")
+  choferTelefono String?   @map("chofer_telefono")
+  color          String?
+  anio           Int?
+  createdAt      DateTime  @default(now()) @map("created_at")
+  carreras       Carrera[]
+
+  @@index([modeloId])
+  @@map("unidades")
+}
+
+model Carrera {
+  id          Int                      @id @default(autoincrement())
+  clienteId   Int                      @map("cliente_id")
+  cliente     Cliente                  @relation(fields: [clienteId], references: [id])
+  unidadId    Int?                     @map("unidad_id")
+  unidad      Unidad?                  @relation(fields: [unidadId], references: [id])
+  creadoPorId Int?                     @map("creado_por")
+  estado      String                   @default("pendiente")
+  notas       String?
+  createdAt   DateTime                 @default(now()) @map("created_at")
+  fechaFin    DateTime?                @map("fecha_fin")
+  historial   HistorialEstadoCarrera[]
+
+  @@index([clienteId])
+  @@index([unidadId])
+  @@index([estado])
+  @@index([createdAt])
+  @@index([unidadId, createdAt])
+  @@map("carreras")
+}
+
+model HistorialEstadoCarrera {
+  id             Int      @id @default(autoincrement())
+  carreraId      Int      @map("carrera_id")
+  carrera        Carrera  @relation(fields: [carreraId], references: [id])
+  estadoAnterior String?  @map("estado_anterior")
+  estadoNuevo    String   @map("estado_nuevo")
+  fechaHora      DateTime @default(now()) @map("fecha_hora")
+
+  @@index([carreraId])
+  @@index([fechaHora])
+  @@map("historial_estados_carrera")
+}
