@@ -1,7 +1,26 @@
 import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
+import { AuthModule } from './auth/auth.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { SectoresModule } from './sectores/sectores.module';
+import { ClientesModule } from './clientes/clientes.module';
+import { MarcasModule } from './marcas/marcas.module';
+import { ModelosModule } from './modelos/modelos.module';
+import { UnidadesModule } from './unidades/unidades.module';
 
 @Module({
-  imports: [PrismaModule],
+  imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,   // disponible en toda la app sin re-importar
+      envFilePath: '.env',
+    }),
+    PrismaModule,
+    AuthModule,
+    SectoresModule,
+    ClientesModule,
+    MarcasModule,
+    ModelosModule,
+    UnidadesModule,
+  ],
 })
 export class AppModule {}
