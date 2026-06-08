@@ -7,6 +7,7 @@ import { ClientesModule } from './clientes/clientes.module';
 import { MarcasModule } from './marcas/marcas.module';
 import { ModelosModule } from './modelos/modelos.module';
 import { UnidadesModule } from './unidades/unidades.module';
+import { CarrerasModule } from './carreras/carreras.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { UnidadesModule } from './unidades/unidades.module';
     MarcasModule,
     ModelosModule,
     UnidadesModule,
+    CarrerasModule,
   ],
 })
 export class AppModule {}
