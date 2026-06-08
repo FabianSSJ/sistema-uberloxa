@@ -83,6 +83,14 @@ model Unidad {
   @@map("unidades")
 }
 
+enum EstadoCarrera {
+  sin_asignar
+  pendiente
+  aceptada
+  perdida
+  cancelada
+}
+
 model Carrera {
   id          Int                      @id @default(autoincrement())
   clienteId   Int                      @map("cliente_id")
@@ -90,7 +98,7 @@ model Carrera {
   unidadId    Int?                     @map("unidad_id")
   unidad      Unidad?                  @relation(fields: [unidadId], references: [id])
   creadoPorId Int?                     @map("creado_por")
-  estado      String                   @default("pendiente")
+  estado      EstadoCarrera            @default(sin_asignar)
   notas       String?
   createdAt   DateTime                 @default(now()) @map("created_at")
   fechaFin    DateTime?                @map("fecha_fin")
@@ -105,12 +113,12 @@ model Carrera {
 }
 
 model HistorialEstadoCarrera {
-  id             Int      @id @default(autoincrement())
-  carreraId      Int      @map("carrera_id")
-  carrera        Carrera  @relation(fields: [carreraId], references: [id])
-  estadoAnterior String?  @map("estado_anterior")
-  estadoNuevo    String   @map("estado_nuevo")
-  fechaHora      DateTime @default(now()) @map("fecha_hora")
+  id             Int            @id @default(autoincrement())
+  carreraId      Int            @map("carrera_id")
+  carrera        Carrera        @relation(fields: [carreraId], references: [id])
+  estadoAnterior EstadoCarrera? @map("estado_anterior")
+  estadoNuevo    EstadoCarrera  @map("estado_nuevo")
+  fechaHora      DateTime       @default(now()) @map("fecha_hora")
 
   @@index([carreraId])
   @@index([fechaHora])

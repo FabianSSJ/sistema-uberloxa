@@ -1,5 +1,5 @@
 import api from '../../../core/api/axios';
-import { Sector } from '../clientes/services/clientes.service';
+import { Sector } from '../../clientes/services/clientes.service';
 
 export const sectoresService = {
   getAll: async (): Promise<Sector[]> => {
