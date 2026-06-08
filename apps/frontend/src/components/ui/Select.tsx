@@ -1,0 +1,156 @@
+import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { ChevronDown, Check, Search } from 'lucide-react';
+
+export interface SelectOption {
+  value: string | number;
+  label: string;
+}
+
+interface SelectProps {
+  label?: string;
+  options: SelectOption[];
+  value?: string | number;
+  onChange: (value: string | number) => void;
+  placeholder?: string;
+  error?: string;
+  fullWidth?: boolean;
+  searchable?: boolean;
+}
+
+export const Select: React.FC<SelectProps> = ({
+  label,
+  options,
+  value,
+  onChange,
+  placeholder = 'Seleccionar...',
+  error,
+  fullWidth = true,
+  searchable = false,
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const containerRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  const selectedOption = options.find(opt => opt.value === value);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleOutsideClick = (event: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+        setSearchTerm('');
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, []);
+
+  // Focus search input when dropdown opens
+  useEffect(() => {
+    if (isOpen && searchable && searchInputRef.current) {
+      setTimeout(() => {
+        searchInputRef.current?.focus();
+      }, 50); // slight delay to allow rendering animation
+    }
+  }, [isOpen, searchable]);
+
+  const filteredOptions = useMemo(() => {
+    if (!searchable || !searchTerm) return options;
+    return options.filter(opt => 
+      opt.label.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [options, searchable, searchTerm]);
+
+  const widthClass = fullWidth ? 'w-full' : '';
+  const errorClass = error 
+    ? 'border-red-500 focus:ring-red-500 focus:border-red-500' 
+    : 'border-gray-300 hover:border-gray-400';
+
+  return (
+    <div className={`flex flex-col gap-1.5 ${widthClass} relative`} ref={containerRef}>
+      {label && (
+        <label className="text-sm font-semibold text-gray-700">
+          {label}
+        </label>
+      )}
+      
+      {/* Trigger Button */}
+      <div
+        className={`flex items-center justify-between px-3 py-2.5 bg-white border rounded-md text-[15px] cursor-pointer transition-colors duration-200 outline-none ${errorClass} ${isOpen ? 'ring-2 ring-blue-500 border-blue-500 ring-opacity-50' : ''}`}
+        onClick={() => setIsOpen(!isOpen)}
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            setIsOpen(!isOpen);
+          }
+        }}
+      >
+        <span className={selectedOption ? 'text-gray-800' : 'text-gray-500'}>
+          {selectedOption ? selectedOption.label : placeholder}
+        </span>
+        <ChevronDown 
+          size={18} 
+          className={`text-gray-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} 
+        />
+      </div>
+
+      {/* Dropdown Menu */}
+      {isOpen && (
+        <div className="absolute top-[calc(100%+4px)] left-0 w-full bg-white border border-gray-200 rounded-md shadow-lg z-50 flex flex-col overflow-hidden animate-[fadeIn_0.15s_ease-out]">
+          
+          {searchable && (
+            <div className="p-2 border-b border-gray-100 bg-gray-50/50">
+              <div className="relative">
+                <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  className="w-full pl-8 pr-3 py-1.5 text-sm bg-white border border-gray-200 rounded outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
+                  placeholder="Buscar..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onClick={(e) => e.stopPropagation()} // Prevent closing when clicking input
+                />
+              </div>
+            </div>
+          )}
+
+          <div className="max-h-60 overflow-y-auto">
+            {filteredOptions.length === 0 ? (
+              <div className="px-4 py-3 text-sm text-gray-500 text-center">
+                {searchable && searchTerm ? 'No se encontraron resultados' : 'No hay opciones disponibles'}
+              </div>
+            ) : (
+              <ul className="py-1 m-0 list-none">
+                {filteredOptions.map((option) => (
+                  <li
+                    key={option.value}
+                    className={`px-4 py-2.5 text-[15px] cursor-pointer flex items-center justify-between transition-colors
+                      ${option.value === value 
+                        ? 'bg-blue-50 text-blue-700 font-medium' 
+                        : 'text-gray-700 hover:bg-gray-100'
+                      }`}
+                    onClick={() => {
+                      onChange(option.value);
+                      setIsOpen(false);
+                      setSearchTerm('');
+                    }}
+                  >
+                    {option.label}
+                    {option.value === value && <Check size={16} className="text-blue-600" />}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      )}
+
+      {error && (
+        <span className="text-sm text-red-500 mt-0.5">{error}</span>
+      )}
+    </div>
+  );
+};
