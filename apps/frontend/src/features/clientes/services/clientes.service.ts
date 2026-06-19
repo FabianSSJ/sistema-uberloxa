@@ -7,6 +7,7 @@ export interface Sector {
 
 export interface Cliente {
   id: number;
+  codigo?: number;
   nombre: string;
   telefono?: string;
   telefonoAlt?: string;

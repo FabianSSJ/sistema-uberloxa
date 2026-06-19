@@ -6,6 +6,7 @@ import { ClienteDetailsModal } from './ClienteDetailsModal';
 import { Cliente } from '../../features/clientes/services/clientes.service';
 import { Button } from '../../components/ui/Button';
 import { Pagination } from '../../components/ui/Pagination';
+import { CodigoBadge } from '../../components/ui/CodigoBadge';
 
 export const ClientesPage = () => {
   const { data: clientes = [], isLoading, isError } = useClientes();
@@ -38,11 +39,9 @@ export const ClientesPage = () => {
     const term = searchTerm.toLowerCase().trim();
     if (!term) return true;
     
-    // Buscar exactamente por el ID numérico o el código formateado
-    const idFormatted = String(c.id).padStart(2, '0');
-    const exactId = String(c.id);
-    
-    return idFormatted === term || exactId === term || idFormatted.includes(term);
+    // Buscar por el codigo real del cliente (el secuencial del Excel) o por nombre
+    const codigo = c.codigo != null ? String(c.codigo) : '';
+    return codigo === term || codigo.includes(term) || c.nombre.toLowerCase().includes(term);
   });
 
   const indexOfLastItem = currentPage * itemsPerPage;
@@ -100,6 +99,7 @@ export const ClientesPage = () => {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200 text-gray-600 text-sm">
+                  <th className="px-6 py-4 font-semibold w-20 text-center">Código</th>
                   <th className="px-6 py-4 font-semibold w-1/4">Cliente</th>
                   <th className="px-6 py-4 font-semibold w-1/5">Teléfono</th>
                   <th className="px-6 py-4 font-semibold w-1/5">Sector</th>
@@ -115,6 +115,11 @@ export const ClientesPage = () => {
                       index % 2 === 0 ? 'bg-white border-l-transparent' : 'bg-slate-100/60 border-l-transparent'
                     }`}
                   >
+                    {/* Código */}
+                    <td className="px-6 py-4 align-top text-center">
+                      <CodigoBadge codigo={cliente.codigo} />
+                    </td>
+
                     {/* Cliente Nombre */}
                     <td className="px-6 py-4 align-top">
                       <div className="font-bold text-gray-800 text-base">{cliente.nombre}</div>
