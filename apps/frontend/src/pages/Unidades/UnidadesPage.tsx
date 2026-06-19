@@ -3,6 +3,7 @@ import { useUnidades, useDeleteUnidad } from '../../features/unidades/hooks/useU
 import { UnidadFormModal } from './UnidadFormModal';
 import { Button } from '../../components/ui/Button';
 import { Pagination } from '../../components/ui/Pagination';
+import { EstadoUnidadBadge } from '../../features/unidades/components/EstadoUnidadBadge';
 import { Car, Search, Edit2, Trash2, Plus } from 'lucide-react';
 
 export const UnidadesPage = () => {
@@ -105,33 +106,32 @@ export const UnidadesPage = () => {
                 className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm hover:shadow-md hover:border-blue-200 transition-all duration-200 group flex flex-col justify-between"
               >
                 <div>
-                  <div className="flex justify-between items-start gap-4 mb-3">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="px-3 py-1 bg-green-100 text-green-800 border border-green-300 font-mono text-sm font-bold rounded-md tracking-wider">
+                  <div className="flex justify-between items-start gap-3 mb-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center flex-wrap gap-2 mb-2">
+                        <span className="px-2.5 py-1 bg-blue-100 text-blue-800 border border-blue-300 font-mono text-xs font-bold rounded-md tracking-wider">
                           Nº {unidad.numeroUnidad || 'S/N'}
                         </span>
-                        <span className="px-3 py-1 bg-yellow-100 text-yellow-800 border border-yellow-300 font-mono text-sm font-bold rounded-md tracking-wider">
+                        <span className="px-2.5 py-1 bg-yellow-100 text-yellow-800 border border-yellow-300 font-mono text-xs font-bold rounded-md tracking-wider">
                           {unidad.placa}
                         </span>
+                        <EstadoUnidadBadge unidad={unidad} interactive />
                       </div>
-                      
-                      <div className="text-sm font-medium mb-1">
-                        <span className="text-gray-500">Vehículo: </span>
-                        <span className="text-gray-800 font-medium">{unidad.vehiculo || 'Sin detalle'}</span>
-                      </div>
+
+                      <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide m-0">Vehículo</p>
+                      <p className="text-[13px] font-bold text-gray-800 m-0 truncate">{unidad.vehiculo || 'Sin detalle'}</p>
                     </div>
-                    
+
                     {/* Actions */}
-                    <div className="flex gap-2 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button 
+                    <div className="flex gap-2 shrink-0 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
                         onClick={() => handleOpenEdit(unidad.id)}
                         className="p-1.5 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-md transition-colors"
                         title="Editar"
                       >
                         <Edit2 size={16} />
                       </button>
-                      <button 
+                      <button
                         onClick={() => handleDelete(unidad.id, unidad.numeroUnidad || unidad.placa)}
                         className="p-1.5 text-red-600 bg-red-50 hover:bg-red-100 rounded-md transition-colors"
                         title="Eliminar"
@@ -144,15 +144,15 @@ export const UnidadesPage = () => {
 
                 {/* Footer info (Chofer) */}
                 <div className="mt-4 pt-3 border-t border-gray-100">
-                  <div className="text-sm font-semibold text-gray-700 mb-1">Conductor Asignado</div>
+                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide m-0 mb-1">Conductor Asignado</p>
                   <div className="flex justify-between items-center gap-2">
-                    <span className="text-gray-800 text-[15px]">{unidad.choferNombre}</span>
+                    <span className="text-[13px] font-bold text-gray-800 truncate">{unidad.choferNombre}</span>
                     {unidad.choferTelefono ? (
-                      <span className="text-blue-600 font-mono text-sm bg-blue-50 px-2 py-0.5 rounded">
+                      <span className="shrink-0 text-blue-700 font-mono text-[11px] font-bold bg-blue-50 border border-blue-100 px-2 py-0.5 rounded">
                         {unidad.choferTelefono}
                       </span>
                     ) : (
-                      <span className="text-gray-400 italic text-xs">Sin teléfono</span>
+                      <span className="shrink-0 text-gray-400 italic text-[11px]">Sin teléfono</span>
                     )}
                   </div>
                 </div>

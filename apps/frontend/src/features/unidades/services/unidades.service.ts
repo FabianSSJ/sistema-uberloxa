@@ -1,6 +1,8 @@
 import api from '../../../core/api/axios';
 import { Modelo } from '../../modelos/services/modelos.service';
 
+export type EstadoUnidad = 'disponible' | 'ocupado' | 'inactivo';
+
 export interface Unidad {
   id: number;
   placa: string;
@@ -10,6 +12,7 @@ export interface Unidad {
   modelo: Modelo;
   color: string;
   anio: number;
+  estado: EstadoUnidad;
   choferNombre: string;
   choferTelefono: string | null;
 }
@@ -43,5 +46,10 @@ export const unidadesService = {
 
   delete: async (id: number): Promise<void> => {
     await api.delete(`/unidades/${id}`);
+  },
+
+  cambiarEstado: async (id: number, estado: EstadoUnidad): Promise<Unidad> => {
+    const { data } = await api.patch(`/unidades/${id}/estado`, { estado });
+    return data;
   }
 };

@@ -38,13 +38,16 @@ export class ClientesController {
     return this.clientesService.create(createClienteDto);
   }
 
+  // La Charlie (modulo 'carreras') necesita LEER clientes para despachar, por eso se permiten ambos.
   @Get()
+  @RequireModule('clientes', 'carreras')
   @ApiOperation({ summary: 'Obtener todos los clientes activos' })
   findAll() {
     return this.clientesService.findAll();
   }
 
   @Get(':id')
+  @RequireModule('clientes', 'carreras')
   @ApiOperation({ summary: 'Obtener un cliente activo por ID' })
   @ApiResponse({ status: 404, description: 'Cliente no encontrado o inactivo.' })
   findOne(@Param('id', ParseIntPipe) id: number) {

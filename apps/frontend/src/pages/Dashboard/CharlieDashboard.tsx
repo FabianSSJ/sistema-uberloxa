@@ -2,10 +2,13 @@ import { Car, Users, Clock, Plus, Search, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 
 import { useClientes } from '../../features/clientes/hooks/useClientes';
-import { useUnidades } from '../../features/unidades/hooks/useUnidades';
+import { useUnidades, useCambiarEstadoUnidad } from '../../features/unidades/hooks/useUnidades';
+import type { EstadoUnidad } from '../../features/unidades/services/unidades.service';
+import { EstadoUnidadBadge, ESTADO_UNIDAD_STYLES, nextEstadoToggle } from '../../features/unidades/components/EstadoUnidadBadge';
 import { useCarreras, useCreateCarrera, useCompletarCarrera, useCancelarCarrera, usePerderCarrera, useDeleteCarrera } from '../../features/carreras/hooks/useCarreras';
 import { CarreraFormModal } from './CarreraFormModal';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
+import { CodigoBadge } from '../../components/ui/CodigoBadge';
 import { useAuth } from '../../features/auth/context/AuthContext';
 
 export const CharlieDashboard = () => {
@@ -21,6 +24,7 @@ export const CharlieDashboard = () => {
   });
 
   const createCarreraMutation = useCreateCarrera();
+  const cambiarEstadoMutation = useCambiarEstadoUnidad();
   const completarMutation = useCompletarCarrera();
   const cancelarMutation = useCancelarCarrera();
   const perderMutation = usePerderCarrera();
@@ -34,17 +38,22 @@ export const CharlieDashboard = () => {
   const [draggedItem, setDraggedItem] = useState<{type: 'CHOFER' | 'CLIENTE', id: number} | null>(null);
   const [dragOverItem, setDragOverItem] = useState<{type: 'CHOFER' | 'CLIENTE', id: number} | null>(null);
 
-  const filteredUnidades = unidades.filter((u: any) => 
-    (u.numeroUnidad || '').toLowerCase().includes(searchChofer.toLowerCase()) || 
+  const filteredUnidades = unidades.filter((u: any) =>
+    (u.numeroUnidad || '').toLowerCase().includes(searchChofer.toLowerCase()) ||
     (u.choferNombre || '').toLowerCase().includes(searchChofer.toLowerCase()) ||
     (u.placa || '').toLowerCase().includes(searchChofer.toLowerCase())
   );
 
+  // Regla del click de la Charlie: usa el toggle compartido (misma logica en todo el sistema).
+  const toggleEstadoUnidad = (u: any) => {
+    cambiarEstadoMutation.mutate({ id: u.id, estado: nextEstadoToggle(u.estado || 'disponible') });
+  };
+
   const filteredClientes = clientes.filter((c: any) => {
     const query = searchCliente.toLowerCase().trim();
     if (!query) return true;
-    const idFormatted = String(c.id).padStart(2, '0');
-    return idFormatted.includes(query) || (c.nombre || '').toLowerCase().includes(query);
+    const codigo = c.codigo != null ? String(c.codigo) : '';
+    return codigo.includes(query) || (c.nombre || '').toLowerCase().includes(query);
   });
 
   const formatTime = (isoString: string) => {
@@ -104,13 +113,16 @@ export const CharlieDashboard = () => {
               />
             </div>
           </div>
-          <div className="flex-1 overflow-y-auto px-5 pb-5 pt-3 flex flex-col gap-4 bg-slate-50/50">
+          <div className="flex-1 overflow-y-auto px-5 pb-5 pt-3 flex flex-col gap-2.5 bg-slate-50/50">
             {filteredUnidades.map((u: any, idx: number) => {
               const isDragOver = dragOverItem?.type === 'CHOFER' && dragOverItem.id === u.id;
+              const est = ESTADO_UNIDAD_STYLES[(u.estado as EstadoUnidad) || 'disponible'];
               return (
-                <div 
-                  key={idx} 
+                <div
+                  key={idx}
                   draggable
+                  title="Click para cambiar estado · Arrastrá un cliente acá para asignar carrera"
+                  onClick={() => toggleEstadoUnidad(u)}
                   onDragStart={(e) => {
                     setDraggedItem({ type: 'CHOFER', id: u.id });
                     e.dataTransfer.setData('text/plain', JSON.stringify({ type: 'CHOFER', id: u.id }));
@@ -128,16 +140,18 @@ export const CharlieDashboard = () => {
                     }
                     setDraggedItem(null); setDragOverItem(null);
                   }}
-                  className={`border p-4 rounded-xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] hover:-translate-y-1 hover:shadow-[0_8px_15px_-3px_rgba(6,81,237,0.15)] transition-all duration-300 group cursor-grab active:cursor-grabbing ${isDragOver ? 'bg-amber-50 ring-2 ring-amber-400 border-amber-300 scale-[1.02]' : 'bg-white border-gray-100'}`}
+                  className={`border p-3 rounded-xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] hover:-translate-y-1 hover:shadow-[0_8px_15px_-3px_rgba(6,81,237,0.15)] transition-all duration-300 group cursor-pointer active:cursor-grabbing ${isDragOver ? 'bg-amber-50 ring-2 ring-amber-400 border-amber-300 scale-[1.02]' : 'bg-white border-gray-100'}`}
                 >
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-full bg-amber-50 flex items-center justify-center text-amber-600 font-black text-lg border border-amber-100 group-hover:bg-amber-500 group-hover:text-white transition-colors duration-300 shadow-sm pointer-events-none">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-11 h-11 min-w-11 rounded-full flex items-center justify-center font-black text-base border group-hover:text-white transition-colors duration-300 shadow-sm pointer-events-none ${est.avatar}`}>
                       {u.numeroUnidad || 'S/N'}
                     </div>
-                    <div className="pointer-events-none">
-                      <h3 className="font-bold text-gray-800 m-0 text-[16px]">{u.choferNombre || 'Sin Chofer'}</h3>
-                      <p className="text-gray-500 text-sm m-0 mt-1 font-medium">{u.placa} • {u.vehiculo || 'Vehículo N/A'}</p>
+                    <div className="pointer-events-none flex-1 min-w-0">
+                      <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide m-0">Chofer</p>
+                      <h3 className="font-bold text-gray-800 m-0 text-[13px] leading-tight truncate">{u.choferNombre || 'Sin Chofer'}</h3>
+                      <p className="text-gray-500 text-[11px] m-0 mt-0.5 font-medium truncate">Placa {u.placa} · {u.vehiculo || 'Vehículo N/A'}</p>
                     </div>
+                    <EstadoUnidadBadge unidad={u} className="pointer-events-none shrink-0" />
                   </div>
                 </div>
               );
@@ -171,7 +185,7 @@ export const CharlieDashboard = () => {
               />
             </div>
           </div>
-          <div className="flex-1 overflow-y-auto px-5 pb-5 pt-3 flex flex-col gap-4 bg-slate-50/50">
+          <div className="flex-1 overflow-y-auto px-5 pb-5 pt-3 flex flex-col gap-2.5 bg-slate-50/50">
             {filteredClientes.map((c: any, idx: number) => {
               const isDragOver = dragOverItem?.type === 'CLIENTE' && dragOverItem.id === c.id;
               return (
@@ -195,14 +209,13 @@ export const CharlieDashboard = () => {
                     }
                     setDraggedItem(null); setDragOverItem(null);
                   }}
-                  className={`border p-3 rounded-lg shadow-sm hover:-translate-y-0.5 hover:shadow transition-all duration-200 group flex items-center gap-3 cursor-grab active:cursor-grabbing ${isDragOver ? 'bg-blue-50 ring-2 ring-blue-400 border-blue-300 scale-[1.02]' : 'bg-white border-gray-100'}`}
+                  className={`border p-2.5 rounded-lg shadow-sm hover:-translate-y-0.5 hover:shadow transition-all duration-200 group flex items-center justify-between gap-2 cursor-grab active:cursor-grabbing ${isDragOver ? 'bg-blue-50 ring-2 ring-blue-400 border-blue-300 scale-[1.02]' : 'bg-white border-gray-100'}`}
                 >
-                  <div className="w-10 h-10 min-w-[40px] rounded-full bg-blue-50 flex items-center justify-center text-blue-600 font-bold text-sm border border-blue-100 group-hover:bg-blue-500 group-hover:text-white transition-colors pointer-events-none">
-                    {String(c.id).padStart(2, '0')}
+                  <div className="flex-1 min-w-0 pointer-events-none">
+                    <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide m-0">Cliente</p>
+                    <h3 className="font-bold text-gray-800 m-0 text-[13px] leading-tight truncate">{c.nombre}</h3>
                   </div>
-                  <div className="flex-1 overflow-hidden pointer-events-none">
-                    <h3 className="font-bold text-gray-800 m-0 text-[14px] truncate">{c.nombre}</h3>
-                  </div>
+                  <CodigoBadge codigo={c.codigo} className="pointer-events-none shrink-0" />
                 </div>
               );
             })}
