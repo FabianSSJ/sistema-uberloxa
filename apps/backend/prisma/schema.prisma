@@ -18,6 +18,8 @@ model Usuario {
   activo            Boolean  @default(true)
   createdAt         DateTime @default(now()) @map("created_at")
 
+  carrerasCreadas   Carrera[] @relation("CarrerasCreadas")
+
   @@map("usuarios")
 }
 
@@ -108,6 +110,7 @@ model Carrera {
   unidadId    Int?                     @map("unidad_id")
   unidad      Unidad?                  @relation(fields: [unidadId], references: [id])
   creadoPorId Int?                     @map("creado_por")
+  creadoPor   Usuario?                 @relation("CarrerasCreadas", fields: [creadoPorId], references: [id])
   estado      String                   @default("pendiente")
   notas       String?
   createdAt   DateTime                 @default(now()) @map("created_at")

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, ParseIntPipe, Patch, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, ParseIntPipe, Patch, UseGuards, Req, Delete, UnauthorizedException } from '@nestjs/common';
 import { CarrerasService } from './carreras.service';
 import { CreateCarreraDto } from './dto/create-carrera.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -12,8 +12,9 @@ export class CarrerasController {
   constructor(private readonly carrerasService: CarrerasService) {}
 
   @Post()
-  create(@Body() createCarreraDto: CreateCarreraDto) {
-    return this.carrerasService.create(createCarreraDto);
+  create(@Body() createCarreraDto: CreateCarreraDto, @Req() req: any) {
+    const userId = req.user?.sub;
+    return this.carrerasService.create(createCarreraDto, userId);
   }
 
   @Get()
@@ -47,5 +48,13 @@ export class CarrerasController {
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.carrerasService.findOne(id);
+  }
+
+  @Delete(':id')
+  remove(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
+    if (req.user?.rol !== 'SUPERADMIN') {
+      throw new UnauthorizedException('Solo el superadministrador puede eliminar carreras permanentemente.');
+    }
+    return this.carrerasService.remove(id);
   }
 }

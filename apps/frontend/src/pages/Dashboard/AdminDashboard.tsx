@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useCarreras } from '../../features/carreras/hooks/useCarreras';
 import { useUnidades } from '../../features/unidades/hooks/useUnidades';
-import { Car, CheckCircle2, XCircle, AlertTriangle, TrendingUp, Calendar } from 'lucide-react';
+import { Car, CheckCircle2, XCircle, AlertTriangle, TrendingUp, Calendar, Users } from 'lucide-react';
 
 export const AdminDashboard = () => {
   const { data: allRides = [], isLoading: loadingRides } = useCarreras();
@@ -37,18 +37,11 @@ export const AdminDashboard = () => {
     };
   });
 
-  // También agrupamos las "Sin unidad"
-  statsPorUnidad[0] = {
-    unidad: { placa: 'Sin Asignar', choferNombre: 'N/A' },
-    completadas: 0,
-    canceladas: 0,
-    perdidas: 0,
-    total: 0
-  };
-
   dayRides.forEach((ride: any) => {
     const uid = ride.unidadId || 0;
-    if (!statsPorUnidad[uid]) return; // Por si acaso
+    
+    // Ignorar carreras sin unidad asignada en esta tabla
+    if (!statsPorUnidad[uid]) return;
 
     statsPorUnidad[uid].total += 1;
     if (ride.estado === 'completada') statsPorUnidad[uid].completadas += 1;
@@ -59,6 +52,29 @@ export const AdminDashboard = () => {
   // Filtrar unidades que no hicieron nada si quieres que solo salgan las que trabajaron, 
   // o mostrar todas. Mostraremos todas ordenadas por las que tienen más carreras
   const statsList = Object.values(statsPorUnidad).sort((a: any, b: any) => b.total - a.total);
+
+  // Agrupar por Charlie (creadoPor)
+  const statsPorCharlie: Record<number, any> = {};
+
+  dayRides.forEach((ride: any) => {
+    const charlieId = ride.creadoPor?.id || 0;
+    if (!statsPorCharlie[charlieId]) {
+      statsPorCharlie[charlieId] = {
+        charlie: ride.creadoPor || { id: 0, nombre: 'Desconocido', rol: 'N/A' },
+        completadas: 0,
+        canceladas: 0,
+        perdidas: 0,
+        total: 0
+      };
+    }
+
+    statsPorCharlie[charlieId].total += 1;
+    if (ride.estado === 'completada') statsPorCharlie[charlieId].completadas += 1;
+    if (ride.estado === 'cancelada') statsPorCharlie[charlieId].canceladas += 1;
+    if (ride.estado === 'perdida') statsPorCharlie[charlieId].perdidas += 1;
+  });
+
+  const charlieStatsList = Object.values(statsPorCharlie).sort((a: any, b: any) => b.total - a.total);
 
   const globalStats = {
     total: dayRides.length,
@@ -176,6 +192,70 @@ export const AdminDashboard = () => {
                   </td>
                 </tr>
               ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden mt-8">
+        <div className="px-6 py-4 border-b border-gray-200 bg-gray-50 flex items-center gap-2">
+          <Users size={20} className="text-blue-600" />
+          <h3 className="text-lg font-bold text-gray-800">Actividad por Operador (Charlie)</h3>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-white">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Operador</th>
+                <th className="px-6 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Total Generadas</th>
+                <th className="px-6 py-3 text-center text-xs font-semibold text-green-600 uppercase tracking-wider">Completadas</th>
+                <th className="px-6 py-3 text-center text-xs font-semibold text-orange-600 uppercase tracking-wider">Perdidas</th>
+                <th className="px-6 py-3 text-center text-xs font-semibold text-red-600 uppercase tracking-wider">Canceladas</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-100">
+              {charlieStatsList.map((stat: any, idx: number) => (
+                <tr key={idx} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center">
+                      <div className="flex-shrink-0 h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-600">
+                        <Users size={20} />
+                      </div>
+                      <div className="ml-4">
+                        <div className="text-sm font-bold text-gray-900">
+                          {stat.charlie.nombre}
+                        </div>
+                        <div className="text-sm text-gray-500">{stat.charlie.rol}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-center">
+                    <span className="text-lg font-bold text-gray-800">{stat.total}</span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-center">
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                      {stat.completadas}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-center">
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium bg-orange-100 text-orange-800">
+                      {stat.perdidas}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-center">
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium bg-red-100 text-red-800">
+                      {stat.canceladas}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+              {charlieStatsList.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
+                    No hay actividad de operadores registrada en esta fecha.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
