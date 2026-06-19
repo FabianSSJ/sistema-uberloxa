@@ -4,6 +4,7 @@ import { useCarreras, useDeleteCarrera } from '../../features/carreras/hooks/use
 import { CarreraFormModal } from '../Dashboard/CarreraFormModal';
 import { Button } from '../../components/ui/Button';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
+import { CodigoBadge } from '../../components/ui/CodigoBadge';
 import { useAuth } from '../../features/auth/context/AuthContext';
 
 export const CarrerasPage = () => {
@@ -47,10 +48,10 @@ export const CarrerasPage = () => {
   const filteredCarreras = carreras.filter((c: any) => {
     if (!searchQuery) return true;
     const q = searchQuery.toLowerCase().trim();
-    const idFormatted = String(c.cliente?.id).padStart(2, '0');
-    
+    const codigoCliente = c.cliente?.codigo != null ? String(c.cliente.codigo) : '';
+
     const matchUnidad = c.unidad?.numeroUnidad?.toLowerCase().includes(q) || c.unidad?.placa?.toLowerCase().includes(q);
-    const matchCliente = idFormatted.includes(q) || c.cliente?.nombre?.toLowerCase().includes(q) || c.cliente?.telefono?.includes(q);
+    const matchCliente = codigoCliente.includes(q) || c.cliente?.nombre?.toLowerCase().includes(q) || c.cliente?.telefono?.includes(q);
     const matchEstado = c.estado?.toLowerCase().includes(q);
     
     return matchUnidad || matchCliente || matchEstado;
@@ -111,34 +112,45 @@ export const CarrerasPage = () => {
               key={carrera.id} 
               className={`bg-white rounded-xl p-5 border-l-4 ${turno.border} border-y-gray-200 border-r-gray-200 shadow-sm hover:shadow-md transition-all duration-200 flex flex-col md:flex-row md:justify-between md:items-center gap-4`}
             >
-              <div className="flex-1">
-                <div className="flex flex-wrap items-center gap-2 mb-2">
-                  <span className={`px-2.5 py-1 bg-gray-100 ${turno.text} text-xs font-bold rounded-md`}>
+              <div className="flex-1 min-w-0">
+                {/* Unidad */}
+                <div className="flex items-center gap-2 mb-2">
+                  <span className={`px-2 py-0.5 bg-gray-100 ${turno.text} text-[11px] font-bold rounded-md shrink-0`}>
                     #{carrera.id}
                   </span>
-                  <h3 className={`text-lg font-bold m-0 ${turno.text}`}>
-                    {carrera.unidad ? `Unidad Placa: ${carrera.unidad.placa} (${carrera.unidad.choferNombre})` : 'Sin Unidad Asignada'}
-                  </h3>
-                </div>
-                
-                <div className="text-sm font-medium mb-1">
-                  <span className="text-gray-500">Cliente: </span>
-                  <span className="text-gray-800">{carrera.cliente.nombre}</span>
-                </div>
-                
-                <div className="text-sm flex items-start gap-1 mt-2">
-                  <span className="text-gray-400">📍</span>
-                  <span className="text-gray-600">{carrera.cliente.direccion || 'Sin dirección'} - Sector: {carrera.cliente.sector?.nombre || 'Sin Sector'}</span>
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide m-0 leading-none">Unidad</p>
+                    <h3 className={`text-[13px] font-bold m-0 truncate ${turno.text}`}>
+                      {carrera.unidad ? `${carrera.unidad.placa} · ${carrera.unidad.choferNombre}` : 'Sin unidad asignada'}
+                    </h3>
+                  </div>
                 </div>
 
+                {/* Cliente */}
+                <div className="mb-1.5">
+                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide m-0">Cliente</p>
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    {carrera.cliente.codigo != null && (
+                      <CodigoBadge codigo={carrera.cliente.codigo} className="shrink-0" />
+                    )}
+                    <span className="text-[13px] font-bold text-gray-800 truncate">{carrera.cliente.nombre}</span>
+                  </div>
+                </div>
+
+                {/* Dirección */}
+                <p className="text-[11px] text-gray-500 flex items-start gap-1 m-0">
+                  <span className="shrink-0">📍</span>
+                  <span className="truncate">{carrera.cliente.direccion || 'Sin dirección'} · {carrera.cliente.sector?.nombre || 'Sin sector'}</span>
+                </p>
+
                 {carrera.notas && (
-                  <div className="text-xs text-gray-500 bg-gray-50 italic p-2 rounded mt-3">
-                    📝 Notas: {carrera.notas}
+                  <div className="text-[11px] text-gray-500 bg-gray-50 italic p-2 rounded mt-2">
+                    📝 {carrera.notas}
                   </div>
                 )}
 
                 {carrera.fechaFin && (
-                  <div className="text-green-600 text-xs mt-[8px] font-medium flex items-center gap-1">
+                  <div className="text-green-600 text-[11px] mt-2 font-medium flex items-center gap-1">
                     <CheckCircle2 size={12} />
                     Finalizado: {formatDate(carrera.fechaFin)} a las {formatTime(carrera.fechaFin)}
                   </div>
@@ -146,9 +158,9 @@ export const CarrerasPage = () => {
               </div>
 
               <div className="flex flex-row md:flex-col items-center md:items-end justify-between md:justify-center gap-3 border-t md:border-t-0 pt-3 md:pt-0 border-gray-100">
-                <div className="text-right text-sm text-gray-500">
+                <div className="text-right text-[11px] text-gray-500">
                   <div className="font-medium">{formatDate(carrera.createdAt)}</div>
-                  <div className="text-amber-600 font-bold mt-0.5">{formatTime(carrera.createdAt)}</div>
+                  <div className="text-amber-600 font-bold mt-0.5 text-[13px]">{formatTime(carrera.createdAt)}</div>
                 </div>
 
                 <div className="flex flex-row md:flex-col items-center md:items-end gap-2">

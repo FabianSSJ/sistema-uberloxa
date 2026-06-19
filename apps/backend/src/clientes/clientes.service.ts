@@ -30,7 +30,7 @@ export class ClientesService {
     return this.prisma.cliente.findMany({
       where: { activo: true },
       include: { sector: true },
-      orderBy: { nombre: 'asc' },
+      orderBy: { codigo: { sort: 'asc', nulls: 'last' } },
     });
   }
 

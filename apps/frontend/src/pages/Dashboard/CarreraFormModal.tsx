@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Modal } from '../../components/ui/Modal';
 import { Button } from '../../components/ui/Button';
 import { Select } from '../../components/ui/Select';
+import { formatCodigo } from '../../components/ui/CodigoBadge';
 import { useClientes } from '../../features/clientes/hooks/useClientes';
 import { useUnidades } from '../../features/unidades/hooks/useUnidades';
 import { useCreateCarrera } from '../../features/carreras/hooks/useCarreras';
@@ -57,7 +58,7 @@ export const CarreraFormModal: React.FC<CarreraFormModalProps> = ({
           label="Cliente *"
           options={clientes.map(c => ({
             value: c.id,
-            label: `Cód: ${String(c.id).padStart(2, '0')} - ${c.nombre} - ${c.sector?.nombre || 'Sin Sector'} (${c.telefono || 'Sin Teléfono'})`
+            label: `Cód. ${formatCodigo(c.codigo)} - ${c.nombre} - ${c.sector?.nombre || 'Sin Sector'} (${c.telefono || 'Sin Teléfono'})`
           }))}
           value={formData.clienteId || ''}
           onChange={(val) => setFormData({ ...formData, clienteId: val ? Number(val) : 0 })}
@@ -80,7 +81,7 @@ export const CarreraFormModal: React.FC<CarreraFormModalProps> = ({
         <div className="flex flex-col gap-1.5 w-full">
           <label className="text-sm font-semibold text-gray-700">Notas / Detalles de la Carrera</label>
           <textarea
-            className="px-3 py-2.5 bg-white border border-gray-300 rounded-md text-[15px] text-gray-800 transition-colors duration-200 outline-none focus:ring-2 focus:ring-opacity-50 focus:ring-green-500 focus:border-green-500 hover:border-gray-400 w-full resize-none h-20"
+            className="px-3 py-2.5 bg-white border border-gray-300 rounded-md text-[15px] text-gray-800 transition-colors duration-200 outline-none focus:ring-2 focus:ring-opacity-50 focus:ring-blue-500 focus:border-blue-500 hover:border-gray-400 w-full resize-none h-20"
             value={formData.notas}
             onChange={(e) => setFormData({ ...formData, notas: e.target.value })}
             placeholder="Detalles sobre el punto de recogida, indicaciones, etc."
@@ -102,7 +103,6 @@ export const CarreraFormModal: React.FC<CarreraFormModalProps> = ({
             fullWidth
             isLoading={createMutation.isPending}
             disabled={!formData.clienteId}
-            className="bg-green-600 hover:bg-green-700 text-white"
           >
             Registrar Carrera
           </Button>
