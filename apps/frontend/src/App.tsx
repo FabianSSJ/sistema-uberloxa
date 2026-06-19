@@ -8,11 +8,14 @@ import { CarrerasPage } from './pages/Carreras/CarrerasPage';
 import { LoginPage } from './pages/Login/LoginPage';
 import { PrivateRoute } from './features/auth/components/PrivateRoute';
 import { GestorUsuariosPage } from './pages/GestorUsuarios/GestorUsuariosPage';
+import { AppToaster } from './components/ui/toast';
 
 function App() {
   return (
-    <Routes>
-      <Route path="/login" element={<LoginPage />} />
+    <>
+      <AppToaster />
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
       <Route element={<PrivateRoute />}>
         <Route path="/" element={<MainLayout />}>
           <Route index element={<Dashboard />} />
@@ -30,7 +33,8 @@ function App() {
           </Route>
         </Route>
       </Route>
-    </Routes>
+      </Routes>
+    </>
   );
 }
 
