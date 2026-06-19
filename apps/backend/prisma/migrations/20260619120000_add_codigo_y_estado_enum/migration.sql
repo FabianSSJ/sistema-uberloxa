@@ -29,3 +29,6 @@ CREATE UNIQUE INDEX "unidades_numero_unidad_key" ON "unidades"("numero_unidad");
 
 -- AddForeignKey
 ALTER TABLE "unidades" ADD CONSTRAINT "unidades_modelo_id_fkey" FOREIGN KEY ("modelo_id") REFERENCES "modelos"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey: carreras.creado_por -> usuarios (relacion creadoPor agregada por el dev sin migracion)
+ALTER TABLE "carreras" ADD CONSTRAINT "carreras_creado_por_fkey" FOREIGN KEY ("creado_por") REFERENCES "usuarios"("id") ON DELETE SET NULL ON UPDATE CASCADE;
