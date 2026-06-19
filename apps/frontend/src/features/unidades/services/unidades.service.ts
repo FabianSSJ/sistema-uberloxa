@@ -4,6 +4,8 @@ import { Modelo } from '../../modelos/services/modelos.service';
 export interface Unidad {
   id: number;
   placa: string;
+  vehiculo?: string;
+  numeroUnidad?: string;
   modeloId: number;
   modelo: Modelo;
   color: string;
@@ -13,10 +15,12 @@ export interface Unidad {
 }
 
 export interface CreateUnidadDto {
+  numeroUnidad?: string;
   placa: string;
-  modeloId: number;
-  color: string;
-  anio: number;
+  vehiculo?: string;
+  modeloId?: number;
+  color?: string;
+  anio?: number;
   choferNombre: string;
   choferTelefono?: string;
 }

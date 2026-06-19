@@ -8,6 +8,7 @@ export class UnidadesService {
   constructor(private prisma: PrismaService) {}
 
   private toTitleCase(str: string): string {
+    if (!str) return str;
     return str
       .toLowerCase()
       .split(' ')
@@ -19,53 +20,44 @@ export class UnidadesService {
   async create(createUnidadDto: CreateUnidadDto) {
     const placaNormalizada = createUnidadDto.placa.toUpperCase().trim();
     
-    const existe = await this.prisma.unidad.findUnique({
+    // Check placa
+    const existePlaca = await this.prisma.unidad.findUnique({
       where: { placa: placaNormalizada },
     });
-
-    if (existe) {
+    if (existePlaca) {
       throw new ConflictException(`La unidad con placa '${placaNormalizada}' ya existe.`);
     }
 
-    const modelo = await this.prisma.modelo.findUnique({ where: { id: createUnidadDto.modeloId } });
-    if (!modelo) throw new NotFoundException(`Modelo #${createUnidadDto.modeloId} no existe`);
+    // Check numeroUnidad if provided
+    if (createUnidadDto.numeroUnidad) {
+      const existeNumero = await this.prisma.unidad.findUnique({
+        where: { numeroUnidad: createUnidadDto.numeroUnidad.trim() }
+      });
+      if (existeNumero) {
+        throw new ConflictException(`La unidad con número '${createUnidadDto.numeroUnidad}' ya existe.`);
+      }
+    }
 
     return this.prisma.unidad.create({
       data: {
+        numeroUnidad: createUnidadDto.numeroUnidad ? createUnidadDto.numeroUnidad.trim() : null,
         placa: placaNormalizada,
-        modeloId: createUnidadDto.modeloId,
-        color: this.toTitleCase(createUnidadDto.color),
-        anio: createUnidadDto.anio,
+        vehiculo: this.toTitleCase(createUnidadDto.vehiculo),
         choferNombre: this.toTitleCase(createUnidadDto.choferNombre),
         choferTelefono: createUnidadDto.choferTelefono || null,
-      },
-      include: {
-        modelo: {
-          include: { marca: true }
-        }
       }
     });
   }
 
   async findAll() {
     return this.prisma.unidad.findMany({
-      include: {
-        modelo: {
-          include: { marca: true }
-        }
-      },
       orderBy: { id: 'desc' },
     });
   }
 
   async findOne(id: number) {
     const unidad = await this.prisma.unidad.findUnique({
-      where: { id },
-      include: {
-        modelo: {
-          include: { marca: true }
-        }
-      }
+      where: { id }
     });
     if (!unidad) {
       throw new NotFoundException(`Unidad #${id} no encontrada`);
@@ -92,22 +84,26 @@ export class UnidadesService {
       dataToUpdate.placa = placaNormalizada;
     }
 
-    if (updateUnidadDto.modeloId) {
-      const modelo = await this.prisma.modelo.findUnique({ where: { id: updateUnidadDto.modeloId } });
-      if (!modelo) throw new NotFoundException(`Modelo #${updateUnidadDto.modeloId} no existe`);
+    if (updateUnidadDto.numeroUnidad) {
+      const numNorm = updateUnidadDto.numeroUnidad.trim();
+      const existeNum = await this.prisma.unidad.findFirst({
+        where: {
+          numeroUnidad: numNorm,
+          id: { not: id }
+        }
+      });
+      if (existeNum) {
+        throw new ConflictException(`La unidad con número '${numNorm}' ya existe.`);
+      }
+      dataToUpdate.numeroUnidad = numNorm;
     }
 
-    if (updateUnidadDto.color) dataToUpdate.color = this.toTitleCase(updateUnidadDto.color);
+    if (updateUnidadDto.vehiculo) dataToUpdate.vehiculo = this.toTitleCase(updateUnidadDto.vehiculo);
     if (updateUnidadDto.choferNombre) dataToUpdate.choferNombre = this.toTitleCase(updateUnidadDto.choferNombre);
 
     return this.prisma.unidad.update({
       where: { id },
-      data: dataToUpdate,
-      include: {
-        modelo: {
-          include: { marca: true }
-        }
-      }
+      data: dataToUpdate
     });
   }
 

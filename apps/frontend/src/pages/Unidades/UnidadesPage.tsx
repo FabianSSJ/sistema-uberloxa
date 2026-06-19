@@ -1,11 +1,9 @@
 import React, { useState } from 'react';
 import { useUnidades, useDeleteUnidad } from '../../features/unidades/hooks/useUnidades';
 import { UnidadFormModal } from './UnidadFormModal';
-import { MarcaManagerModal } from './MarcaManagerModal';
-import { ModeloManagerModal } from './ModeloManagerModal';
 import { Button } from '../../components/ui/Button';
 import { Pagination } from '../../components/ui/Pagination';
-import { Car, Search, Edit2, Trash2, Plus, Settings2, Tags } from 'lucide-react';
+import { Car, Search, Edit2, Trash2, Plus } from 'lucide-react';
 
 export const UnidadesPage = () => {
   const { data: unidades = [], isLoading, isError } = useUnidades();
@@ -13,16 +11,13 @@ export const UnidadesPage = () => {
 
   const [isUnidadModalOpen, setIsUnidadModalOpen] = useState(false);
   const [editingUnidadId, setEditingUnidadId] = useState<number | null>(null);
-  
-  const [isMarcaModalOpen, setIsMarcaModalOpen] = useState(false);
-  const [isModeloModalOpen, setIsModeloModalOpen] = useState(false);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 12;
 
-  const handleDelete = async (id: number, placa: string) => {
-    if (window.confirm(`¿Estás seguro de eliminar la unidad ${placa}?`)) {
+  const handleDelete = async (id: number, numero: string) => {
+    if (window.confirm(`¿Estás seguro de eliminar la unidad ${numero}?`)) {
       deleteMutation.mutate(id);
     }
   };
@@ -39,9 +34,9 @@ export const UnidadesPage = () => {
 
   const filteredUnidades = unidades.filter(u => 
     u.placa.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (u.numeroUnidad && u.numeroUnidad.toLowerCase().includes(searchTerm.toLowerCase())) ||
     u.choferNombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    u.modelo?.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    u.modelo?.marca?.nombre.toLowerCase().includes(searchTerm.toLowerCase())
+    (u.vehiculo && u.vehiculo.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   const indexOfLastItem = currentPage * itemsPerPage;
@@ -67,7 +62,7 @@ export const UnidadesPage = () => {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
             <input 
               type="text" 
-              placeholder="Buscar por placa, chofer o modelo..." 
+              placeholder="Buscar por número, placa, chofer o vehículo..." 
               value={searchTerm}
               onChange={handleSearch}
               className="pl-10 pr-4 py-2.5 w-full sm:w-64 bg-white border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
@@ -75,12 +70,6 @@ export const UnidadesPage = () => {
           </div>
           
           <div className="flex gap-2">
-            <Button onClick={() => setIsMarcaModalOpen(true)} variant="secondary" icon={<Tags size={18} />}>
-              Marcas
-            </Button>
-            <Button onClick={() => setIsModeloModalOpen(true)} variant="secondary" icon={<Settings2 size={18} />}>
-              Modelos
-            </Button>
             <Button onClick={handleOpenCreate} icon={<Plus size={20} />}>
               Nueva Unidad
             </Button>
@@ -104,7 +93,7 @@ export const UnidadesPage = () => {
           <p className="text-[16px] text-gray-500 max-w-md mx-auto">
             {searchTerm 
               ? "No encontramos ninguna unidad que coincida con tu búsqueda." 
-              : "Comienza a gestionar tu flota agregando la primera unidad al sistema. No olvides registrar las marcas y modelos primero."}
+              : "Comienza a gestionar tu flota agregando la primera unidad al sistema."}
           </p>
         </div>
       ) : (
@@ -119,6 +108,9 @@ export const UnidadesPage = () => {
                   <div className="flex justify-between items-start gap-4 mb-3">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
+                        <span className="px-3 py-1 bg-green-100 text-green-800 border border-green-300 font-mono text-sm font-bold rounded-md tracking-wider">
+                          Nº {unidad.numeroUnidad || 'S/N'}
+                        </span>
                         <span className="px-3 py-1 bg-yellow-100 text-yellow-800 border border-yellow-300 font-mono text-sm font-bold rounded-md tracking-wider">
                           {unidad.placa}
                         </span>
@@ -126,15 +118,7 @@ export const UnidadesPage = () => {
                       
                       <div className="text-sm font-medium mb-1">
                         <span className="text-gray-500">Vehículo: </span>
-                        {unidad.modelo ? (
-                          <span className="text-gray-800">{unidad.modelo.marca?.nombre} {unidad.modelo.nombre}</span>
-                        ) : (
-                          <span className="text-gray-400 italic font-normal">Sin modelo</span>
-                        )}
-                      </div>
-                      
-                      <div className="text-sm text-gray-500 mb-2">
-                        {unidad.color} • Año {unidad.anio}
+                        <span className="text-gray-800 font-medium">{unidad.vehiculo || 'Sin detalle'}</span>
                       </div>
                     </div>
                     
@@ -148,7 +132,7 @@ export const UnidadesPage = () => {
                         <Edit2 size={16} />
                       </button>
                       <button 
-                        onClick={() => handleDelete(unidad.id, unidad.placa)}
+                        onClick={() => handleDelete(unidad.id, unidad.numeroUnidad || unidad.placa)}
                         className="p-1.5 text-red-600 bg-red-50 hover:bg-red-100 rounded-md transition-colors"
                         title="Eliminar"
                       >
@@ -191,20 +175,6 @@ export const UnidadesPage = () => {
           isOpen={isUnidadModalOpen} 
           onClose={() => setIsUnidadModalOpen(false)} 
           editingId={editingUnidadId}
-        />
-      )}
-
-      {isMarcaModalOpen && (
-        <MarcaManagerModal 
-          isOpen={isMarcaModalOpen} 
-          onClose={() => setIsMarcaModalOpen(false)} 
-        />
-      )}
-
-      {isModeloModalOpen && (
-        <ModeloManagerModal 
-          isOpen={isModeloModalOpen} 
-          onClose={() => setIsModeloModalOpen(false)} 
         />
       )}
     </div>

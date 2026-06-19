@@ -9,12 +9,14 @@ datasource db {
 }
 
 model Usuario {
-  id           Int      @id @default(autoincrement())
-  nombre       String
-  username     String   @unique
-  passwordHash String   @map("password_hash")
-  activo       Boolean  @default(true)
-  createdAt    DateTime @default(now()) @map("created_at")
+  id                Int      @id @default(autoincrement())
+  nombre            String
+  username          String   @unique
+  passwordHash      String   @map("password_hash")
+  rol               String   @default("CHARLIE")
+  modulosPermitidos String[] @map("modulos_permitidos") @default([])
+  activo            Boolean  @default(true)
+  createdAt         DateTime @default(now()) @map("created_at")
 
   @@map("usuarios")
 }
@@ -67,12 +69,27 @@ model Modelo {
   @@map("modelos")
 }
 
+model Chofer {
+  id        Int      @id @default(autoincrement())
+  nombre    String
+  telefono  String?
+  activo    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  unidades  Unidad[]
+
+  @@map("choferes")
+}
+
 model Unidad {
   id             Int       @id @default(autoincrement())
+  numeroUnidad   String?   @unique @map("numero_unidad")
   placa          String    @unique
-  modeloId       Int       @map("modelo_id")
-  modelo         Modelo    @relation(fields: [modeloId], references: [id])
-  choferNombre   String    @map("chofer_nombre")
+  vehiculo       String?
+  modeloId       Int?      @map("modelo_id")
+  modelo         Modelo?   @relation(fields: [modeloId], references: [id])
+  choferId       Int?      @map("chofer_id")
+  chofer         Chofer?   @relation(fields: [choferId], references: [id])
+  choferNombre   String?   @map("chofer_nombre")
   choferTelefono String?   @map("chofer_telefono")
   color          String?
   anio           Int?
@@ -80,6 +97,7 @@ model Unidad {
   carreras       Carrera[]
 
   @@index([modeloId])
+  @@index([choferId])
   @@map("unidades")
 }
 
