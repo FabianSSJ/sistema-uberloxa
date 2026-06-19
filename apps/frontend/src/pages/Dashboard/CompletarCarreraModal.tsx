@@ -80,7 +80,6 @@ export const CompletarCarreraModal: React.FC<CompletarCarreraModalProps> = ({
             fullWidth
             isLoading={completarMutation.isPending}
             disabled={!unidadId}
-            className="bg-green-600 hover:bg-green-700 text-white"
           >
             Terminar Carrera
           </Button>
