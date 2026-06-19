@@ -17,7 +17,7 @@ export class AuthController {
   @ApiResponse({ status: 200, description: 'Login exitoso, retorna access_token' })
   @ApiResponse({ status: 400, description: 'Payload inválido (class-validator)' })
   @ApiResponse({ status: 401, description: 'Credenciales inválidas' })
-  login(@Body() dto: LoginDto): Promise<{ access_token: string }> {
+  login(@Body() dto: LoginDto): Promise<any> {
     return this.authService.login(dto);
   }
 

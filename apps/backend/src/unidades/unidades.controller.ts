@@ -1,8 +1,13 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, ParseIntPipe, UseGuards } from '@nestjs/common';
 import { UnidadesService } from './unidades.service';
 import { CreateUnidadDto } from './dto/create-unidad.dto';
 import { UpdateUnidadDto } from './dto/update-unidad.dto';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { ModulesGuard } from '../auth/guards/modules.guard';
+import { RequireModule } from '../auth/decorators/modules.decorator';
 
+@UseGuards(JwtAuthGuard, ModulesGuard)
+@RequireModule('unidades')
 @Controller('unidades')
 export class UnidadesController {
   constructor(private readonly unidadesService: UnidadesService) {}

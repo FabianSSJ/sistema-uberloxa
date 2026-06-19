@@ -1,14 +1,14 @@
-import { IsInt, IsOptional, IsString } from 'class-validator';
+import { IsNumber, IsOptional, IsString } from 'class-validator';
 
 export class CreateCarreraDto {
-  @IsInt()
+  @IsNumber()
   clienteId: number;
 
+  @IsNumber()
   @IsOptional()
-  @IsInt()
   unidadId?: number;
 
-  @IsOptional()
   @IsString()
+  @IsOptional()
   notas?: string;
 }

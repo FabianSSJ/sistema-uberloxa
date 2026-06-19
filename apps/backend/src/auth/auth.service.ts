@@ -12,7 +12,7 @@ export class AuthService {
     private readonly jwtService: JwtService,
   ) {}
 
-  async login(dto: LoginDto): Promise<{ access_token: string }> {
+  async login(dto: LoginDto): Promise<any> {
     const usuario = await this.prisma.usuario.findUnique({
       where: { username: dto.username },
     });
@@ -31,10 +31,19 @@ export class AuthService {
       sub: usuario.id,
       username: usuario.username,
       nombre: usuario.nombre,
+      rol: usuario.rol,
+      modulosPermitidos: usuario.modulosPermitidos,
     };
 
     return {
-      access_token: this.jwtService.sign(payload),
+      access_token: await this.jwtService.signAsync(payload),
+      user: {
+        id: usuario.id,
+        nombre: usuario.nombre,
+        username: usuario.username,
+        rol: usuario.rol,
+        modulosPermitidos: usuario.modulosPermitidos,
+      }
     };
   }
 }

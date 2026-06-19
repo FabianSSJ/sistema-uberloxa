@@ -1,13 +1,39 @@
-import { Outlet, NavLink } from 'react-router-dom';
-import { Car, Users, Clock, Activity } from 'lucide-react';
+import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import { Car, Users, Clock, Activity, Settings, LogOut } from 'lucide-react';
+import { useAuth } from '../features/auth/context/AuthContext';
 
 const MainLayout = () => {
-  const navItems = [
-    { path: '/', icon: Activity, label: 'Dashboard' },
-    { path: '/unidades', icon: Car, label: 'Unidades' },
-    { path: '/clientes', icon: Users, label: 'Clientes' },
-    { path: '/carreras', icon: Clock, label: 'Carreras' }
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
+
+  const allNavItems = [
+    { path: '/', icon: Activity, label: 'Dashboard', reqModule: null },
+    { path: '/unidades', icon: Car, label: 'Unidades', reqModule: 'unidades' },
+    { path: '/clientes', icon: Users, label: 'Clientes', reqModule: 'clientes' },
+    { path: '/carreras', icon: Clock, label: 'Carreras', reqModule: 'carreras' }
   ];
+
+  if (user?.rol === 'SUPERADMIN') {
+    allNavItems.push({ path: '/gestor-usuarios', icon: Settings, label: 'Gestor de Usuarios', reqModule: null });
+  }
+
+  const navItems = allNavItems.filter((item) => {
+    if (!item.reqModule) return true; // Dashboard y Gestor siempre permitidos (si llegaron aquí)
+    if (user?.rol === 'SUPERADMIN') {
+      return true;
+    }
+    if (user?.rol === 'CHARLIE') {
+      // El Charlie no debe ver los menús de CRUD completos de unidades ni clientes
+      if (item.reqModule === 'unidades' || item.reqModule === 'clientes') return false;
+      return true;
+    }
+    return user?.modulosPermitidos?.includes(item.reqModule);
+  });
 
   return (
     <div className="min-h-screen bg-gray-100 font-sans text-gray-800">
@@ -18,13 +44,20 @@ const MainLayout = () => {
             <div className="w-12 h-12 bg-green-600 rounded-lg flex items-center justify-center">
               <Car size={28} color="#ffffff" />
             </div>
-            <div>
-              <h1 className="m-0 text-[32px] font-bold text-gray-800">Sistema UberLoxa</h1>
-              <p className="m-0 text-sm text-gray-600">Sistema de Gestión Integral</p>
+            <div className="flex flex-col justify-center">
+              <h1 className="m-0 text-2xl font-bold text-gray-800 tracking-tight leading-none">Sistema UberLoxa</h1>
             </div>
           </div>
-          <div className="text-base text-gray-600 font-medium">
-            {new Date().toLocaleDateString('es-EC', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+          <div className="text-base text-gray-600 font-medium flex items-center gap-6">
+            <span>{new Date().toLocaleDateString('es-EC', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
+            <div className="h-6 w-px bg-gray-300"></div>
+            <div className="flex items-center gap-3">
+              <span className="font-bold text-slate-800">{user?.nombre}</span>
+              <span className="px-2 py-0.5 text-xs font-bold bg-amber-100 text-amber-800 rounded-full">{user?.rol}</span>
+              <button onClick={handleLogout} className="ml-2 text-gray-500 hover:text-red-600 transition-colors cursor-pointer" title="Cerrar Sesión">
+                <LogOut size={20} />
+              </button>
+            </div>
           </div>
         </div>
       </header>
