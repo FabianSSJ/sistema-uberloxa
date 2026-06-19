@@ -49,5 +49,10 @@ export const carrerasService = {
   perder: async (id: number): Promise<Carrera> => {
     const response = await api.patch(`/carreras/${id}/perder`);
     return response.data;
+  },
+
+  remove: async (id: number): Promise<void> => {
+    const response = await api.delete(`/carreras/${id}`);
+    return response.data;
   }
 };

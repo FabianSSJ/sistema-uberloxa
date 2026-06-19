@@ -64,3 +64,15 @@ export const usePerderCarrera = () => {
   });
 };
 
+export const useDeleteCarrera = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: number) => carrerasService.remove(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['carreras'] });
+      queryClient.invalidateQueries({ queryKey: ['carreras', 'recent'] });
+    },
+  });
+};
+
