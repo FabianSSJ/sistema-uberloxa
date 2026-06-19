@@ -5,6 +5,7 @@ import { Button } from '../../components/ui/Button';
 import { Select } from '../../components/ui/Select';
 import { useModelos, useCreateModelo, useUpdateModelo, useDeleteModelo } from '../../features/modelos/hooks/useModelos';
 import { useMarcas } from '../../features/marcas/hooks/useMarcas';
+import { notify } from '../../components/ui/toast';
 import { Edit2, Trash2, Plus } from 'lucide-react';
 
 interface ModeloManagerModalProps {
@@ -37,7 +38,7 @@ export const ModeloManagerModal: React.FC<ModeloManagerModalProps> = ({ isOpen, 
       setNombre('');
       setEditingId(null);
     } catch (error: any) {
-      alert(error.response?.data?.message || 'Error al guardar el modelo');
+      notify.error(error.response?.data?.message || 'Error al guardar el modelo');
     }
   };
 
@@ -52,7 +53,7 @@ export const ModeloManagerModal: React.FC<ModeloManagerModalProps> = ({ isOpen, 
       try {
         await deleteMutation.mutateAsync(id);
       } catch (error: any) {
-        alert(error.response?.data?.message || 'Error al eliminar el modelo (puede estar en uso)');
+        notify.error(error.response?.data?.message || 'Error al eliminar el modelo (puede estar en uso)');
       }
     }
   };

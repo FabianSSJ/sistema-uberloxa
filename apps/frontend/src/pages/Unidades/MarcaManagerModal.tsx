@@ -3,6 +3,7 @@ import { Modal } from '../../components/ui/Modal';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { useMarcas, useCreateMarca, useUpdateMarca, useDeleteMarca } from '../../features/marcas/hooks/useMarcas';
+import { notify } from '../../components/ui/toast';
 import { Edit2, Trash2, Plus } from 'lucide-react';
 
 interface MarcaManagerModalProps {
@@ -32,7 +33,7 @@ export const MarcaManagerModal: React.FC<MarcaManagerModalProps> = ({ isOpen, on
       setNombre('');
       setEditingId(null);
     } catch (error: any) {
-      alert(error.response?.data?.message || 'Error al guardar la marca');
+      notify.error(error.response?.data?.message || 'Error al guardar la marca');
     }
   };
 
@@ -46,7 +47,7 @@ export const MarcaManagerModal: React.FC<MarcaManagerModalProps> = ({ isOpen, on
       try {
         await deleteMutation.mutateAsync(id);
       } catch (error: any) {
-        alert(error.response?.data?.message || 'Error al eliminar la marca (puede estar en uso)');
+        notify.error(error.response?.data?.message || 'Error al eliminar la marca (puede estar en uso)');
       }
     }
   };

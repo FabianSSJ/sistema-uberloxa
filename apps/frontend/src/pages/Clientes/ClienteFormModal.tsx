@@ -102,24 +102,24 @@ export const ClienteFormModal: React.FC<ClienteFormModalProps> = ({
           autoFocus
         />
 
-        <div className="flex gap-4">
-          <div className="flex-1">
-            <Input 
-              label="Teléfono" 
-              placeholder="0999999999" 
-              value={formData.telefono || ''} 
-              onChange={(e) => setFormData({ ...formData, telefono: e.target.value })} 
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
+          <div>
+            <Input
+              label="Teléfono"
+              placeholder="0999999999"
+              value={formData.telefono || ''}
+              onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
             />
             {(formData.telefono?.length || 0) > 10 && (
               <span className="text-xs text-amber-600 mt-1 inline-block font-medium">Nota: El número tiene más de 10 dígitos.</span>
             )}
           </div>
-          <div className="flex-1">
-            <Input 
-              label="Teléfono Alternativo" 
-              placeholder="Convencional o 2do cel" 
-              value={formData.telefonoAlt || ''} 
-              onChange={(e) => setFormData({ ...formData, telefonoAlt: e.target.value })} 
+          <div>
+            <Input
+              label="Teléfono Alternativo"
+              placeholder="Convencional o 2do cel"
+              value={formData.telefonoAlt || ''}
+              onChange={(e) => setFormData({ ...formData, telefonoAlt: e.target.value })}
             />
             {(formData.telefonoAlt?.length || 0) > 10 && (
               <span className="text-xs text-amber-600 mt-1 inline-block font-medium">Nota: El número tiene más de 10 dígitos.</span>

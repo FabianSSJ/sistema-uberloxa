@@ -26,7 +26,7 @@ export const UnidadDetailsModal: React.FC<UnidadDetailsModalProps> = ({ isOpen, 
 
   return (
     <div 
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-[fadeIn_0.2s_ease-in]"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm animate-[fadeIn_0.2s_ease-out]"
       onClick={onClose}
     >
       <div 
