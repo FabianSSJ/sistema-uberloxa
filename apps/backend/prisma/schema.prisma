@@ -8,12 +8,18 @@ datasource db {
   provider = "postgresql"
 }
 
+enum RolUsuario {
+  SUPERADMIN
+  ADMIN
+  CHARLIE
+}
+
 model Usuario {
-  id                Int      @id @default(autoincrement())
+  id                Int        @id @default(autoincrement())
   nombre            String
-  username          String   @unique
-  passwordHash      String   @map("password_hash")
-  rol               String   @default("CHARLIE")
+  username          String     @unique
+  passwordHash      String     @map("password_hash")
+  rol               RolUsuario @default(CHARLIE)
   modulosPermitidos String[] @map("modulos_permitidos") @default([])
   activo            Boolean  @default(true)
   createdAt         DateTime @default(now()) @map("created_at")
