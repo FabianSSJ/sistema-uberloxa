@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCarreraDto } from './dto/create-carrera.dto';
+import { EstadoCarrera } from '../../generated/prisma/client';
 
 @Injectable()
 export class CarrerasService {
@@ -139,7 +140,7 @@ export class CarrerasService {
     return updatedCarrera;
   }
 
-  async actualizarEstado(id: number, nuevoEstado: string) {
+  async actualizarEstado(id: number, nuevoEstado: EstadoCarrera) {
     const carrera = await this.findOne(id);
     
     // Validar que no se puede regresar a 'pendiente' o 'asignada' si ya está finalizada

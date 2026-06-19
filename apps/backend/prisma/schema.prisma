@@ -32,6 +32,7 @@ model Sector {
 
 model Cliente {
   id             Int       @id @default(autoincrement())
+  codigo         Int?      @unique
   nombre         String
   telefono       String?
   telefonoAlt    String?   @map("telefono_alt")
@@ -102,11 +103,11 @@ model Unidad {
 }
 
 enum EstadoCarrera {
-  sin_asignar
   pendiente
-  aceptada
-  perdida
+  asignada
+  completada
   cancelada
+  perdida
 }
 
 model Carrera {
@@ -116,7 +117,7 @@ model Carrera {
   unidadId    Int?                     @map("unidad_id")
   unidad      Unidad?                  @relation(fields: [unidadId], references: [id])
   creadoPorId Int?                     @map("creado_por")
-  estado      EstadoCarrera            @default(sin_asignar)
+  estado      EstadoCarrera            @default(pendiente)
   notas       String?
   createdAt   DateTime                 @default(now()) @map("created_at")
   fechaFin    DateTime?                @map("fecha_fin")
