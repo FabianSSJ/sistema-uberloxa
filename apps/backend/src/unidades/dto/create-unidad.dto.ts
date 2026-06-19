@@ -1,21 +1,18 @@
-import { IsNotEmpty, IsInt, IsString, IsOptional } from 'class-validator';
+import { IsNotEmpty, IsInt, IsString, IsOptional, Matches } from 'class-validator';
 
 export class CreateUnidadDto {
   @IsString()
   @IsNotEmpty()
-  placa: string;
-
-  @IsInt()
-  @IsNotEmpty()
-  modeloId: number;
+  @Matches(/^[0-9]+$/, { message: 'numeroUnidad debe ser estrictamente numérico (ej. 01)' })
+  numeroUnidad: string;
 
   @IsString()
   @IsNotEmpty()
-  color: string;
+  placa: string;
 
-  @IsInt()
+  @IsString()
   @IsNotEmpty()
-  anio: number;
+  vehiculo: string;
 
   @IsString()
   @IsNotEmpty()

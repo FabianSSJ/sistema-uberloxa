@@ -19,10 +19,13 @@ import { ClientesService } from './clientes.service';
 import { CreateClienteDto } from './dto/create-cliente.dto';
 import { UpdateClienteDto } from './dto/update-cliente.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { ModulesGuard } from '../auth/guards/modules.guard';
+import { RequireModule } from '../auth/decorators/modules.decorator';
 
 @ApiTags('Clientes')
 @ApiBearerAuth()
-// @UseGuards(JwtAuthGuard) // TODO: Descomentar cuando hagamos el Login en el Frontend
+@UseGuards(JwtAuthGuard, ModulesGuard)
+@RequireModule('clientes')
 @Controller('clientes')
 export class ClientesController {
   constructor(private readonly clientesService: ClientesService) {}

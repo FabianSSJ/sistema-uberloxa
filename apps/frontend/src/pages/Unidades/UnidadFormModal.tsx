@@ -2,10 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Modal } from '../../components/ui/Modal';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
-import { Select } from '../../components/ui/Select';
 import { useUnidades, useCreateUnidad, useUpdateUnidad } from '../../features/unidades/hooks/useUnidades';
-import { useMarcas } from '../../features/marcas/hooks/useMarcas';
-import { useModelos } from '../../features/modelos/hooks/useModelos';
 
 interface UnidadFormModalProps {
   isOpen: boolean;
@@ -15,19 +12,15 @@ interface UnidadFormModalProps {
 
 export const UnidadFormModal: React.FC<UnidadFormModalProps> = ({ isOpen, onClose, editingId }) => {
   const { data: unidades = [] } = useUnidades();
-  const { data: marcas = [] } = useMarcas();
-  const { data: modelos = [] } = useModelos();
   
   const createMutation = useCreateUnidad();
   const updateMutation = useUpdateUnidad();
 
   const [formData, setFormData] = useState({
-    placa: '',
-    marcaId: undefined as number | undefined,
-    modeloId: undefined as number | undefined,
-    color: '',
-    anio: new Date().getFullYear(),
+    numeroUnidad: '',
     choferNombre: '',
+    placa: '',
+    vehiculo: '',
     choferTelefono: '',
   });
 
@@ -36,44 +29,38 @@ export const UnidadFormModal: React.FC<UnidadFormModalProps> = ({ isOpen, onClos
       const unidad = unidades.find(u => u.id === editingId);
       if (unidad) {
         setFormData({
-          placa: unidad.placa,
-          marcaId: unidad.modelo?.marcaId,
-          modeloId: unidad.modeloId,
-          color: unidad.color,
-          anio: unidad.anio,
-          choferNombre: unidad.choferNombre,
+          numeroUnidad: unidad.numeroUnidad || '',
+          choferNombre: unidad.choferNombre || '',
+          placa: unidad.placa || '',
+          vehiculo: unidad.vehiculo || '',
           choferTelefono: unidad.choferTelefono || '',
         });
       }
     } else {
       setFormData({
-        placa: '',
-        marcaId: undefined,
-        modeloId: undefined,
-        color: '',
-        anio: new Date().getFullYear(),
+        numeroUnidad: '',
         choferNombre: '',
+        placa: '',
+        vehiculo: '',
         choferTelefono: '',
       });
     }
   }, [editingId, isOpen, unidades]);
 
-  // Modelos filtrados por la marca seleccionada
-  const modelosFiltrados = modelos.filter(m => m.marcaId === formData.marcaId);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.modeloId) {
-      alert('Debe seleccionar un modelo');
+
+    // Validar numeroUnidad que sea numerico
+    if (!/^[0-9]+$/.test(formData.numeroUnidad)) {
+      alert("El número de unidad debe ser estrictamente numérico (ej. 01, 12, etc.)");
       return;
     }
 
     const payload = {
-      placa: formData.placa,
-      modeloId: formData.modeloId,
-      color: formData.color,
-      anio: Number(formData.anio),
+      numeroUnidad: formData.numeroUnidad,
       choferNombre: formData.choferNombre,
+      placa: formData.placa,
+      vehiculo: formData.vehiculo,
       choferTelefono: formData.choferTelefono || undefined,
     };
 
@@ -93,84 +80,55 @@ export const UnidadFormModal: React.FC<UnidadFormModalProps> = ({ isOpen, onClos
     <Modal isOpen={isOpen} onClose={onClose} title={editingId ? 'Editar Unidad' : 'Nueva Unidad'}>
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         
-        <div>
-          <h4 className="text-sm font-semibold text-gray-800 mb-3">Datos del Chofer</h4>
-          <div className="flex gap-4">
-            <div className="flex-1">
-              <Input 
-                label="Nombre Chofer *" 
-                value={formData.choferNombre}
-                onChange={(e) => setFormData({ ...formData, choferNombre: e.target.value })}
-                required
-                autoFocus
-              />
-            </div>
-            <div className="flex-1">
-              <Input 
-                label="Teléfono Chofer" 
-                value={formData.choferTelefono}
-                onChange={(e) => setFormData({ ...formData, choferTelefono: e.target.value })}
-                placeholder="Opcional"
-              />
-              {(formData.choferTelefono?.length || 0) > 10 && (
-                <span className="text-xs text-amber-600 mt-1 inline-block font-medium">Nota: El número tiene más de 10 dígitos.</span>
-              )}
-            </div>
+        <div className="flex gap-4">
+          <div className="flex-1">
+            <Input 
+              label="Número de Unidad *" 
+              value={formData.numeroUnidad}
+              onChange={(e) => setFormData({ ...formData, numeroUnidad: e.target.value })}
+              placeholder="Ej: 01"
+              required
+              autoFocus
+            />
+          </div>
+          <div className="flex-[2]">
+            <Input 
+              label="Chofer (Nombres y Apellidos) *" 
+              value={formData.choferNombre}
+              onChange={(e) => setFormData({ ...formData, choferNombre: e.target.value })}
+              placeholder="Ej: José Lenin Jiménez Calva"
+              required
+            />
+          </div>
+        </div>
+
+        <div className="flex gap-4">
+          <div className="flex-[1]">
+            <Input 
+              label="Placa *" 
+              value={formData.placa}
+              onChange={(e) => setFormData({ ...formData, placa: e.target.value.toUpperCase() })}
+              placeholder="Ej: LBD 3995"
+              required
+            />
+          </div>
+          <div className="flex-[2]">
+            <Input 
+              label="Vehículo (Marca, Modelo, Color) *" 
+              value={formData.vehiculo}
+              onChange={(e) => setFormData({ ...formData, vehiculo: e.target.value })}
+              placeholder="Ej: Kia sóluto plomo"
+              required
+            />
           </div>
         </div>
 
         <div className="border-t border-gray-100 mt-2 pt-4">
-          <h4 className="text-sm font-semibold text-gray-800 mb-3">Datos del Vehículo</h4>
-          <div className="flex gap-4 mb-4">
-            <div className="flex-1">
-              <Input 
-                label="Placa *" 
-                value={formData.placa}
-                onChange={(e) => setFormData({ ...formData, placa: e.target.value.toUpperCase() })}
-                placeholder="Ej: LBA-1234"
-                required
-              />
-            </div>
-            <div className="flex-1">
-              <Input 
-                label="Año *" 
-                type="number"
-                value={formData.anio.toString()}
-                onChange={(e) => setFormData({ ...formData, anio: parseInt(e.target.value) || new Date().getFullYear() })}
-                required
-              />
-            </div>
-          </div>
-
-          <div className="flex gap-4 mb-4">
-            <div className="flex-1">
-              <Select 
-                label="Marca *"
-                options={marcas.map(m => ({ value: m.id, label: m.nombre }))}
-                value={formData.marcaId}
-                onChange={(val) => setFormData({ ...formData, marcaId: Number(val), modeloId: undefined })}
-                placeholder="Seleccione..."
-                searchable
-              />
-            </div>
-            <div className="flex-1">
-              <Select 
-                label="Modelo *"
-                options={modelosFiltrados.map(m => ({ value: m.id, label: m.nombre }))}
-                value={formData.modeloId}
-                onChange={(val) => setFormData({ ...formData, modeloId: Number(val) })}
-                placeholder={formData.marcaId ? "Seleccione modelo..." : "Primero elija marca"}
-                searchable
-              />
-            </div>
-          </div>
-
           <Input 
-            label="Color *" 
-            value={formData.color}
-            onChange={(e) => setFormData({ ...formData, color: e.target.value })}
-            placeholder="Ej: Amarillo"
-            required
+            label="Teléfono del Chofer" 
+            value={formData.choferTelefono}
+            onChange={(e) => setFormData({ ...formData, choferTelefono: e.target.value })}
+            placeholder="Opcional"
           />
         </div>
 

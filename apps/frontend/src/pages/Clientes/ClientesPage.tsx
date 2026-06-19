@@ -31,11 +31,16 @@ export const ClientesPage = () => {
     setIsModalOpen(true);
   };
 
-  const filteredClientes = clientes.filter(c => 
-    c.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c.telefono?.includes(searchTerm) ||
-    c.sector?.nombre.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredClientes = clientes.filter(c => {
+    const term = searchTerm.toLowerCase().trim();
+    if (!term) return true;
+    
+    // Buscar exactamente por el ID numérico o el código formateado
+    const idFormatted = String(c.id).padStart(2, '0');
+    const exactId = String(c.id);
+    
+    return idFormatted === term || exactId === term || idFormatted.includes(term);
+  });
 
   // Pagination logic
   const indexOfLastItem = currentPage * itemsPerPage;
@@ -62,7 +67,7 @@ export const ClientesPage = () => {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
             <input 
               type="text" 
-              placeholder="Buscar cliente..." 
+              placeholder="Buscar por código (ej. 01, 1)..." 
               value={searchTerm}
               onChange={handleSearch}
               className="pl-10 pr-4 py-2.5 w-full sm:w-64 bg-white border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"

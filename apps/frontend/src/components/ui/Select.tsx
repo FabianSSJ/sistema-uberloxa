@@ -57,8 +57,10 @@ export const Select: React.FC<SelectProps> = ({
 
   const filteredOptions = useMemo(() => {
     if (!searchable || !searchTerm) return options;
+    const term = searchTerm.toLowerCase();
     return options.filter(opt => 
-      opt.label.toLowerCase().includes(searchTerm.toLowerCase())
+      opt.label.toLowerCase().includes(term) || 
+      String(opt.value).toLowerCase().includes(term)
     );
   }, [options, searchable, searchTerm]);
 

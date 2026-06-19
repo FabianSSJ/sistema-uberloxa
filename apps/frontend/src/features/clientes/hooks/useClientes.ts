@@ -4,7 +4,10 @@ import { clientesService, CreateClienteDto, UpdateClienteDto } from '../services
 export const useClientes = () => {
   return useQuery({
     queryKey: ['clientes'],
-    queryFn: clientesService.getAll,
+    queryFn: async () => {
+      const data = await clientesService.getAll();
+      return data.sort((a: any, b: any) => a.id - b.id);
+    },
   });
 };
 
