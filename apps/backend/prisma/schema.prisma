@@ -89,20 +89,27 @@ model Chofer {
   @@map("choferes")
 }
 
+enum EstadoUnidad {
+  disponible
+  ocupado
+  inactivo
+}
+
 model Unidad {
-  id             Int       @id @default(autoincrement())
-  numeroUnidad   String?   @unique @map("numero_unidad")
-  placa          String    @unique
+  id             Int          @id @default(autoincrement())
+  numeroUnidad   String?      @unique @map("numero_unidad")
+  placa          String       @unique
   vehiculo       String?
-  modeloId       Int?      @map("modelo_id")
-  modelo         Modelo?   @relation(fields: [modeloId], references: [id])
-  choferId       Int?      @map("chofer_id")
-  chofer         Chofer?   @relation(fields: [choferId], references: [id])
-  choferNombre   String?   @map("chofer_nombre")
-  choferTelefono String?   @map("chofer_telefono")
+  modeloId       Int?         @map("modelo_id")
+  modelo         Modelo?      @relation(fields: [modeloId], references: [id])
+  choferId       Int?         @map("chofer_id")
+  chofer         Chofer?      @relation(fields: [choferId], references: [id])
+  choferNombre   String?      @map("chofer_nombre")
+  choferTelefono String?      @map("chofer_telefono")
   color          String?
   anio           Int?
-  createdAt      DateTime  @default(now()) @map("created_at")
+  estado         EstadoUnidad @default(disponible)
+  createdAt      DateTime     @default(now()) @map("created_at")
   carreras       Carrera[]
 
   @@index([modeloId])

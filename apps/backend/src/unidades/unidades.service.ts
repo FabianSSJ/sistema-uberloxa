@@ -2,6 +2,7 @@ import { Injectable, ConflictException, NotFoundException } from '@nestjs/common
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUnidadDto } from './dto/create-unidad.dto';
 import { UpdateUnidadDto } from './dto/update-unidad.dto';
+import { EstadoUnidad } from '../../generated/prisma/client';
 
 @Injectable()
 export class UnidadesService {
@@ -104,6 +105,14 @@ export class UnidadesService {
     return this.prisma.unidad.update({
       where: { id },
       data: dataToUpdate
+    });
+  }
+
+  async cambiarEstado(id: number, estado: EstadoUnidad) {
+    await this.findOne(id); // verifica existencia
+    return this.prisma.unidad.update({
+      where: { id },
+      data: { estado },
     });
   }
 

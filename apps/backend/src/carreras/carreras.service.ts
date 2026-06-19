@@ -53,6 +53,14 @@ export class CarrerasService {
       }
     });
 
+    // Al asignarle una carrera, la unidad pasa a 'ocupado' automaticamente.
+    if (createCarreraDto.unidadId) {
+      await this.prisma.unidad.update({
+        where: { id: createCarreraDto.unidadId },
+        data: { estado: 'ocupado' },
+      });
+    }
+
     return carrera;
   }
 
