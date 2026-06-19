@@ -14,7 +14,7 @@ export const UnidadesPage = () => {
 
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const itemsPerPage = 12;
 
   const handleDelete = async (id: number, numero: string) => {
     if (window.confirm(`¿Estás seguro de eliminar la unidad ${numero}?`)) {
@@ -49,12 +49,12 @@ export const UnidadesPage = () => {
   };
 
   return (
-    <div className="animate-[fadeIn_0.5s_ease-in] flex flex-col h-full">
+    <div className="animate-[fadeIn_0.5s_ease-in]">
       {/* Header & Actions */}
-      <div className="flex flex-col xl:flex-row xl:justify-between xl:items-center mb-6 gap-4">
+      <div className="flex flex-col xl:flex-row xl:justify-between xl:items-center mb-8 gap-4">
         <h2 className="text-2xl md:text-[28px] text-gray-800 m-0 font-bold flex items-center gap-3">
           <Car className="text-blue-600" size={32} />
-          Directorio de Unidades
+          Gestión de Unidades
         </h2>
         
         <div className="flex flex-col sm:flex-row flex-wrap gap-3">
@@ -65,7 +65,7 @@ export const UnidadesPage = () => {
               placeholder="Buscar por número, placa, chofer o vehículo..." 
               value={searchTerm}
               onChange={handleSearch}
-              className="pl-10 pr-4 py-2 w-full sm:w-72 bg-white border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+              className="pl-10 pr-4 py-2.5 w-full sm:w-64 bg-white border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
             />
           </div>
           
@@ -79,18 +79,18 @@ export const UnidadesPage = () => {
 
       {/* Content State */}
       {isLoading ? (
-        <div className="flex justify-center items-center py-20 flex-1">
-          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
+        <div className="flex justify-center items-center py-20">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
         </div>
       ) : isError ? (
         <div className="bg-red-50 text-red-600 p-4 rounded-md text-center">
           Ocurrió un error al cargar las unidades. Por favor, intenta nuevamente.
         </div>
       ) : filteredUnidades.length === 0 ? (
-        <div className="text-center py-20 px-5 text-gray-500 bg-white rounded-lg border border-gray-200 border-dashed flex-1">
-          <Car size={48} className="mx-auto mb-4 opacity-30 text-blue-400" />
+        <div className="text-center py-[60px] px-5 text-gray-500 bg-white rounded-lg border border-gray-200 border-dashed">
+          <Car size={64} className="mx-auto mb-5 opacity-50 text-blue-400" />
           <h3 className="text-xl font-medium text-gray-700 mb-2">Aún no hay unidades registradas</h3>
-          <p className="text-base text-gray-500 max-w-md mx-auto">
+          <p className="text-[16px] text-gray-500 max-w-md mx-auto">
             {searchTerm 
               ? "No encontramos ninguna unidad que coincida con tu búsqueda." 
               : "Comienza a gestionar tu flota agregando la primera unidad al sistema."}
@@ -151,73 +151,22 @@ export const UnidadesPage = () => {
                       <span className="text-blue-600 font-mono text-sm bg-blue-50 px-2 py-0.5 rounded">
                         {unidad.choferTelefono}
                       </span>
-                    </td>
-
-                    {/* Vehículo */}
-                    <td className="px-6 py-4 align-middle">
-                      {unidad.modelo ? (
-                        <div className="font-semibold text-gray-800 text-[15px]">
-                          {unidad.modelo.marca?.nombre} {unidad.modelo.nombre}
-                        </div>
-                      ) : (
-                        <div className="text-gray-400 italic">Sin modelo</div>
-                      )}
-                    </td>
-
-                    {/* Detalles */}
-                    <td className="px-6 py-4 align-middle text-gray-600">
-                      <div className="flex gap-2 mb-1">
-                        <span className="bg-white px-2 py-0.5 rounded border border-gray-200 text-xs">Color: <strong>{unidad.color || '-'}</strong></span>
-                        <span className="bg-white px-2 py-0.5 rounded border border-gray-200 text-xs">Año: <strong>{unidad.anio || '-'}</strong></span>
-                      </div>
-                    </td>
-
-                    {/* Chofer */}
-                    <td className="px-6 py-4 align-middle">
-                      <div className="font-bold text-gray-800 text-[15px]">{unidad.choferNombre}</div>
-                      {unidad.choferTelefono ? (
-                        <div className="text-blue-700 font-mono text-sm mt-1 inline-block bg-white border border-blue-100 px-2 py-1 rounded shadow-sm">
-                          {unidad.choferTelefono}
-                        </div>
-                      ) : (
-                        <div className="text-gray-400 italic text-xs mt-1">Sin teléfono</div>
-                      )}
-                    </td>
-
-                    {/* Acciones */}
-                    <td className="px-6 py-4 align-middle">
-                      <div className="flex justify-center gap-2 opacity-0 md:opacity-100 xl:opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                        <button 
-                          onClick={() => handleOpenEdit(unidad.id)}
-                          className="p-1.5 text-blue-600 bg-white hover:bg-blue-100 border border-blue-100 rounded shadow-sm transition-all"
-                          title="Editar"
-                        >
-                          <Edit2 size={16} />
-                        </button>
-                        <button 
-                          onClick={() => handleDelete(unidad.id, unidad.placa)}
-                          className="p-1.5 text-red-600 bg-white hover:bg-red-100 border border-red-100 rounded shadow-sm transition-all"
-                          title="Eliminar"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    ) : (
+                      <span className="text-gray-400 italic text-xs">Sin teléfono</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
-          
-          <div className="p-4 border-t border-gray-200 bg-gray-50 mt-auto">
-            <Pagination 
-              currentPage={currentPage}
-              totalItems={filteredUnidades.length}
-              itemsPerPage={itemsPerPage}
-              onPageChange={setCurrentPage}
-            />
-          </div>
-        </div>
+
+          <Pagination 
+            currentPage={currentPage}
+            totalItems={filteredUnidades.length}
+            itemsPerPage={itemsPerPage}
+            onPageChange={setCurrentPage}
+          />
+        </>
       )}
 
       {/* Modals */}

@@ -1,13 +1,18 @@
 import { useState } from 'react';
-import { Clock, Plus, MapPin, CheckCircle2, Search } from 'lucide-react';
-import { useCarreras } from '../../features/carreras/hooks/useCarreras';
+import { Clock, Plus, MapPin, CheckCircle2, Search, Trash2 } from 'lucide-react';
+import { useCarreras, useDeleteCarrera } from '../../features/carreras/hooks/useCarreras';
 import { CarreraFormModal } from '../Dashboard/CarreraFormModal';
 import { Button } from '../../components/ui/Button';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
+import { useAuth } from '../../features/auth/context/AuthContext';
 
 export const CarrerasPage = () => {
+  const { user } = useAuth();
   const { data: carreras = [], isLoading, isError } = useCarreras();
+  const deleteCarreraMutation = useDeleteCarrera();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [careerToDelete, setCareerToDelete] = useState<number | null>(null);
 
   const formatTime = (isoString: string) => {
     try {
@@ -156,6 +161,16 @@ export const CarrerasPage = () => {
                   }`}>
                     {carrera.estado.toUpperCase()}
                   </span>
+
+                  {user?.rol === 'SUPERADMIN' && (
+                    <button 
+                      onClick={() => setCareerToDelete(carrera.id)}
+                      className="ml-2 text-red-500 hover:text-red-700 hover:bg-red-50 p-1 rounded transition-colors"
+                      title="Eliminar Carrera Permanentemente"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -169,6 +184,20 @@ export const CarrerasPage = () => {
           onClose={() => setIsModalOpen(false)}
         />
       )}
+
+      <ConfirmDialog
+        isOpen={careerToDelete !== null}
+        onClose={() => setCareerToDelete(null)}
+        onConfirm={() => {
+          if (careerToDelete !== null) {
+            deleteCarreraMutation.mutate(careerToDelete);
+          }
+          setCareerToDelete(null);
+        }}
+        title="Eliminar Carrera"
+        message="¿Estás seguro de eliminar esta carrera permanentemente? Esta acción no se puede deshacer."
+        confirmText="Sí, Eliminar"
+      />
     </div>
   );
 };
