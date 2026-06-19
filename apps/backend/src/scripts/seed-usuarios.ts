@@ -17,7 +17,7 @@ const prisma = new PrismaClient({ adapter });
 //  - ADMIN: no bypassa -> necesita todos los modulos para acceso operativo full.
 //  - CHARLIE: no bypassa; el front lo limita a Carreras -> solo 'carreras'.
 const USUARIOS = [
-  { nombre: 'Administrador', username: 'admin',         password: 'admin',         rol: 'SUPERADMIN', modulosPermitidos: [] as string[] },
+  { nombre: 'Administrador', username: 'admin',         password: 'admin123',      rol: 'SUPERADMIN', modulosPermitidos: [] as string[] },
   { nombre: 'Byron',         username: 'ByronUber',     password: 'byronuber',     rol: 'ADMIN',      modulosPermitidos: ['carreras', 'clientes', 'unidades', 'choferes'] },
   { nombre: 'Kathia',        username: 'KathiaUber',    password: 'KathiaUber',    rol: 'CHARLIE',    modulosPermitidos: ['carreras'] },
   { nombre: 'Carmita',       username: 'CarmitaUber',   password: 'CarmitaUber',   rol: 'CHARLIE',    modulosPermitidos: ['carreras'] },
