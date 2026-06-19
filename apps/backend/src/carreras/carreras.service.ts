@@ -7,7 +7,7 @@ import { EstadoCarrera } from '../../generated/prisma/client';
 export class CarrerasService {
   constructor(private prisma: PrismaService) {}
 
-  async create(createCarreraDto: CreateCarreraDto) {
+  async create(createCarreraDto: CreateCarreraDto, userId?: number) {
     const cliente = await this.prisma.cliente.findUnique({
       where: { id: createCarreraDto.clienteId }
     });
@@ -30,6 +30,7 @@ export class CarrerasService {
         unidadId: createCarreraDto.unidadId || null,
         notas: createCarreraDto.notas || null,
         estado: createCarreraDto.unidadId ? 'asignada' : 'pendiente',
+        creadoPorId: userId || null,
       },
       include: {
         cliente: {
@@ -37,6 +38,9 @@ export class CarrerasService {
         },
         unidad: {
           include: { modelo: { include: { marca: true } } }
+        },
+        creadoPor: {
+          select: { id: true, nombre: true, rol: true }
         }
       }
     });
@@ -60,9 +64,13 @@ export class CarrerasService {
         },
         unidad: {
           include: { modelo: { include: { marca: true } } }
+        },
+        creadoPor: {
+          select: { id: true, nombre: true, rol: true }
         }
       },
       orderBy: { id: 'desc' },
+      take: 100, // Limitar a las ultimas 100 por ahora
     });
   }
 
@@ -75,7 +83,8 @@ export class CarrerasService {
         },
         unidad: {
           include: { modelo: { include: { marca: true } } }
-        }
+        },
+        creadoPor: { select: { id: true, nombre: true, rol: true } }
       },
       orderBy: { id: 'desc' },
     });
@@ -90,7 +99,8 @@ export class CarrerasService {
         },
         unidad: {
           include: { modelo: { include: { marca: true } } }
-        }
+        },
+        creadoPor: { select: { id: true, nombre: true, rol: true } }
       }
     });
     if (!carrera) {
@@ -112,12 +122,12 @@ export class CarrerasService {
       }
     }
 
-    const updatedCarrera = await this.prisma.carrera.update({
+    const updated = await this.prisma.carrera.update({
       where: { id },
       data: {
         estado: 'completada',
         fechaFin: new Date(),
-        unidadId: uId,
+        unidadId: unidadId !== undefined ? unidadId : carrera.unidadId
       },
       include: {
         cliente: {
@@ -125,7 +135,8 @@ export class CarrerasService {
         },
         unidad: {
           include: { modelo: { include: { marca: true } } }
-        }
+        },
+        creadoPor: { select: { id: true, nombre: true, rol: true } }
       }
     });
 
@@ -137,7 +148,7 @@ export class CarrerasService {
       }
     });
 
-    return updatedCarrera;
+    return updated;
   }
 
   async actualizarEstado(id: number, nuevoEstado: EstadoCarrera) {
@@ -149,7 +160,7 @@ export class CarrerasService {
       throw new BadRequestException(`No se puede cambiar el estado de una carrera que ya está ${carrera.estado}`);
     }
 
-    const updatedCarrera = await this.prisma.carrera.update({
+    const updated = await this.prisma.carrera.update({
       where: { id },
       data: {
         estado: nuevoEstado,
@@ -161,7 +172,8 @@ export class CarrerasService {
         },
         unidad: {
           include: { modelo: { include: { marca: true } } }
-        }
+        },
+        creadoPor: { select: { id: true, nombre: true, rol: true } }
       }
     });
 
@@ -173,7 +185,7 @@ export class CarrerasService {
       }
     });
 
-    return updatedCarrera;
+    return updated;
   }
 
   async cancelar(id: number) {
@@ -182,5 +194,16 @@ export class CarrerasService {
 
   async perder(id: number) {
     return this.actualizarEstado(id, 'perdida');
+  }
+
+  async remove(id: number) {
+    // Primero borrar el historial relacionado
+    await this.prisma.historialEstadoCarrera.deleteMany({
+      where: { carreraId: id }
+    });
+    // Luego borrar la carrera
+    return this.prisma.carrera.delete({
+      where: { id }
+    });
   }
 }

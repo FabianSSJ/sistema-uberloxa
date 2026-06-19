@@ -1,23 +1,35 @@
-import { Car, Users, Clock, Plus, Search } from 'lucide-react';
+import { Car, Users, Clock, Plus, Search, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 
 import { useClientes } from '../../features/clientes/hooks/useClientes';
 import { useUnidades } from '../../features/unidades/hooks/useUnidades';
-import { useCarreras, useCreateCarrera, useCompletarCarrera, useCancelarCarrera, usePerderCarrera } from '../../features/carreras/hooks/useCarreras';
+import { useCarreras, useCreateCarrera, useCompletarCarrera, useCancelarCarrera, usePerderCarrera, useDeleteCarrera } from '../../features/carreras/hooks/useCarreras';
 import { CarreraFormModal } from './CarreraFormModal';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
+import { useAuth } from '../../features/auth/context/AuthContext';
 
 export const CharlieDashboard = () => {
+  const { user } = useAuth();
   const { data: clientes = [] } = useClientes();
   const { data: unidades = [] } = useUnidades();
-  const { data: allRides = [] } = useCarreras();
+  const { data: allRidesData = [] } = useCarreras();
+  
+  // Filtrar para que el Charlie solo vea las carreras que Acl mismo ha creado
+  const allRides = allRidesData.filter((r: any) => {
+    // Si no hay user.id guardado en la carrera (carreras antiguas), o si coincide con el usuario actual
+    return !r.creadoPorId || r.creadoPorId === user?.id;
+  });
+
   const createCarreraMutation = useCreateCarrera();
   const completarMutation = useCompletarCarrera();
   const cancelarMutation = useCancelarCarrera();
   const perderMutation = usePerderCarrera();
+  const deleteCarreraMutation = useDeleteCarrera();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchChofer, setSearchChofer] = useState('');
   const [searchCliente, setSearchCliente] = useState('');
+  const [careerToDelete, setCareerToDelete] = useState<number | null>(null);
   
   const [draggedItem, setDraggedItem] = useState<{type: 'CHOFER' | 'CLIENTE', id: number} | null>(null);
   const [dragOverItem, setDragOverItem] = useState<{type: 'CHOFER' | 'CLIENTE', id: number} | null>(null);
@@ -244,9 +256,20 @@ export const CharlieDashboard = () => {
                     {r.unidad ? `Unidad ${r.unidad.numeroUnidad} - ${r.unidad.choferNombre}` : 'Sin unidad asignada'}
                   </p>
                   <div className="mt-3 flex items-center justify-between">
-                    <span className={`px-2.5 py-1 text-xs font-black rounded-md border ${colorClass}`}>
-                      {r.estado.toUpperCase()}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className={`px-2.5 py-1 text-xs font-black rounded-md border ${colorClass}`}>
+                        {r.estado.toUpperCase()}
+                      </span>
+                      {user?.rol === 'SUPERADMIN' && (
+                        <button 
+                          onClick={() => setCareerToDelete(r.id)}
+                          className="text-red-500 hover:text-red-700 hover:bg-red-50 p-1 rounded transition-colors"
+                          title="Eliminar Carrera Permanentemente"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      )}
+                    </div>
                     {['pendiente', 'asignada'].includes(r.estado) && (
                       <div className="flex gap-1.5">
                         <button 
@@ -285,6 +308,20 @@ export const CharlieDashboard = () => {
           onClose={() => setIsModalOpen(false)} 
         />
       )}
+
+      <ConfirmDialog
+        isOpen={careerToDelete !== null}
+        onClose={() => setCareerToDelete(null)}
+        onConfirm={() => {
+          if (careerToDelete !== null) {
+            deleteCarreraMutation.mutate(careerToDelete);
+          }
+          setCareerToDelete(null);
+        }}
+        title="Eliminar Carrera"
+        message="¿Estás seguro de eliminar esta carrera permanentemente? Esta acción no se puede deshacer."
+        confirmText="Sí, Eliminar"
+      />
     </div>
   );
 };
