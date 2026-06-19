@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { useUnidades, useDeleteUnidad } from '../../features/unidades/hooks/useUnidades';
 import { UnidadFormModal } from './UnidadFormModal';
+import { MarcaManagerModal } from './MarcaManagerModal';
+import { ModeloManagerModal } from './ModeloManagerModal';
 import { Button } from '../../components/ui/Button';
 import { Pagination } from '../../components/ui/Pagination';
 import { EstadoUnidadBadge } from '../../features/unidades/components/EstadoUnidadBadge';
 import { rankBy, scoreUnidad } from '../../core/search/matchers';
-import { Car, Search, Edit2, Trash2, Plus } from 'lucide-react';
+import { Car, Search, Edit2, Trash2, Plus, Settings2, Tags } from 'lucide-react';
 
 export const UnidadesPage = () => {
   const { data: unidades = [], isLoading, isError } = useUnidades();
@@ -13,6 +15,9 @@ export const UnidadesPage = () => {
 
   const [isUnidadModalOpen, setIsUnidadModalOpen] = useState(false);
   const [editingUnidadId, setEditingUnidadId] = useState<number | null>(null);
+
+  const [isMarcaModalOpen, setIsMarcaModalOpen] = useState(false);
+  const [isModeloModalOpen, setIsModeloModalOpen] = useState(false);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -67,7 +72,13 @@ export const UnidadesPage = () => {
           </div>
           
           <div className="flex gap-2">
-            <Button onClick={handleOpenCreate} icon={<Plus size={20} />}>
+            <Button onClick={() => setIsMarcaModalOpen(true)} variant="secondary" icon={<Tags size={18} />}>
+              Marcas
+            </Button>
+            <Button onClick={() => setIsModeloModalOpen(true)} variant="secondary" icon={<Settings2 size={18} />}>
+              Modelos
+            </Button>
+            <Button onClick={handleOpenCreate} icon={<Plus size={18} />}>
               Nueva Unidad
             </Button>
           </div>
@@ -169,8 +180,25 @@ export const UnidadesPage = () => {
       {isUnidadModalOpen && (
         <UnidadFormModal 
           isOpen={isUnidadModalOpen} 
-          onClose={() => setIsUnidadModalOpen(false)} 
+          onClose={() => {
+            setIsUnidadModalOpen(false);
+            setEditingUnidadId(null);
+          }} 
           editingId={editingUnidadId}
+        />
+      )}
+
+      {isMarcaModalOpen && (
+        <MarcaManagerModal 
+          isOpen={isMarcaModalOpen} 
+          onClose={() => setIsMarcaModalOpen(false)} 
+        />
+      )}
+
+      {isModeloModalOpen && (
+        <ModeloManagerModal 
+          isOpen={isModeloModalOpen} 
+          onClose={() => setIsModeloModalOpen(false)} 
         />
       )}
     </div>
