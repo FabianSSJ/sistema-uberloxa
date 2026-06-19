@@ -1,53 +1,66 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { carrerasService, CreateCarreraDto, AssignUnidadDto, UpdateEstadoCarreraDto } from '../services/carreras.service';
-import toast from 'react-hot-toast';
+import { carrerasService, CreateCarreraDto } from '../services/carreras.service';
 
 export const useCarreras = () => {
-  const queryClient = useQueryClient();
-
-  const carrerasQuery = useQuery({
+  return useQuery({
     queryKey: ['carreras'],
     queryFn: carrerasService.getAll,
-    refetchInterval: 5000, // Polling cada 5 segundos para mantener el despacho actualizado
   });
+};
 
-  const createMutation = useMutation({
+export const useRecentCarreras = () => {
+  return useQuery({
+    queryKey: ['carreras', 'recent'],
+    queryFn: carrerasService.getRecent,
+  });
+};
+
+export const useCreateCarrera = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
     mutationFn: (data: CreateCarreraDto) => carrerasService.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['carreras'] });
-      toast.success('Carrera creada exitosamente');
-    },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Error al crear la carrera');
+      queryClient.invalidateQueries({ queryKey: ['carreras', 'recent'] });
     },
   });
-
-  const assignUnidadMutation = useMutation({
-    mutationFn: ({ id, data }: { id: number; data: AssignUnidadDto }) => carrerasService.assignUnidad(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['carreras'] });
-      toast.success('Unidad asignada exitosamente');
-    },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Error al asignar la unidad');
-    },
-  });
-
-  const updateEstadoMutation = useMutation({
-    mutationFn: ({ id, data }: { id: number; data: UpdateEstadoCarreraDto }) => carrerasService.updateEstado(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['carreras'] });
-      toast.success('Estado actualizado');
-    },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Error al actualizar el estado');
-    },
-  });
-
-  return {
-    carrerasQuery,
-    createMutation,
-    assignUnidadMutation,
-    updateEstadoMutation,
-  };
 };
+
+export const useCompletarCarrera = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, unidadId }: { id: number; unidadId?: number }) =>
+      carrerasService.completar(id, unidadId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['carreras'] });
+      queryClient.invalidateQueries({ queryKey: ['carreras', 'recent'] });
+    },
+  });
+};
+
+export const useCancelarCarrera = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: number) => carrerasService.cancelar(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['carreras'] });
+      queryClient.invalidateQueries({ queryKey: ['carreras', 'recent'] });
+    },
+  });
+};
+
+export const usePerderCarrera = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: number) => carrerasService.perder(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['carreras'] });
+      queryClient.invalidateQueries({ queryKey: ['carreras', 'recent'] });
+    },
+  });
+};
+

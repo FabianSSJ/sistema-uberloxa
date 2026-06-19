@@ -1,11 +1,9 @@
 import React, { useState } from 'react';
 import { useUnidades, useDeleteUnidad } from '../../features/unidades/hooks/useUnidades';
 import { UnidadFormModal } from './UnidadFormModal';
-import { MarcaManagerModal } from './MarcaManagerModal';
-import { ModeloManagerModal } from './ModeloManagerModal';
 import { Button } from '../../components/ui/Button';
 import { Pagination } from '../../components/ui/Pagination';
-import { Car, Search, Edit2, Trash2, Plus, Settings2, Tags } from 'lucide-react';
+import { Car, Search, Edit2, Trash2, Plus } from 'lucide-react';
 
 export const UnidadesPage = () => {
   const { data: unidades = [], isLoading, isError } = useUnidades();
@@ -13,16 +11,13 @@ export const UnidadesPage = () => {
 
   const [isUnidadModalOpen, setIsUnidadModalOpen] = useState(false);
   const [editingUnidadId, setEditingUnidadId] = useState<number | null>(null);
-  
-  const [isMarcaModalOpen, setIsMarcaModalOpen] = useState(false);
-  const [isModeloModalOpen, setIsModeloModalOpen] = useState(false);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
-  const handleDelete = async (id: number, placa: string) => {
-    if (window.confirm(`¿Estás seguro de eliminar la unidad ${placa}?`)) {
+  const handleDelete = async (id: number, numero: string) => {
+    if (window.confirm(`¿Estás seguro de eliminar la unidad ${numero}?`)) {
       deleteMutation.mutate(id);
     }
   };
@@ -39,9 +34,9 @@ export const UnidadesPage = () => {
 
   const filteredUnidades = unidades.filter(u => 
     u.placa.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (u.numeroUnidad && u.numeroUnidad.toLowerCase().includes(searchTerm.toLowerCase())) ||
     u.choferNombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    u.modelo?.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    u.modelo?.marca?.nombre.toLowerCase().includes(searchTerm.toLowerCase())
+    (u.vehiculo && u.vehiculo.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   const indexOfLastItem = currentPage * itemsPerPage;
@@ -67,7 +62,7 @@ export const UnidadesPage = () => {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
             <input 
               type="text" 
-              placeholder="Buscar por placa, chofer o modelo..." 
+              placeholder="Buscar por número, placa, chofer o vehículo..." 
               value={searchTerm}
               onChange={handleSearch}
               className="pl-10 pr-4 py-2 w-full sm:w-72 bg-white border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
@@ -75,13 +70,7 @@ export const UnidadesPage = () => {
           </div>
           
           <div className="flex gap-2">
-            <Button onClick={() => setIsMarcaModalOpen(true)} variant="secondary" icon={<Tags size={18} />}>
-              Marcas
-            </Button>
-            <Button onClick={() => setIsModeloModalOpen(true)} variant="secondary" icon={<Settings2 size={18} />}>
-              Modelos
-            </Button>
-            <Button onClick={handleOpenCreate} icon={<Plus size={18} />}>
+            <Button onClick={handleOpenCreate} icon={<Plus size={20} />}>
               Nueva Unidad
             </Button>
           </div>
@@ -104,34 +93,63 @@ export const UnidadesPage = () => {
           <p className="text-base text-gray-500 max-w-md mx-auto">
             {searchTerm 
               ? "No encontramos ninguna unidad que coincida con tu búsqueda." 
-              : "Comienza a gestionar tu flota agregando la primera unidad al sistema. No olvides registrar las marcas y modelos primero."}
+              : "Comienza a gestionar tu flota agregando la primera unidad al sistema."}
           </p>
         </div>
       ) : (
-        <div className="flex-1 flex flex-col bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-gray-50 border-b border-gray-200 text-gray-600 text-sm">
-                  <th className="px-6 py-4 font-semibold w-32">Placa</th>
-                  <th className="px-6 py-4 font-semibold w-1/4">Vehículo</th>
-                  <th className="px-6 py-4 font-semibold w-1/4">Detalles</th>
-                  <th className="px-6 py-4 font-semibold w-1/3">Conductor Asignado</th>
-                  <th className="px-6 py-4 font-semibold w-12 text-center">Acciones</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 text-sm">
-                {currentItems.map((unidad, index) => (
-                  <tr 
-                    key={unidad.id} 
-                    className={`group transition-all duration-200 border-l-4 hover:bg-blue-50/60 hover:border-l-blue-500 ${
-                      index % 2 === 0 ? 'bg-white border-l-transparent' : 'bg-slate-100/60 border-l-transparent'
-                    }`}
-                  >
-                    {/* Placa */}
-                    <td className="px-6 py-4 align-middle">
-                      <span className="px-3 py-1.5 bg-yellow-50 text-yellow-800 border border-yellow-200 font-mono font-bold rounded-md tracking-wider shadow-sm">
-                        {unidad.placa}
+        <>
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {currentItems.map((unidad) => (
+              <div 
+                key={unidad.id} 
+                className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm hover:shadow-md hover:border-blue-200 transition-all duration-200 group flex flex-col justify-between"
+              >
+                <div>
+                  <div className="flex justify-between items-start gap-4 mb-3">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="px-3 py-1 bg-green-100 text-green-800 border border-green-300 font-mono text-sm font-bold rounded-md tracking-wider">
+                          Nº {unidad.numeroUnidad || 'S/N'}
+                        </span>
+                        <span className="px-3 py-1 bg-yellow-100 text-yellow-800 border border-yellow-300 font-mono text-sm font-bold rounded-md tracking-wider">
+                          {unidad.placa}
+                        </span>
+                      </div>
+                      
+                      <div className="text-sm font-medium mb-1">
+                        <span className="text-gray-500">Vehículo: </span>
+                        <span className="text-gray-800 font-medium">{unidad.vehiculo || 'Sin detalle'}</span>
+                      </div>
+                    </div>
+                    
+                    {/* Actions */}
+                    <div className="flex gap-2 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button 
+                        onClick={() => handleOpenEdit(unidad.id)}
+                        className="p-1.5 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-md transition-colors"
+                        title="Editar"
+                      >
+                        <Edit2 size={16} />
+                      </button>
+                      <button 
+                        onClick={() => handleDelete(unidad.id, unidad.numeroUnidad || unidad.placa)}
+                        className="p-1.5 text-red-600 bg-red-50 hover:bg-red-100 rounded-md transition-colors"
+                        title="Eliminar"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Footer info (Chofer) */}
+                <div className="mt-4 pt-3 border-t border-gray-100">
+                  <div className="text-sm font-semibold text-gray-700 mb-1">Conductor Asignado</div>
+                  <div className="flex justify-between items-center gap-2">
+                    <span className="text-gray-800 text-[15px]">{unidad.choferNombre}</span>
+                    {unidad.choferTelefono ? (
+                      <span className="text-blue-600 font-mono text-sm bg-blue-50 px-2 py-0.5 rounded">
+                        {unidad.choferTelefono}
                       </span>
                     </td>
 
@@ -208,20 +226,6 @@ export const UnidadesPage = () => {
           isOpen={isUnidadModalOpen} 
           onClose={() => setIsUnidadModalOpen(false)} 
           editingId={editingUnidadId}
-        />
-      )}
-
-      {isMarcaModalOpen && (
-        <MarcaManagerModal 
-          isOpen={isMarcaModalOpen} 
-          onClose={() => setIsMarcaModalOpen(false)} 
-        />
-      )}
-
-      {isModeloModalOpen && (
-        <ModeloManagerModal 
-          isOpen={isModeloModalOpen} 
-          onClose={() => setIsModeloModalOpen(false)} 
         />
       )}
     </div>

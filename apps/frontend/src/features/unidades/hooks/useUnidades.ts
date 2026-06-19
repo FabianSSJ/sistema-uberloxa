@@ -4,7 +4,14 @@ import { unidadesService, CreateUnidadDto } from '../services/unidades.service';
 export const useUnidades = () => {
   return useQuery({
     queryKey: ['unidades'],
-    queryFn: unidadesService.getAll,
+    queryFn: async () => {
+      const data = await unidadesService.getAll();
+      return data.sort((a: any, b: any) => {
+        const numA = parseInt(a.numeroUnidad) || a.id;
+        const numB = parseInt(b.numeroUnidad) || b.id;
+        return numA - numB;
+      });
+    },
   });
 };
 

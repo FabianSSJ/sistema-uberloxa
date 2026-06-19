@@ -1,37 +1,17 @@
-import axios from 'axios';
-
-const API_URL = 'http://localhost:3000/api/carreras';
-
-export type EstadoCarrera = 'sin_asignar' | 'pendiente' | 'aceptada' | 'perdida' | 'cancelada';
+import api from '../../../core/api/axios';
+import { Cliente } from '../../clientes/services/clientes.service';
+import { Unidad } from '../../unidades/services/unidades.service';
 
 export interface Carrera {
   id: number;
   clienteId: number;
-  unidadId: number | null;
-  creadoPorId: number | null;
-  estado: EstadoCarrera;
-  notas: string | null;
+  cliente: Cliente;
+  unidadId?: number;
+  unidad?: Unidad;
+  estado: string;
+  notas?: string;
   createdAt: string;
-  fechaFin: string | null;
-  cliente: {
-    id: number;
-    nombre: string;
-    telefono: string | null;
-    sectorId: number | null;
-    sector?: { nombre: string };
-    direccion: string | null;
-  };
-  unidad: {
-    id: number;
-    placa: string;
-    choferNombre: string;
-    modelo: {
-      nombre: string;
-      marca: {
-        nombre: string;
-      }
-    }
-  } | null;
+  fechaFin?: string;
 }
 
 export interface CreateCarreraDto {
@@ -40,37 +20,34 @@ export interface CreateCarreraDto {
   notas?: string;
 }
 
-export interface AssignUnidadDto {
-  unidadId: number;
-}
-
-export interface UpdateEstadoCarreraDto {
-  estado: EstadoCarrera;
-}
-
 export const carrerasService = {
   getAll: async (): Promise<Carrera[]> => {
-    const { data } = await axios.get(API_URL);
-    return data;
+    const response = await api.get('/carreras');
+    return response.data;
   },
 
-  getById: async (id: number): Promise<Carrera> => {
-    const { data } = await axios.get(`${API_URL}/${id}`);
-    return data;
+  getRecent: async (): Promise<Carrera[]> => {
+    const response = await api.get('/carreras/recent');
+    return response.data;
   },
 
-  create: async (carrera: CreateCarreraDto): Promise<Carrera> => {
-    const { data } = await axios.post(API_URL, carrera);
-    return data;
+  create: async (data: CreateCarreraDto): Promise<Carrera> => {
+    const response = await api.post('/carreras', data);
+    return response.data;
   },
 
-  assignUnidad: async (id: number, assignData: AssignUnidadDto): Promise<Carrera> => {
-    const { data } = await axios.patch(`${API_URL}/${id}/asignar`, assignData);
-    return data;
+  completar: async (id: number, unidadId?: number): Promise<Carrera> => {
+    const response = await api.patch(`/carreras/${id}/completar`, { unidadId });
+    return response.data;
   },
 
-  updateEstado: async (id: number, estadoData: UpdateEstadoCarreraDto): Promise<Carrera> => {
-    const { data } = await axios.patch(`${API_URL}/${id}/estado`, estadoData);
-    return data;
+  cancelar: async (id: number): Promise<Carrera> => {
+    const response = await api.patch(`/carreras/${id}/cancelar`);
+    return response.data;
   },
+
+  perder: async (id: number): Promise<Carrera> => {
+    const response = await api.patch(`/carreras/${id}/perder`);
+    return response.data;
+  }
 };

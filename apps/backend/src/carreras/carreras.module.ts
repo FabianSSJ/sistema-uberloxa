@@ -3,7 +3,8 @@ import { CarrerasService } from './carreras.service';
 import { CarrerasController } from './carreras.controller';
 
 @Module({
+  controllers: [CarrerasController],
   providers: [CarrerasService],
-  controllers: [CarrerasController]
+  exports: [CarrerasService],
 })
 export class CarrerasModule {}
