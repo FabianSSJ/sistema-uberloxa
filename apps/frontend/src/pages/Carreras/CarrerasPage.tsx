@@ -5,6 +5,8 @@ import { CarreraFormModal } from '../Dashboard/CarreraFormModal';
 import { Button } from '../../components/ui/Button';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { CodigoBadge } from '../../components/ui/CodigoBadge';
+import { EstadoCarreraBadge } from '../../features/carreras/components/EstadoCarreraBadge';
+import { rankBy, scoreCarrera } from '../../core/search/matchers';
 import { useAuth } from '../../features/auth/context/AuthContext';
 
 export const CarrerasPage = () => {
@@ -45,17 +47,7 @@ export const CarrerasPage = () => {
     }
   };
 
-  const filteredCarreras = carreras.filter((c: any) => {
-    if (!searchQuery) return true;
-    const q = searchQuery.toLowerCase().trim();
-    const codigoCliente = c.cliente?.codigo != null ? String(c.cliente.codigo) : '';
-
-    const matchUnidad = c.unidad?.numeroUnidad?.toLowerCase().includes(q) || c.unidad?.placa?.toLowerCase().includes(q);
-    const matchCliente = codigoCliente.includes(q) || c.cliente?.nombre?.toLowerCase().includes(q) || c.cliente?.telefono?.includes(q);
-    const matchEstado = c.estado?.toLowerCase().includes(q);
-    
-    return matchUnidad || matchCliente || matchEstado;
-  });
+  const filteredCarreras = rankBy(carreras, searchQuery, scoreCarrera);
 
   return (
     <div className="animate-[fadeIn_0.5s_ease-in]">
@@ -79,7 +71,7 @@ export const CarrerasPage = () => {
           type="text"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Buscar por código de cliente (ej. 01), número de unidad, placa, nombre o estado..."
+          placeholder="Buscar por código, cliente, teléfono, dirección, sector, unidad, placa, chofer, estado..."
           className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 shadow-sm"
         />
       </div>
@@ -164,15 +156,7 @@ export const CarrerasPage = () => {
                 </div>
 
                 <div className="flex flex-row md:flex-col items-center md:items-end gap-2">
-                  <span className={`px-3 py-1 text-xs font-bold rounded-full ${
-                    carrera.estado === 'pendiente' ? 'bg-amber-100 text-amber-800' :
-                    carrera.estado === 'asignada' ? 'bg-blue-100 text-blue-800' :
-                    carrera.estado === 'completada' ? 'bg-green-100 text-green-800' :
-                    carrera.estado === 'cancelada' ? 'bg-red-100 text-red-800' :
-                    'bg-gray-200 text-gray-800'
-                  }`}>
-                    {carrera.estado.toUpperCase()}
-                  </span>
+                  <EstadoCarreraBadge estado={carrera.estado} />
 
                   {user?.rol === 'SUPERADMIN' && (
                     <button 
