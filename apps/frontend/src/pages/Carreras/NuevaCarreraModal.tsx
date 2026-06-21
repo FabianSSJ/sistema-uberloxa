@@ -6,6 +6,7 @@ import { Select } from '../../components/ui/Select';
 import { useCarreras } from '../../features/carreras/hooks/useCarreras';
 import { useClientes } from '../../features/clientes/hooks/useClientes';
 import { useUnidades } from '../../features/unidades/hooks/useUnidades';
+import { clienteSearchText, unidadSearchText } from '../../core/search/matchers';
 
 interface NuevaCarreraModalProps {
   isOpen: boolean;
@@ -59,11 +60,12 @@ export const NuevaCarreraModal: React.FC<NuevaCarreraModalProps> = ({ isOpen, on
           label="Cliente *"
           options={clientesActivos.map(c => ({
             value: c.id,
-            label: `${c.nombre} ${c.telefono ? `(${c.telefono})` : ''} - ${c.sector?.nombre || 'Sin sector'}`
+            label: `${c.nombre} ${c.telefono ? `(${c.telefono})` : ''} - ${c.sector?.nombre || 'Sin sector'}`,
+            searchText: clienteSearchText(c)
           }))}
           value={clienteId}
           onChange={(val) => setClienteId(Number(val))}
-          placeholder="Buscar por nombre o teléfono..."
+          placeholder="Buscar por código, nombre, teléfono, dirección, sector..."
           searchable
         />
 
@@ -73,12 +75,13 @@ export const NuevaCarreraModal: React.FC<NuevaCarreraModalProps> = ({ isOpen, on
             { value: '', label: 'Ninguna (Dejar Sin Asignar)' },
             ...unidades.map(u => ({
               value: u.id,
-              label: `[${u.placa}] ${u.modelo?.marca?.nombre || ''} ${u.modelo?.nombre || ''} - Chofer: ${u.choferNombre}`
+              label: `[${u.placa}] ${u.modelo?.marca?.nombre || ''} ${u.modelo?.nombre || ''} - Chofer: ${u.choferNombre}`,
+              searchText: unidadSearchText(u)
             }))
           ]}
           value={unidadId}
           onChange={(val) => setUnidadId(val === '' ? '' : Number(val))}
-          placeholder="Seleccionar unidad si ya está confirmada..."
+          placeholder="Buscar por nº, placa, chofer, teléfono, modelo..."
           searchable
         />
 

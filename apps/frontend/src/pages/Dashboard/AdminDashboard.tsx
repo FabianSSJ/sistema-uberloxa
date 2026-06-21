@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useCarreras } from '../../features/carreras/hooks/useCarreras';
 import { useUnidades } from '../../features/unidades/hooks/useUnidades';
-import { Car, CheckCircle2, XCircle, AlertTriangle, TrendingUp, Calendar, Users } from 'lucide-react';
+import { rankBy, scoreUnidad, scoreUsuario } from '../../core/search/matchers';
+import { Car, CheckCircle2, XCircle, AlertTriangle, TrendingUp, Calendar, Users, Search, Clock } from 'lucide-react';
 
 export const AdminDashboard = () => {
   const { data: allRides = [], isLoading: loadingRides } = useCarreras();
@@ -15,73 +16,67 @@ export const AdminDashboard = () => {
   };
 
   const [selectedDate, setSelectedDate] = useState<string>(getLocalYYYYMMDD(new Date()));
+  const [searchUnidad, setSearchUnidad] = useState('');
+  const [searchCharlie, setSearchCharlie] = useState('');
+
+  // Cálculos pesados memoizados: solo recalculan si cambian datos o fecha (no en cada poll de 1s).
+  const { statsList, charlieStatsList, globalStats } = useMemo(() => {
+    const selectedDateString = new Date(selectedDate + 'T00:00:00').toDateString();
+    const dayRides = allRides.filter((r: any) => new Date(r.createdAt).toDateString() === selectedDateString);
+
+    // Agrupar por unidad
+    const statsPorUnidad: Record<number, any> = {};
+    unidades.forEach((u: any) => {
+      statsPorUnidad[u.id] = { unidad: u, enCurso: 0, completadas: 0, canceladas: 0, perdidas: 0, total: 0 };
+    });
+    dayRides.forEach((ride: any) => {
+      const uid = ride.unidadId || 0;
+      if (!statsPorUnidad[uid]) return; // ignorar carreras sin unidad en esta tabla
+      statsPorUnidad[uid].total += 1;
+      if (ride.estado === 'completada') statsPorUnidad[uid].completadas += 1;
+      else if (ride.estado === 'cancelada') statsPorUnidad[uid].canceladas += 1;
+      else if (ride.estado === 'perdida') statsPorUnidad[uid].perdidas += 1;
+      else statsPorUnidad[uid].enCurso += 1; // pendiente / asignada = en curso
+    });
+    const statsList = Object.values(statsPorUnidad).sort((a: any, b: any) => b.total - a.total);
+
+    // Agrupar por Charlie (creadoPor)
+    const statsPorCharlie: Record<number, any> = {};
+    dayRides.forEach((ride: any) => {
+      const charlieId = ride.creadoPor?.id || 0;
+      if (!statsPorCharlie[charlieId]) {
+        statsPorCharlie[charlieId] = { charlie: ride.creadoPor || { id: 0, nombre: 'Desconocido', rol: 'N/A' }, enCurso: 0, completadas: 0, canceladas: 0, perdidas: 0, total: 0 };
+      }
+      statsPorCharlie[charlieId].total += 1;
+      if (ride.estado === 'completada') statsPorCharlie[charlieId].completadas += 1;
+      else if (ride.estado === 'cancelada') statsPorCharlie[charlieId].canceladas += 1;
+      else if (ride.estado === 'perdida') statsPorCharlie[charlieId].perdidas += 1;
+      else statsPorCharlie[charlieId].enCurso += 1; // pendiente / asignada = en curso
+    });
+    const charlieStatsList = Object.values(statsPorCharlie).sort((a: any, b: any) => b.total - a.total);
+
+    const globalStats = {
+      total: dayRides.length,
+      enCurso: dayRides.filter((r: any) => !['completada', 'cancelada', 'perdida'].includes(r.estado)).length,
+      completadas: dayRides.filter((r: any) => r.estado === 'completada').length,
+      canceladas: dayRides.filter((r: any) => r.estado === 'cancelada').length,
+      perdidas: dayRides.filter((r: any) => r.estado === 'perdida').length,
+    };
+
+    return { statsList, charlieStatsList, globalStats };
+  }, [allRides, unidades, selectedDate]);
+
+  const statsListFiltrada = useMemo(
+    () => rankBy(statsList, searchUnidad, (s: any, q) => scoreUnidad(s.unidad, q)),
+    [statsList, searchUnidad]
+  );
+
+  const charlieStatsListFiltrada = useMemo(
+    () => rankBy(charlieStatsList, searchCharlie, (s: any, q) => scoreUsuario(s.charlie, q)),
+    [charlieStatsList, searchCharlie]
+  );
 
   if (loadingRides || loadingUnidades) return <div>Cargando reporte...</div>;
-
-  // Revertido a validación local como se solicitó
-  const selectedDateObj = new Date(selectedDate + "T00:00:00");
-  const selectedDateString = selectedDateObj.toDateString();
-
-  const dayRides = allRides.filter((r: any) => new Date(r.createdAt).toDateString() === selectedDateString);
-
-  // Agrupar por unidad
-  const statsPorUnidad: Record<number, any> = {};
-
-  unidades.forEach((u: any) => {
-    statsPorUnidad[u.id] = {
-      unidad: u,
-      completadas: 0,
-      canceladas: 0,
-      perdidas: 0,
-      total: 0
-    };
-  });
-
-  dayRides.forEach((ride: any) => {
-    const uid = ride.unidadId || 0;
-    
-    // Ignorar carreras sin unidad asignada en esta tabla
-    if (!statsPorUnidad[uid]) return;
-
-    statsPorUnidad[uid].total += 1;
-    if (ride.estado === 'completada') statsPorUnidad[uid].completadas += 1;
-    if (ride.estado === 'cancelada') statsPorUnidad[uid].canceladas += 1;
-    if (ride.estado === 'perdida') statsPorUnidad[uid].perdidas += 1;
-  });
-
-  // Filtrar unidades que no hicieron nada si quieres que solo salgan las que trabajaron, 
-  // o mostrar todas. Mostraremos todas ordenadas por las que tienen más carreras
-  const statsList = Object.values(statsPorUnidad).sort((a: any, b: any) => b.total - a.total);
-
-  // Agrupar por Charlie (creadoPor)
-  const statsPorCharlie: Record<number, any> = {};
-
-  dayRides.forEach((ride: any) => {
-    const charlieId = ride.creadoPor?.id || 0;
-    if (!statsPorCharlie[charlieId]) {
-      statsPorCharlie[charlieId] = {
-        charlie: ride.creadoPor || { id: 0, nombre: 'Desconocido', rol: 'N/A' },
-        completadas: 0,
-        canceladas: 0,
-        perdidas: 0,
-        total: 0
-      };
-    }
-
-    statsPorCharlie[charlieId].total += 1;
-    if (ride.estado === 'completada') statsPorCharlie[charlieId].completadas += 1;
-    if (ride.estado === 'cancelada') statsPorCharlie[charlieId].canceladas += 1;
-    if (ride.estado === 'perdida') statsPorCharlie[charlieId].perdidas += 1;
-  });
-
-  const charlieStatsList = Object.values(statsPorCharlie).sort((a: any, b: any) => b.total - a.total);
-
-  const globalStats = {
-    total: dayRides.length,
-    completadas: dayRides.filter((r: any) => r.estado === 'completada').length,
-    canceladas: dayRides.filter((r: any) => r.estado === 'cancelada').length,
-    perdidas: dayRides.filter((r: any) => r.estado === 'perdida').length,
-  };
 
   return (
     <div className="animate-[fadeIn_0.5s_ease-in]">
@@ -114,6 +109,15 @@ export const AdminDashboard = () => {
         </div>
         <div className="bg-white rounded-lg p-5 border border-gray-200 shadow-sm flex items-center justify-between">
           <div>
+            <p className="text-sm text-gray-500 font-medium mb-1">En Curso</p>
+            <h3 className="text-3xl font-bold text-blue-600">{globalStats.enCurso}</h3>
+          </div>
+          <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
+            <Clock size={24} />
+          </div>
+        </div>
+        <div className="bg-white rounded-lg p-5 border border-gray-200 shadow-sm flex items-center justify-between">
+          <div>
             <p className="text-sm text-gray-500 font-medium mb-1">Completadas</p>
             <h3 className="text-3xl font-bold text-green-600">{globalStats.completadas}</h3>
           </div>
@@ -142,23 +146,36 @@ export const AdminDashboard = () => {
       </div>
 
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
-          <h3 className="text-lg font-bold text-gray-800">Desempeño por Unidad</h3>
+        <div className="px-6 py-4 border-b border-gray-200 bg-gray-50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <h3 className="text-lg font-bold text-gray-800">
+            Desempeño por Unidad <span className="text-sm font-normal text-gray-400">({statsListFiltrada.length})</span>
+          </h3>
+          <div className="relative">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              value={searchUnidad}
+              onChange={(e) => setSearchUnidad(e.target.value)}
+              placeholder="Buscar nº, placa, chofer, teléfono, vehículo, modelo..."
+              className="pl-9 pr-3 py-2 w-full sm:w-64 text-sm bg-white border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+            />
+          </div>
         </div>
-        <div className="overflow-x-auto">
+        <div className="overflow-auto max-h-105">
           <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-white">
+            <thead className="bg-white sticky top-0 z-10 shadow-[inset_0_-1px_0_0_#e5e7eb]">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Unidad / Chofer</th>
                 <th className="px-6 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Total Generadas</th>
+                <th className="px-6 py-3 text-center text-xs font-semibold text-blue-600 uppercase tracking-wider">En Curso</th>
                 <th className="px-6 py-3 text-center text-xs font-semibold text-green-600 uppercase tracking-wider">Completadas</th>
                 <th className="px-6 py-3 text-center text-xs font-semibold text-orange-600 uppercase tracking-wider">Perdidas</th>
                 <th className="px-6 py-3 text-center text-xs font-semibold text-red-600 uppercase tracking-wider">Canceladas</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-100">
-              {statsList.map((stat: any, idx: number) => (
-                <tr key={idx} className="hover:bg-gray-50">
+              {statsListFiltrada.map((stat: any) => (
+                <tr key={stat.unidad.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
                       <div className="flex-shrink-0 h-10 w-10 bg-gray-100 rounded-full flex items-center justify-center text-gray-500">
@@ -176,6 +193,11 @@ export const AdminDashboard = () => {
                     <span className="text-lg font-bold text-gray-800">{stat.total}</span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-center">
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                      {stat.enCurso}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-center">
                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium bg-green-100 text-green-800">
                       {stat.completadas}
                     </span>
@@ -192,30 +214,50 @@ export const AdminDashboard = () => {
                   </td>
                 </tr>
               ))}
+              {statsListFiltrada.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
+                    No se encontraron unidades para "{searchUnidad}".
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
       </div>
 
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden mt-8">
-        <div className="px-6 py-4 border-b border-gray-200 bg-gray-50 flex items-center gap-2">
-          <Users size={20} className="text-blue-600" />
-          <h3 className="text-lg font-bold text-gray-800">Actividad por Operador (Charlie)</h3>
+        <div className="px-6 py-4 border-b border-gray-200 bg-gray-50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+            <Users size={20} className="text-blue-600" />
+            Actividad por Operador (Charlie) <span className="text-sm font-normal text-gray-400">({charlieStatsListFiltrada.length})</span>
+          </h3>
+          <div className="relative">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              value={searchCharlie}
+              onChange={(e) => setSearchCharlie(e.target.value)}
+              placeholder="Buscar operador..."
+              className="pl-9 pr-3 py-2 w-full sm:w-64 text-sm bg-white border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+            />
+          </div>
         </div>
-        <div className="overflow-x-auto">
+        <div className="overflow-auto max-h-105">
           <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-white">
+            <thead className="bg-white sticky top-0 z-10 shadow-[inset_0_-1px_0_0_#e5e7eb]">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Operador</th>
                 <th className="px-6 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Total Generadas</th>
+                <th className="px-6 py-3 text-center text-xs font-semibold text-blue-600 uppercase tracking-wider">En Curso</th>
                 <th className="px-6 py-3 text-center text-xs font-semibold text-green-600 uppercase tracking-wider">Completadas</th>
                 <th className="px-6 py-3 text-center text-xs font-semibold text-orange-600 uppercase tracking-wider">Perdidas</th>
                 <th className="px-6 py-3 text-center text-xs font-semibold text-red-600 uppercase tracking-wider">Canceladas</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-100">
-              {charlieStatsList.map((stat: any, idx: number) => (
-                <tr key={idx} className="hover:bg-gray-50">
+              {charlieStatsListFiltrada.map((stat: any) => (
+                <tr key={stat.charlie.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
                       <div className="flex-shrink-0 h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-600">
@@ -233,6 +275,11 @@ export const AdminDashboard = () => {
                     <span className="text-lg font-bold text-gray-800">{stat.total}</span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-center">
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                      {stat.enCurso}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-center">
                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium bg-green-100 text-green-800">
                       {stat.completadas}
                     </span>
@@ -249,10 +296,12 @@ export const AdminDashboard = () => {
                   </td>
                 </tr>
               ))}
-              {charlieStatsList.length === 0 && (
+              {charlieStatsListFiltrada.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
-                    No hay actividad de operadores registrada en esta fecha.
+                  <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
+                    {searchCharlie
+                      ? `No se encontraron operadores para "${searchCharlie}".`
+                      : 'No hay actividad de operadores registrada en esta fecha.'}
                   </td>
                 </tr>
               )}

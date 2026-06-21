@@ -4,6 +4,8 @@ import { ChevronDown, Check, Search } from 'lucide-react';
 export interface SelectOption {
   value: string | number;
   label: string;
+  /** Texto extra para la búsqueda (no se muestra). Permite buscar por campos que no están en el label. */
+  searchText?: string;
 }
 
 interface SelectProps {
@@ -58,9 +60,10 @@ export const Select: React.FC<SelectProps> = ({
   const filteredOptions = useMemo(() => {
     if (!searchable || !searchTerm) return options;
     const term = searchTerm.toLowerCase();
-    return options.filter(opt => 
-      opt.label.toLowerCase().includes(term) || 
-      String(opt.value).toLowerCase().includes(term)
+    return options.filter(opt =>
+      opt.label.toLowerCase().includes(term) ||
+      String(opt.value).toLowerCase().includes(term) ||
+      (opt.searchText?.toLowerCase().includes(term) ?? false)
     );
   }, [options, searchable, searchTerm]);
 

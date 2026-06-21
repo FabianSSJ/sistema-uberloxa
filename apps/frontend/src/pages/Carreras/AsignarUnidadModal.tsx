@@ -5,6 +5,7 @@ import { Select } from '../../components/ui/Select';
 import { useCarreras } from '../../features/carreras/hooks/useCarreras';
 import { useUnidades } from '../../features/unidades/hooks/useUnidades';
 import { Carrera } from '../../features/carreras/services/carreras.service';
+import { unidadSearchText } from '../../core/search/matchers';
 
 interface AsignarUnidadModalProps {
   isOpen: boolean;
@@ -49,11 +50,12 @@ export const AsignarUnidadModal: React.FC<AsignarUnidadModalProps> = ({ isOpen, 
           label="Unidad a despachar *"
           options={unidades.map(u => ({
             value: u.id,
-            label: `[${u.placa}] ${u.modelo?.marca?.nombre || ''} ${u.modelo?.nombre || ''} - Chofer: ${u.choferNombre}`
+            label: `[${u.placa}] ${u.modelo?.marca?.nombre || ''} ${u.modelo?.nombre || ''} - Chofer: ${u.choferNombre}`,
+            searchText: unidadSearchText(u)
           }))}
           value={unidadId}
           onChange={(val) => setUnidadId(Number(val))}
-          placeholder="Buscar por placa o chofer..."
+          placeholder="Buscar por nº, placa, chofer, teléfono, modelo..."
           searchable
         />
 

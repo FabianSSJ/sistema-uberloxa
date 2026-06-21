@@ -3,6 +3,7 @@ import { Modal } from '../../components/ui/Modal';
 import { Button } from '../../components/ui/Button';
 import { Select } from '../../components/ui/Select';
 import { formatCodigo } from '../../components/ui/CodigoBadge';
+import { clienteSearchText, unidadSearchText } from '../../core/search/matchers';
 import { useClientes } from '../../features/clientes/hooks/useClientes';
 import { useUnidades } from '../../features/unidades/hooks/useUnidades';
 import { useCreateCarrera } from '../../features/carreras/hooks/useCarreras';
@@ -58,7 +59,8 @@ export const CarreraFormModal: React.FC<CarreraFormModalProps> = ({
           label="Cliente *"
           options={clientes.map(c => ({
             value: c.id,
-            label: `Cód. ${formatCodigo(c.codigo)} - ${c.nombre} - ${c.sector?.nombre || 'Sin Sector'} (${c.telefono || 'Sin Teléfono'})`
+            label: `Cód. ${formatCodigo(c.codigo)} - ${c.nombre} - ${c.sector?.nombre || 'Sin Sector'} (${c.telefono || 'Sin Teléfono'})`,
+            searchText: clienteSearchText(c)
           }))}
           value={formData.clienteId || ''}
           onChange={(val) => setFormData({ ...formData, clienteId: val ? Number(val) : 0 })}
@@ -70,7 +72,8 @@ export const CarreraFormModal: React.FC<CarreraFormModalProps> = ({
           label="Asignar Unidad (Opcional)"
           options={unidades.map(u => ({
             value: u.id,
-            label: `Nº ${u.numeroUnidad || 'S/N'} - ${u.choferNombre} (${u.placa})`
+            label: `Nº ${u.numeroUnidad || 'S/N'} - ${u.choferNombre} (${u.placa})`,
+            searchText: unidadSearchText(u)
           }))}
           value={formData.unidadId || ''}
           onChange={(val) => setFormData({ ...formData, unidadId: val ? Number(val) : undefined })}

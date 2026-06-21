@@ -1,5 +1,5 @@
 import { Car, Users, Clock, Plus, Search, Trash2 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 
 import { useClientes } from '../../features/clientes/hooks/useClientes';
 import { useUnidades, useCambiarEstadoUnidad } from '../../features/unidades/hooks/useUnidades';
@@ -9,6 +9,8 @@ import { useCarreras, useCreateCarrera, useCompletarCarrera, useCancelarCarrera,
 import { CarreraFormModal } from './CarreraFormModal';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { CodigoBadge } from '../../components/ui/CodigoBadge';
+import { EstadoCarreraBadge } from '../../features/carreras/components/EstadoCarreraBadge';
+import { rankBy, scoreUnidad, scoreCliente } from '../../core/search/matchers';
 import { useAuth } from '../../features/auth/context/AuthContext';
 
 export const CharlieDashboard = () => {
@@ -17,11 +19,11 @@ export const CharlieDashboard = () => {
   const { data: unidades = [] } = useUnidades();
   const { data: allRidesData = [] } = useCarreras();
   
-  // Filtrar para que el Charlie solo vea las carreras que Acl mismo ha creado
-  const allRides = allRidesData.filter((r: any) => {
-    // Si no hay user.id guardado en la carrera (carreras antiguas), o si coincide con el usuario actual
-    return !r.creadoPorId || r.creadoPorId === user?.id;
-  });
+  // El Charlie solo ve las carreras que él mismo creó (memoizado: no recalcula en cada poll si no cambió).
+  const allRides = useMemo(
+    () => allRidesData.filter((r: any) => !r.creadoPorId || r.creadoPorId === user?.id),
+    [allRidesData, user?.id]
+  );
 
   const createCarreraMutation = useCreateCarrera();
   const cambiarEstadoMutation = useCambiarEstadoUnidad();
@@ -38,10 +40,9 @@ export const CharlieDashboard = () => {
   const [draggedItem, setDraggedItem] = useState<{type: 'CHOFER' | 'CLIENTE', id: number} | null>(null);
   const [dragOverItem, setDragOverItem] = useState<{type: 'CHOFER' | 'CLIENTE', id: number} | null>(null);
 
-  const filteredUnidades = unidades.filter((u: any) =>
-    (u.numeroUnidad || '').toLowerCase().includes(searchChofer.toLowerCase()) ||
-    (u.choferNombre || '').toLowerCase().includes(searchChofer.toLowerCase()) ||
-    (u.placa || '').toLowerCase().includes(searchChofer.toLowerCase())
+  const filteredUnidades = useMemo(
+    () => rankBy(unidades, searchChofer, scoreUnidad),
+    [unidades, searchChofer]
   );
 
   // Regla del click de la Charlie: usa el toggle compartido (misma logica en todo el sistema).
@@ -49,12 +50,11 @@ export const CharlieDashboard = () => {
     cambiarEstadoMutation.mutate({ id: u.id, estado: nextEstadoToggle(u.estado || 'disponible') });
   };
 
-  const filteredClientes = clientes.filter((c: any) => {
-    const query = searchCliente.toLowerCase().trim();
-    if (!query) return true;
-    const codigo = c.codigo != null ? String(c.codigo) : '';
-    return codigo.includes(query) || (c.nombre || '').toLowerCase().includes(query);
-  });
+  // El filtro más caro (sobre miles de clientes): memoizado para no correr en cada render/poll.
+  const filteredClientes = useMemo(
+    () => rankBy(clientes, searchCliente, scoreCliente),
+    [clientes, searchCliente]
+  );
 
   const formatTime = (isoString: string) => {
     try {
@@ -106,7 +106,7 @@ export const CharlieDashboard = () => {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
               <input 
                 type="text" 
-                placeholder="Buscar unidad, nombre, placa..." 
+                placeholder="Buscar unidad, chofer, placa, teléfono, vehículo..."
                 className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 outline-none transition-all shadow-sm"
                 value={searchChofer}
                 onChange={e => setSearchChofer(e.target.value)}
@@ -119,7 +119,7 @@ export const CharlieDashboard = () => {
               const est = ESTADO_UNIDAD_STYLES[(u.estado as EstadoUnidad) || 'disponible'];
               return (
                 <div
-                  key={idx}
+                  key={u.id}
                   draggable
                   title="Click para cambiar estado · Arrastrá un cliente acá para asignar carrera"
                   onClick={() => toggleEstadoUnidad(u)}
@@ -178,7 +178,7 @@ export const CharlieDashboard = () => {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
               <input 
                 type="text" 
-                placeholder="Buscar por código (ej. 01) o nombre..." 
+                placeholder="Buscar por código, nombre, teléfono, dirección, sector..."
                 className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all shadow-sm"
                 value={searchCliente}
                 onChange={e => setSearchCliente(e.target.value)}
@@ -190,7 +190,7 @@ export const CharlieDashboard = () => {
               const isDragOver = dragOverItem?.type === 'CLIENTE' && dragOverItem.id === c.id;
               return (
                 <div 
-                  key={idx} 
+                  key={c.id}
                   draggable
                   onDragStart={(e) => {
                     setDraggedItem({ type: 'CLIENTE', id: c.id });
@@ -247,19 +247,10 @@ export const CharlieDashboard = () => {
           </div>
           <div className="flex-1 overflow-y-auto p-5 flex flex-col gap-4 bg-slate-50/50">
             {allRides.map((r: any, idx: number) => {
-              const statusColors = {
-                pendiente: 'bg-amber-100 text-amber-800 border-amber-200',
-                asignada: 'bg-blue-100 text-blue-800 border-blue-200',
-                completada: 'bg-green-100 text-green-800 border-green-200',
-                cancelada: 'bg-red-100 text-red-800 border-red-200',
-                perdida: 'bg-gray-200 text-gray-800 border-gray-300',
-              };
-              
-              const colorClass = statusColors[r.estado as keyof typeof statusColors] || statusColors.perdida;
               const turno = getTurnoColor(r.createdAt);
 
               return (
-                <div key={idx} className={`bg-white border-l-4 ${turno.border} border border-y-gray-100 border-r-gray-100 p-4 rounded-xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] hover:-translate-x-1 hover:shadow-[0_8px_15px_-3px_rgba(6,81,237,0.15)] transition-all duration-300`}>
+                <div key={r.id} className={`bg-white border-l-4 ${turno.border} border border-y-gray-100 border-r-gray-100 p-4 rounded-xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] hover:-translate-x-1 hover:shadow-[0_8px_15px_-3px_rgba(6,81,237,0.15)] transition-all duration-300`}>
                   <div className="flex justify-between items-start mb-2">
                     <h3 className={`font-bold m-0 text-[16px] truncate max-w-[70%] ${turno.text}`}>{r.cliente?.nombre || 'Cliente'}</h3>
                     <span className="text-xs font-black text-gray-400 bg-gray-50 px-2 py-1 rounded-md">{formatTime(r.createdAt)}</span>
@@ -270,9 +261,7 @@ export const CharlieDashboard = () => {
                   </p>
                   <div className="mt-3 flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <span className={`px-2.5 py-1 text-xs font-black rounded-md border ${colorClass}`}>
-                        {r.estado.toUpperCase()}
-                      </span>
+                      <EstadoCarreraBadge estado={r.estado} />
                       {user?.rol === 'SUPERADMIN' && (
                         <button 
                           onClick={() => setCareerToDelete(r.id)}
@@ -298,8 +287,8 @@ export const CharlieDashboard = () => {
                           CANCELADA
                         </button>
                         <button 
-                          onClick={() => perderMutation.mutate(r.id)} 
-                          className="text-[10px] font-bold bg-gray-100 text-gray-700 hover:bg-gray-500 hover:text-white px-2 py-1 rounded transition-colors"
+                          onClick={() => perderMutation.mutate(r.id)}
+                          className="text-[10px] font-bold bg-orange-100 text-orange-700 hover:bg-orange-500 hover:text-white px-2 py-1 rounded transition-colors"
                         >
                           PERDIDA
                         </button>

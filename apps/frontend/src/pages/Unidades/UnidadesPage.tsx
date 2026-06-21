@@ -4,6 +4,7 @@ import { UnidadFormModal } from './UnidadFormModal';
 import { Button } from '../../components/ui/Button';
 import { Pagination } from '../../components/ui/Pagination';
 import { EstadoUnidadBadge } from '../../features/unidades/components/EstadoUnidadBadge';
+import { rankBy, scoreUnidad } from '../../core/search/matchers';
 import { Car, Search, Edit2, Trash2, Plus } from 'lucide-react';
 
 export const UnidadesPage = () => {
@@ -33,12 +34,7 @@ export const UnidadesPage = () => {
     setIsUnidadModalOpen(true);
   };
 
-  const filteredUnidades = unidades.filter(u => 
-    u.placa.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (u.numeroUnidad && u.numeroUnidad.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    u.choferNombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (u.vehiculo && u.vehiculo.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  const filteredUnidades = rankBy(unidades, searchTerm, scoreUnidad);
 
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
@@ -63,7 +59,7 @@ export const UnidadesPage = () => {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
             <input 
               type="text" 
-              placeholder="Buscar por número, placa, chofer o vehículo..." 
+              placeholder="Buscar por número, placa, chofer, teléfono, vehículo, modelo..."
               value={searchTerm}
               onChange={handleSearch}
               className="pl-10 pr-4 py-2.5 w-full sm:w-64 bg-white border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
