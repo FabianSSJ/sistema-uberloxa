@@ -31,9 +31,23 @@ export interface CreateClienteDto {
 
 export type UpdateClienteDto = Partial<CreateClienteDto>;
 
+export interface PaginatedClientes {
+  data: Cliente[];
+  total: number;
+  page: number;
+  totalPages: number;
+}
+
 export const clientesService = {
   getAll: async (): Promise<Cliente[]> => {
     const response = await api.get('/clientes');
+    return response.data;
+  },
+
+  getPaginated: async (page: number, limit: number, search?: string): Promise<PaginatedClientes> => {
+    const response = await api.get('/clientes/paginado', {
+      params: { page, limit, search: search?.trim() || undefined },
+    });
     return response.data;
   },
 
