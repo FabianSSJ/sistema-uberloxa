@@ -13,6 +13,15 @@ export const useClientes = () => {
   });
 };
 
+// Paginado + búsqueda server-side: la tabla de Clientes solo baja la página visible.
+export const useClientesPaginados = (page: number, limit: number, search: string) => {
+  return useQuery({
+    queryKey: ['clientes', 'paginado', page, limit, search],
+    queryFn: () => clientesService.getPaginated(page, limit, search),
+    placeholderData: (prev) => prev, // mantiene la data anterior mientras carga la nueva (sin parpadeo)
+  });
+};
+
 export const useCreateCliente = () => {
   const queryClient = useQueryClient();
 

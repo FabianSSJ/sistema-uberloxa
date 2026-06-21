@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Users, Plus, Edit2, Trash2, MapPin, Search, Eye } from 'lucide-react';
-import { useClientes, useDeleteCliente } from '../../features/clientes/hooks/useClientes';
+import { useClientesPaginados, useDeleteCliente } from '../../features/clientes/hooks/useClientes';
 import { ClienteFormModal } from './ClienteFormModal';
 import { ClienteDetailsModal } from './ClienteDetailsModal';
 import { Cliente } from '../../features/clientes/services/clientes.service';
@@ -9,15 +9,28 @@ import { Pagination } from '../../components/ui/Pagination';
 import { CodigoBadge } from '../../components/ui/CodigoBadge';
 
 export const ClientesPage = () => {
-  const { data: clientes = [], isLoading, isError } = useClientes();
   const deleteMutation = useDeleteCliente();
-  
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingClienteId, setEditingClienteId] = useState<number | null>(null);
   const [viewingCliente, setViewingCliente] = useState<Cliente | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10; // Better for tables
+  const itemsPerPage = 20;
+
+  // Debounce: no golpea al server en cada tecla (espera 350ms) y resetea a la página 1.
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+      setCurrentPage(1);
+    }, 350);
+    return () => clearTimeout(t);
+  }, [searchTerm]);
+
+  const { data: result, isLoading, isError } = useClientesPaginados(currentPage, itemsPerPage, debouncedSearch);
+  const currentItems = result?.data ?? [];
+  const totalClientes = result?.total ?? 0;
 
   const handleDelete = async (id: number, nombre: string) => {
     if (window.confirm(`¿Estás seguro de eliminar al cliente ${nombre}?`)) {
@@ -35,22 +48,8 @@ export const ClientesPage = () => {
     setIsModalOpen(true);
   };
 
-  const filteredClientes = clientes.filter(c => {
-    const term = searchTerm.toLowerCase().trim();
-    if (!term) return true;
-    
-    // Buscar por el codigo real del cliente (el secuencial del Excel) o por nombre
-    const codigo = c.codigo != null ? String(c.codigo) : '';
-    return codigo === term || codigo.includes(term) || c.nombre.toLowerCase().includes(term);
-  });
-
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = filteredClientes.slice(indexOfFirstItem, indexOfLastItem);
-
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
-    setCurrentPage(1);
   };
 
   return (
@@ -88,7 +87,7 @@ export const ClientesPage = () => {
         <div className="bg-red-50 text-red-600 p-4 rounded-md text-center">
           Ocurrió un error al cargar los clientes. Por favor, intenta nuevamente.
         </div>
-      ) : filteredClientes.length === 0 ? (
+      ) : currentItems.length === 0 ? (
         <div className="text-center py-20 px-5 text-gray-500 bg-white rounded-lg border border-gray-200 border-dashed flex-1">
           <Users size={48} className="mx-auto mb-4 opacity-30" />
           <p className="text-lg">No se encontraron clientes.</p>
@@ -199,7 +198,7 @@ export const ClientesPage = () => {
           <div className="p-4 border-t border-gray-200 bg-gray-50 mt-auto">
             <Pagination 
               currentPage={currentPage}
-              totalItems={filteredClientes.length}
+              totalItems={totalClientes}
               itemsPerPage={itemsPerPage}
               onPageChange={setCurrentPage}
             />

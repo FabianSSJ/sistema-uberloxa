@@ -8,6 +8,7 @@ import {
   Delete,
   UseGuards,
   ParseIntPipe,
+  Query,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -44,6 +45,18 @@ export class ClientesController {
   @ApiOperation({ summary: 'Obtener todos los clientes activos' })
   findAll() {
     return this.clientesService.findAll();
+  }
+
+  // Paginado + búsqueda en el servidor (la tabla de Clientes no baja los miles de una).
+  @Get('paginado')
+  @RequireModule('clientes', 'carreras')
+  @ApiOperation({ summary: 'Clientes paginados con búsqueda' })
+  findPaginated(
+    @Query('page') page = '1',
+    @Query('limit') limit = '20',
+    @Query('search') search?: string,
+  ) {
+    return this.clientesService.findPaginated(Number(page) || 1, Number(limit) || 20, search);
   }
 
   @Get(':id')
