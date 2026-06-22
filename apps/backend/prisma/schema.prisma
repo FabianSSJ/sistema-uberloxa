@@ -137,6 +137,7 @@ model Carrera {
   notas       String?
   createdAt   DateTime                 @default(now()) @map("created_at")
   fechaFin    DateTime?                @map("fecha_fin")
+  numeroDiario Int?                    @map("numero_diario")
   historial   HistorialEstadoCarrera[]
 
   @@index([clienteId])

@@ -45,13 +45,16 @@ export class UsuariosService {
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(data.password, salt);
 
+    const rolToAssign = data.rol || 'CHARLIE';
+    const modulosPermitidos = rolToAssign === 'SUPERADMIN' ? [] : ['carreras', 'clientes', 'unidades', 'choferes'];
+
     return this.prisma.usuario.create({
       data: {
         nombre: data.nombre,
         username: data.username,
         passwordHash,
-        rol: data.rol || 'CHARLIE',
-        modulosPermitidos: data.modulosPermitidos || [],
+        rol: rolToAssign,
+        modulosPermitidos,
       },
       select: { id: true, nombre: true, username: true, rol: true },
     });
@@ -61,9 +64,12 @@ export class UsuariosService {
     const updateData: any = {
       nombre: data.nombre,
       rol: data.rol,
-      modulosPermitidos: data.modulosPermitidos,
       activo: data.activo,
     };
+
+    if (data.rol) {
+      updateData.modulosPermitidos = data.rol === 'SUPERADMIN' ? [] : ['carreras', 'clientes', 'unidades', 'choferes'];
+    }
 
     if (data.username) {
       updateData.username = data.username;

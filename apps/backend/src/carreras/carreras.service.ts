@@ -24,6 +24,15 @@ export class CarrerasService {
       }
     }
 
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const count = await this.prisma.carrera.count({
+      where: {
+        createdAt: { gte: startOfDay }
+      }
+    });
+
     const carrera = await this.prisma.carrera.create({
       data: {
         clienteId: createCarreraDto.clienteId,
@@ -31,6 +40,7 @@ export class CarrerasService {
         notas: createCarreraDto.notas || null,
         estado: createCarreraDto.unidadId ? 'asignada' : 'pendiente',
         creadoPorId: userId || null,
+        numeroDiario: count + 1,
       },
       include: {
         cliente: {
@@ -64,8 +74,14 @@ export class CarrerasService {
     return carrera;
   }
 
-  async findAll() {
+  async findAll(user?: any) {
+    const where: any = {};
+    if (user?.rol === 'CHARLIE') {
+      where.creadoPorId = user.sub;
+    }
+
     return this.prisma.carrera.findMany({
+      where,
       include: {
         cliente: {
           include: { sector: true }
@@ -82,8 +98,14 @@ export class CarrerasService {
     });
   }
 
-  async findRecent() {
+  async findRecent(user?: any) {
+    const where: any = {};
+    if (user?.rol === 'CHARLIE') {
+      where.creadoPorId = user.sub;
+    }
+
     return this.prisma.carrera.findMany({
+      where,
       take: 5,
       include: {
         cliente: {
@@ -156,6 +178,13 @@ export class CarrerasService {
       }
     });
 
+    if (uId) {
+      await this.prisma.unidad.update({
+        where: { id: uId },
+        data: { estado: 'disponible' }
+      });
+    }
+
     return updated;
   }
 
@@ -192,6 +221,13 @@ export class CarrerasService {
         estadoNuevo: nuevoEstado
       }
     });
+
+    if (estadosFinales.includes(nuevoEstado) && carrera.unidadId) {
+      await this.prisma.unidad.update({
+        where: { id: carrera.unidadId },
+        data: { estado: 'disponible' }
+      });
+    }
 
     return updated;
   }

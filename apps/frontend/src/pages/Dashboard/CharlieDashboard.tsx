@@ -252,7 +252,7 @@ export const CharlieDashboard = () => {
               return (
                 <div key={r.id} className={`bg-white border-l-4 ${turno.border} border border-y-gray-100 border-r-gray-100 p-4 rounded-xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] hover:-translate-x-1 hover:shadow-[0_8px_15px_-3px_rgba(6,81,237,0.15)] transition-all duration-300`}>
                   <div className="flex justify-between items-start mb-2">
-                    <h3 className={`font-bold m-0 text-[16px] truncate max-w-[70%] ${turno.text}`}>{r.cliente?.nombre || 'Cliente'}</h3>
+                    <h3 className={`font-bold m-0 text-[16px] truncate max-w-[70%] ${turno.text}`}>#{r.numeroDiario || r.id} - {r.cliente?.nombre || 'Cliente'}</h3>
                     <span className="text-xs font-black text-gray-400 bg-gray-50 px-2 py-1 rounded-md">{formatTime(r.createdAt)}</span>
                   </div>
                   <p className="text-sm text-gray-600 m-0 flex items-center gap-2 font-medium">
