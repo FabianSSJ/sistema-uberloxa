@@ -91,3 +91,6 @@ Thumbs.db
 # Dumps y backups de base de datos
 /backup_*.sql
 *.local.sql
+
+# Backups de BD (custom format)
+*.backup
