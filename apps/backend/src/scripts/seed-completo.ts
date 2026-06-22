@@ -18,14 +18,11 @@ async function main() {
   const jsonPath = path.resolve(__dirname, '../../../../_parsed_full.json');
   const data: any[] = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
 
-  const conSector = data.filter(r => r.sector);
-  const sinSector = data.length - conSector.length;
-
-  // Dedupe por codigo (el @unique no admite repetidos)
+  // Dedupe por codigo (el @unique no admite repetidos). Se siembran TODOS (con y sin sector).
   const seen = new Set<number>();
   const recs: any[] = [];
   let dupCodigo = 0;
-  for (const r of conSector) {
+  for (const r of data) {
     if (r.codigo != null) {
       if (seen.has(r.codigo)) { dupCodigo++; continue; }
       seen.add(r.codigo);
@@ -33,14 +30,15 @@ async function main() {
     recs.push(r);
   }
 
-  const sectores = [...new Set(recs.map(r => r.sector))].sort();
+  const conSectorN = recs.filter(r => r.sector).length;
+  const sinSectorN = recs.length - conSectorN;
+  const sectores = [...new Set(recs.filter(r => r.sector).map(r => r.sector))].sort();
 
   console.log('=== SEED COMPLETO (' + (APPLY ? 'APPLY' : 'DRY-RUN') + ') ===');
   console.log('Base de datos    :', dbUrl.split('@')[1] || dbUrl);
-  console.log('Clientes a sembrar:', recs.length, '(con sector)');
+  console.log('Clientes a sembrar:', recs.length, '(' + conSectorN + ' con sector, ' + sinSectorN + ' sin sector)');
   console.log('Sectores distintos:', sectores.length);
   console.log('Codigos duplicados saltados:', dupCodigo);
-  console.log('Sin sector (NO se siembran, quedan en REVISION_SIN_SECTOR.md):', sinSector);
 
   if (!APPLY) {
     console.log('\n--- Muestra de lo que insertaria ---');
