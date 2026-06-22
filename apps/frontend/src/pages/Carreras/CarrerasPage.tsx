@@ -71,7 +71,7 @@ export const CarrerasPage = () => {
           type="text"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Buscar por código, cliente, teléfono, dirección, sector, unidad, placa, chofer, estado..."
+          placeholder="Buscar por ID de carrera u operador (Charlie)..."
           className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 shadow-sm"
         />
       </div>
@@ -108,7 +108,7 @@ export const CarrerasPage = () => {
                 {/* Unidad */}
                 <div className="flex items-center gap-2 mb-2">
                   <span className={`px-2 py-0.5 bg-gray-100 ${turno.text} text-[11px] font-bold rounded-md shrink-0`}>
-                    #{carrera.id}
+                    #{carrera.numeroDiario || carrera.id}
                   </span>
                   <div className="min-w-0">
                     <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide m-0 leading-none">Unidad</p>
@@ -126,6 +126,16 @@ export const CarrerasPage = () => {
                       <CodigoBadge codigo={carrera.cliente.codigo} className="shrink-0" />
                     )}
                     <span className="text-[13px] font-bold text-gray-800 truncate">{carrera.cliente.nombre}</span>
+                  </div>
+                </div>
+
+                {/* Creador */}
+                <div className="mb-1.5">
+                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide m-0">Operador</p>
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span className="text-[12px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded truncate">
+                      {carrera.creadoPor ? carrera.creadoPor.nombre : 'Sistema'}
+                    </span>
                   </div>
                 </div>
 

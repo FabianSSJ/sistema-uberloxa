@@ -18,13 +18,13 @@ export class CarrerasController {
   }
 
   @Get()
-  findAll() {
-    return this.carrerasService.findAll();
+  findAll(@Req() req: any) {
+    return this.carrerasService.findAll(req.user);
   }
 
   @Get('recent')
-  findRecent() {
-    return this.carrerasService.findRecent();
+  findRecent(@Req() req: any) {
+    return this.carrerasService.findRecent(req.user);
   }
 
   @Patch(':id/completar')
