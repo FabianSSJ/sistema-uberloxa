@@ -1,7 +1,13 @@
-import { IsString, IsNotEmpty, IsOptional, IsInt, MaxLength } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsInt, MaxLength, Min } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateClienteDto {
+  @ApiPropertyOptional({ description: 'Código del cliente (único)' })
+  @IsInt({ message: 'El código debe ser un número entero' })
+  @Min(1, { message: 'El código debe ser mayor a 0' })
+  @IsOptional()
+  codigo?: number;
+
   @ApiProperty({ description: 'Nombre completo del cliente' })
   @IsString()
   @IsNotEmpty({ message: 'El nombre es obligatorio' })

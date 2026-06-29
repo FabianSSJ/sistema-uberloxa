@@ -20,6 +20,7 @@ export interface Cliente {
 }
 
 export interface CreateClienteDto {
+  codigo?: number;
   nombre: string;
   telefono?: string;
   telefonoAlt?: string;
