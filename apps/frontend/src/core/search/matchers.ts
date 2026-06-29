@@ -74,10 +74,6 @@ const USUARIO_FIELDS: FieldDef<any>[] = [
   { weight: 10, get: (u) => (Array.isArray(u?.modulosPermitidos) ? u.modulosPermitidos.join(' ') : '') },
 ];
 
-const CHOFER_FIELDS: FieldDef<any>[] = [
-  { weight: 50, get: (c) => c?.nombre },
-  { weight: 40, get: (c) => c?.telefono },
-];
 
 // --- Núcleo del scoring ---
 
@@ -125,7 +121,6 @@ export const scoreCliente = (cliente: any, query: string): number => scoreFields
 export const scoreUnidad = (unidad: any, query: string): number => scoreFields(unidad, query, UNIDAD_FIELDS);
 export const scoreCarrera = (carrera: any, query: string): number => scoreFields(carrera, query, CARRERA_FIELDS);
 export const scoreUsuario = (usuario: any, query: string): number => scoreFields(usuario, query, USUARIO_FIELDS);
-export const scoreChofer = (chofer: any, query: string): number => scoreFields(chofer, query, CHOFER_FIELDS);
 
 // --- searchText para opciones de <Select> (busca por todos los campos, no solo el label visible) ---
 

@@ -121,8 +121,11 @@ export const CharlieDashboard = () => {
                   className={`border p-3 rounded-xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] hover:-translate-y-1 hover:shadow-[0_8px_15px_-3px_rgba(6,81,237,0.15)] transition-all duration-300 group cursor-grab active:cursor-grabbing ${isDragOver ? 'bg-amber-50 ring-2 ring-amber-400 border-amber-300 scale-[1.02]' : esProxima ? 'bg-white ring-2 ring-emerald-400 border-emerald-200' : 'bg-white border-gray-100'}`}
                 >
                   <div className="flex items-center gap-3">
-                    <div className={`w-11 h-11 min-w-11 rounded-full flex items-center justify-center font-black text-base border group-hover:text-white transition-colors duration-300 shadow-sm pointer-events-none ${est.avatar}`}>
-                      {u.numeroUnidad || 'S/N'}
+                    <div className="flex flex-col items-center shrink-0 pointer-events-none">
+                      <div className={`w-11 h-11 min-w-11 rounded-full flex items-center justify-center font-black text-base border group-hover:text-white transition-colors duration-300 shadow-sm ${est.avatar}`}>
+                        {u.numeroUnidad || 'S/N'}
+                      </div>
+                      <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wide mt-0.5">Unidad</span>
                     </div>
                     <div className="pointer-events-none flex-1 min-w-0">
                       <div className="flex items-center gap-1.5">
@@ -133,7 +136,7 @@ export const CharlieDashboard = () => {
                     </div>
                     <div className="flex flex-col items-end gap-1 pointer-events-none shrink-0">
                       <EstadoUnidadBadge unidad={u} />
-                      <span className="text-[10px] font-bold text-blue-700 bg-blue-50 border border-blue-100 px-1.5 py-0.5 rounded" title="Carreras de hoy">{hoy} hoy</span>
+                      <span className="text-[10px] font-bold text-blue-700 bg-blue-50 border border-blue-100 px-1.5 py-0.5 rounded">{hoy} {hoy === 1 ? 'carrera' : 'carreras'} hoy</span>
                     </div>
                   </div>
                 </div>

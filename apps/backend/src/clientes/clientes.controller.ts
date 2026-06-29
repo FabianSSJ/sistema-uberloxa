@@ -59,6 +59,19 @@ export class ClientesController {
     return this.clientesService.findPaginated(Number(page) || 1, Number(limit) || 20, search);
   }
 
+  // Bandeja de pendientes (clientes sin código). Definido ANTES de :id para que no lo capture.
+  @Get('pendientes')
+  @ApiOperation({ summary: 'Clientes pendientes de completar (sin código)' })
+  findPendientes() {
+    return this.clientesService.findPendientes();
+  }
+
+  @Get('pendientes/count')
+  @ApiOperation({ summary: 'Cantidad de clientes pendientes (para el badge)' })
+  countPendientes() {
+    return this.clientesService.countPendientes();
+  }
+
   @Get(':id')
   @RequireModule('clientes', 'carreras')
   @ApiOperation({ summary: 'Obtener un cliente activo por ID' })

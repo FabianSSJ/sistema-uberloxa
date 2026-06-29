@@ -11,6 +11,8 @@ const UnidadesPage = lazy(() => import('./pages/Unidades/UnidadesPage').then(m =
 const CarrerasPage = lazy(() => import('./pages/Carreras/CarrerasPage').then(m => ({ default: m.CarrerasPage })));
 const LoginPage = lazy(() => import('./pages/Login/LoginPage').then(m => ({ default: m.LoginPage })));
 const GestorUsuariosPage = lazy(() => import('./pages/GestorUsuarios/GestorUsuariosPage').then(m => ({ default: m.GestorUsuariosPage })));
+const NuevosClientesPage = lazy(() => import('./pages/NuevosClientes/NuevosClientesPage').then(m => ({ default: m.NuevosClientesPage })));
+const EstadisticasPage = lazy(() => import('./pages/Estadisticas/EstadisticasPage').then(m => ({ default: m.EstadisticasPage })));
 
 const PageLoader = () => (
   <div className="flex items-center justify-center h-screen">
@@ -39,6 +41,10 @@ function App() {
               </Route>
               <Route element={<PrivateRoute allowedRoles={['SUPERADMIN']} />}>
                 <Route path="gestor-usuarios" element={<GestorUsuariosPage />} />
+              </Route>
+              <Route element={<PrivateRoute allowedRoles={['SUPERADMIN', 'ADMIN']} />}>
+                <Route path="nuevos-clientes" element={<NuevosClientesPage />} />
+                <Route path="estadisticas" element={<EstadisticasPage />} />
               </Route>
             </Route>
           </Route>

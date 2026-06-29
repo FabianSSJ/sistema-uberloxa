@@ -8,8 +8,8 @@ import { MarcasModule } from './marcas/marcas.module';
 import { ModelosModule } from './modelos/modelos.module';
 import { UnidadesModule } from './unidades/unidades.module';
 import { CarrerasModule } from './carreras/carreras.module';
-import { ChoferesModule } from './choferes/choferes.module';
 import { UsuariosModule } from './usuarios/usuarios.module';
+import { EstadisticasModule } from './estadisticas/estadisticas.module';
 
 @Module({
   imports: [
@@ -25,8 +25,8 @@ import { UsuariosModule } from './usuarios/usuarios.module';
     ModelosModule,
     UnidadesModule,
     CarrerasModule,
-    ChoferesModule,
     UsuariosModule,
+    EstadisticasModule,
   ],
 })
 export class AppModule {}

@@ -13,6 +13,26 @@ export const useClientes = () => {
   });
 };
 
+// Clientes pendientes (sin código) — la bandeja de "Nuevos clientes".
+export const usePendientes = () => {
+  return useQuery({
+    queryKey: ['clientes', 'pendientes'],
+    queryFn: clientesService.getPendientes,
+    refetchInterval: 10000,
+  });
+};
+
+// Contador para el badge del nav (liviano). Solo para admin/superadmin (enabled), porque el
+// endpoint requiere el módulo 'clientes'. Se refresca al crear/editar clientes (prefijo 'clientes').
+export const usePendientesCount = (enabled = true) => {
+  return useQuery({
+    queryKey: ['clientes', 'pendientes', 'count'],
+    queryFn: clientesService.getPendientesCount,
+    refetchInterval: 15000,
+    enabled,
+  });
+};
+
 // Paginado + búsqueda server-side: la tabla de Clientes solo baja la página visible.
 export const useClientesPaginados = (page: number, limit: number, search: string) => {
   return useQuery({

@@ -79,17 +79,6 @@ model Modelo {
   @@map("modelos")
 }
 
-model Chofer {
-  id        Int      @id @default(autoincrement())
-  nombre    String
-  telefono  String?
-  activo    Boolean  @default(true)
-  createdAt DateTime @default(now()) @map("created_at")
-  unidades  Unidad[]
-
-  @@map("choferes")
-}
-
 enum EstadoUnidad {
   disponible
   ocupado
@@ -104,20 +93,17 @@ model Unidad {
   vehiculo       String?
   modeloId       Int?         @map("modelo_id")
   modelo         Modelo?      @relation(fields: [modeloId], references: [id])
-  choferId       Int?         @map("chofer_id")
-  chofer         Chofer?      @relation(fields: [choferId], references: [id])
   choferNombre   String?      @map("chofer_nombre")
   choferTelefono String?      @map("chofer_telefono")
   color          String?      // color FISICO del vehiculo (texto libre: Blanco, Plomo...)
   colorIdentidad String?      @map("color_identidad") // color de identidad UI (key de paleta)
   activadoEn     DateTime?    @map("activado_en") // cola de despacho: !=null => en cola; orden = FIFO por este timestamp
   anio           Int?
-  estado         EstadoUnidad @default(disponible)
+  estado         EstadoUnidad @default(inactivo) // fuera de la cola hasta que se la active (drag en Asignación)
   createdAt      DateTime     @default(now()) @map("created_at")
   carreras       Carrera[]
 
   @@index([modeloId])
-  @@index([choferId])
   @@map("unidades")
 }
 
