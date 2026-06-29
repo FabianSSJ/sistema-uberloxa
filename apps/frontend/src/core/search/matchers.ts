@@ -46,10 +46,25 @@ const UNIDAD_FIELDS: FieldDef<any>[] = [
 ];
 
 const CARRERA_FIELDS: FieldDef<any>[] = [
+  // Identificadores de la carrera (número diario + operador que la creó)
   { weight: 100, get: (r) => r?.id },
   { weight: 100, get: (r) => r?.numeroDiario },
   { weight: 60, get: (r) => r?.creadoPor?.nombre },
   { weight: 60, get: (r) => r?.creadoPor?.username },
+  // Datos del cliente
+  { weight: 100, get: (r) => r?.cliente?.codigo },
+  { weight: 50, get: (r) => r?.cliente?.nombre },
+  { weight: 40, get: (r) => r?.cliente?.telefono },
+  { weight: 20, get: (r) => r?.cliente?.sector?.nombre },
+  { weight: 15, get: (r) => r?.cliente?.direccion },
+  // Datos de la unidad asignada
+  { weight: 50, get: (r) => r?.unidad?.numeroUnidad },
+  { weight: 50, get: (r) => r?.unidad?.placa },
+  { weight: 45, get: (r) => r?.unidad?.choferNombre },
+  { weight: 40, get: (r) => r?.unidad?.choferTelefono },
+  // Estado y notas
+  { weight: 30, get: (r) => r?.estado },
+  { weight: 10, get: (r) => r?.notas },
 ];
 
 const USUARIO_FIELDS: FieldDef<any>[] = [
