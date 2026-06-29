@@ -50,8 +50,11 @@ export const AsignacionPanel = ({ searchTerm }: AsignacionPanelProps) => {
       className={`flex items-center gap-2.5 bg-white border border-gray-200 border-l-4 ${colorUnidad(u).border} rounded-lg p-2.5 cursor-grab active:cursor-grabbing hover:shadow-sm transition`}
     >
       <GripVertical size={16} className="text-gray-300 shrink-0" />
-      <div className="w-9 h-9 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center font-black text-sm shrink-0">
-        {u.numeroUnidad || 'S/N'}
+      <div className="flex flex-col items-center shrink-0">
+        <div className="w-9 h-9 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center font-black text-sm">
+          {u.numeroUnidad || 'S/N'}
+        </div>
+        <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wide mt-0.5">Unidad</span>
       </div>
       <div className="min-w-0 flex-1">
         <p className="text-[13px] font-bold text-gray-800 truncate m-0">{u.choferNombre || 'Sin chofer'}</p>
@@ -60,7 +63,7 @@ export const AsignacionPanel = ({ searchTerm }: AsignacionPanelProps) => {
     </div>
   );
 
-  const renderActiva = (u: Unidad, pos: number) => {
+  const renderActiva = (u: Unidad) => {
     const estado = (u.estado || 'disponible') as EstadoUnidad;
     const s = ESTADO_UNIDAD_STYLES[estado];
     const esProxima = u.id === proximaId;
@@ -75,14 +78,11 @@ export const AsignacionPanel = ({ searchTerm }: AsignacionPanelProps) => {
           esProxima ? 'ring-2 ring-emerald-400 border-emerald-300' : 'border-gray-200'
         }`}
       >
-        {/* posición en la fila */}
-        <div className="flex flex-col items-center justify-center w-7 shrink-0">
-          <span className="text-[10px] font-bold text-gray-400">#</span>
-          <span className="text-lg font-black text-gray-700 leading-none">{pos}</span>
-        </div>
-
-        <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black text-sm border shrink-0 ${s.avatar}`}>
-          {u.numeroUnidad || 'S/N'}
+        <div className="flex flex-col items-center shrink-0">
+          <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black text-sm border ${s.avatar}`}>
+            {u.numeroUnidad || 'S/N'}
+          </div>
+          <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wide mt-1">Unidad</span>
         </div>
 
         <div className="min-w-0 flex-1">
@@ -93,8 +93,8 @@ export const AsignacionPanel = ({ searchTerm }: AsignacionPanelProps) => {
           <p className="text-[11px] text-gray-500 truncate m-0">{u.placa} · {u.vehiculo || 'N/A'}</p>
           <div className="flex items-center gap-2 mt-1">
             <EstadoUnidadBadge unidad={u} />
-            <span className="text-[10px] font-bold text-blue-700 bg-blue-50 border border-blue-100 px-1.5 py-0.5 rounded" title="Carreras de hoy">
-              {hoy} hoy
+            <span className="text-[10px] font-bold text-blue-700 bg-blue-50 border border-blue-100 px-1.5 py-0.5 rounded">
+              {hoy} {hoy === 1 ? 'carrera' : 'carreras'} hoy
             </span>
           </div>
         </div>
@@ -160,7 +160,7 @@ export const AsignacionPanel = ({ searchTerm }: AsignacionPanelProps) => {
           <span className="ml-auto text-xs font-bold bg-emerald-200 text-emerald-800 px-2 py-0.5 rounded-full">{activasF.length}</span>
         </div>
         <div className="flex flex-col gap-2.5">
-          {activasF.map((u) => renderActiva(u, activas.findIndex((a) => a.id === u.id) + 1))}
+          {activasF.map((u) => renderActiva(u))}
           {activasF.length === 0 && (
             <p className="text-center text-gray-400 text-sm py-8">Arrastrá unidades acá para activarlas. La primera en llegar es la primera en despachar.</p>
           )}

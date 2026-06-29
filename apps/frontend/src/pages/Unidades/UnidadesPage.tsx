@@ -137,10 +137,12 @@ export const UnidadesPage = () => {
                         <span className="px-2.5 py-1 bg-yellow-100 text-yellow-800 border border-yellow-300 font-mono text-xs font-bold rounded-md tracking-wider">
                           {unidad.placa}
                         </span>
-                        <EstadoUnidadBadge unidad={unidad} interactive />
-                        <span className="text-[10px] font-bold text-blue-700 bg-blue-50 border border-blue-100 px-1.5 py-0.5 rounded" title="Carreras de hoy">
-                          {carrerasHoy.get(unidad.id) || 0} hoy
+                        <EstadoUnidadBadge unidad={unidad} />
+                        {(() => { const n = carrerasHoy.get(unidad.id) || 0; return (
+                        <span className="text-[10px] font-bold text-blue-700 bg-blue-50 border border-blue-100 px-1.5 py-0.5 rounded">
+                          {n} {n === 1 ? 'carrera' : 'carreras'} hoy
                         </span>
+                        ); })()}
                       </div>
 
                       <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide m-0">Vehículo</p>

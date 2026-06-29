@@ -1,22 +1,33 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { Car, Users, Clock, Activity, Settings, LogOut } from 'lucide-react';
+import { Car, Users, Clock, Activity, Settings, LogOut, UserPlus, BarChart3 } from 'lucide-react';
 import { useAuth } from '../features/auth/context/AuthContext';
+import { usePendientesCount } from '../features/clientes/hooks/useClientes';
+
+type NavItem = { path: string; icon: any; label: string; reqModule: string | null; badge?: number };
 
 const MainLayout = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const esAdmin = user?.rol === 'SUPERADMIN' || user?.rol === 'ADMIN';
+  // El badge de pendientes solo importa para administración; si no es admin, no consultamos.
+  const { data: pendientesCount = 0 } = usePendientesCount(esAdmin);
 
   const handleLogout = () => {
     logout();
     navigate('/login');
   };
 
-  const allNavItems = [
+  const allNavItems: NavItem[] = [
     { path: '/', icon: Activity, label: 'Dashboard', reqModule: null },
     { path: '/unidades', icon: Car, label: 'Unidades', reqModule: 'unidades' },
     { path: '/clientes', icon: Users, label: 'Clientes', reqModule: 'clientes' },
     { path: '/carreras', icon: Clock, label: 'Carreras', reqModule: 'carreras' }
   ];
+
+  if (esAdmin) {
+    allNavItems.push({ path: '/nuevos-clientes', icon: UserPlus, label: 'Nuevos Clientes', reqModule: null, badge: pendientesCount });
+    allNavItems.push({ path: '/estadisticas', icon: BarChart3, label: 'Estadísticas', reqModule: null });
+  }
 
   if (user?.rol === 'SUPERADMIN') {
     allNavItems.push({ path: '/gestor-usuarios', icon: Settings, label: 'Gestor de Usuarios', reqModule: null });
@@ -78,6 +89,11 @@ const MainLayout = () => {
           >
             <item.icon size={20} />
             {item.label}
+            {item.badge ? (
+              <span className="ml-1 min-w-5 h-5 px-1.5 flex items-center justify-center text-[11px] font-bold bg-red-500 text-white rounded-full">
+                {item.badge}
+              </span>
+            ) : null}
           </NavLink>
         ))}
       </nav>

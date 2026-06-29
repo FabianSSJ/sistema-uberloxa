@@ -49,6 +49,20 @@ export class ClientesService {
     });
   }
 
+  // "Pendientes" = clientes activos SIN código (agregados en caliente, falta completarlos).
+  async findPendientes() {
+    return this.prisma.cliente.findMany({
+      where: { activo: true, codigo: null },
+      include: { sector: true },
+      orderBy: { id: 'desc' }, // los más recientes primero
+    });
+  }
+
+  async countPendientes() {
+    const count = await this.prisma.cliente.count({ where: { activo: true, codigo: null } });
+    return { count };
+  }
+
   async findPaginated(page: number, limit: number, search?: string) {
     const safePage = Math.max(1, page);
     const safeLimit = Math.min(Math.max(1, limit), 100);
