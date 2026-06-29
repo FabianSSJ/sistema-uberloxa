@@ -6,17 +6,21 @@ import * as bcrypt from 'bcrypt';
 export class UsuariosService {
   constructor(private prisma: PrismaService) {}
 
+  // Campos públicos del usuario (nunca el passwordHash).
+  private readonly publicSelect = {
+    id: true,
+    nombre: true,
+    username: true,
+    rol: true,
+    modulosPermitidos: true,
+    activo: true,
+    color: true,
+    createdAt: true,
+  };
+
   async findAll() {
     return this.prisma.usuario.findMany({
-      select: {
-        id: true,
-        nombre: true,
-        username: true,
-        rol: true,
-        modulosPermitidos: true,
-        activo: true,
-        createdAt: true,
-      },
+      select: this.publicSelect,
       orderBy: { nombre: 'asc' },
     });
   }
@@ -24,15 +28,7 @@ export class UsuariosService {
   async findOne(id: number) {
     return this.prisma.usuario.findUnique({
       where: { id },
-      select: {
-        id: true,
-        nombre: true,
-        username: true,
-        rol: true,
-        modulosPermitidos: true,
-        activo: true,
-        createdAt: true,
-      },
+      select: this.publicSelect,
     });
   }
 
@@ -55,16 +51,19 @@ export class UsuariosService {
         passwordHash,
         rol: rolToAssign,
         modulosPermitidos,
+        color: data.color ?? null,
       },
-      select: { id: true, nombre: true, username: true, rol: true },
+      select: this.publicSelect,
     });
   }
 
   async update(id: number, data: any) {
+    // undefined → Prisma ignora el campo; null → lo limpia. Así 'color' se puede setear o borrar.
     const updateData: any = {
       nombre: data.nombre,
       rol: data.rol,
       activo: data.activo,
+      color: data.color,
     };
 
     if (data.rol) {
@@ -83,11 +82,32 @@ export class UsuariosService {
     return this.prisma.usuario.update({
       where: { id },
       data: updateData,
-      select: { id: true, nombre: true, username: true, rol: true },
+      select: this.publicSelect,
     });
   }
 
+  // "Eliminar" = DESACTIVAR (soft-delete): bloquea el login pero conserva el historial
+  // de carreras y su atribución. Reversible reactivando (update con activo=true).
   async remove(id: number) {
-    return this.prisma.usuario.delete({ where: { id } });
+    const usuario = await this.prisma.usuario.findUnique({ where: { id } });
+    if (!usuario) {
+      throw new BadRequestException('Usuario no encontrado');
+    }
+
+    // Anti-lockout: no permitir desactivar al último SUPERADMIN activo.
+    if (usuario.rol === 'SUPERADMIN' && usuario.activo) {
+      const superadminsActivos = await this.prisma.usuario.count({
+        where: { rol: 'SUPERADMIN', activo: true },
+      });
+      if (superadminsActivos <= 1) {
+        throw new BadRequestException('No se puede desactivar al último SUPERADMIN activo');
+      }
+    }
+
+    return this.prisma.usuario.update({
+      where: { id },
+      data: { activo: false },
+      select: this.publicSelect,
+    });
   }
 }

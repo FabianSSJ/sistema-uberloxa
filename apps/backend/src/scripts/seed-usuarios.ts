@@ -17,11 +17,12 @@ const prisma = new PrismaClient({ adapter });
 //  - ADMIN: no bypassa -> necesita todos los modulos para acceso operativo full.
 //  - CHARLIE: no bypassa; el front lo limita a Carreras -> solo 'carreras'.
 const USUARIOS = [
-  { nombre: 'Administrador', username: 'admin',         password: 'admin123',      rol: 'SUPERADMIN', modulosPermitidos: [] as string[] },
-  { nombre: 'Byron',         username: 'ByronUber',     password: 'byronuber',     rol: 'ADMIN',      modulosPermitidos: ['carreras', 'clientes', 'unidades', 'choferes'] },
-  { nombre: 'Kathia',        username: 'KathiaUber',    password: 'KathiaUber',    rol: 'CHARLIE',    modulosPermitidos: ['carreras'] },
-  { nombre: 'Carmita',       username: 'CarmitaUber',   password: 'CarmitaUber',   rol: 'CHARLIE',    modulosPermitidos: ['carreras'] },
-  { nombre: 'Alejandra',     username: 'AlejandraUber', password: 'AlejandraUber', rol: 'CHARLIE',    modulosPermitidos: ['carreras'] },
+  { nombre: 'Administrador', username: 'admin',         password: 'admin123',      rol: 'SUPERADMIN', modulosPermitidos: [] as string[], color: null as string | null },
+  { nombre: 'Byron',         username: 'ByronUber',     password: 'byronuber',     rol: 'ADMIN',      modulosPermitidos: ['carreras', 'clientes', 'unidades', 'choferes'], color: null },
+  { nombre: 'Kathia',        username: 'KathiaUber',    password: 'KathiaUber',    rol: 'CHARLIE',    modulosPermitidos: ['carreras'], color: 'rojo' },
+  { nombre: 'Carmita',       username: 'CarmitaUber',   password: 'CarmitaUber',   rol: 'CHARLIE',    modulosPermitidos: ['carreras'], color: 'verde' },
+  { nombre: 'Alejandra',     username: 'AlejandraUber', password: 'AlejandraUber', rol: 'CHARLIE',    modulosPermitidos: ['carreras'], color: 'azul' },
+  { nombre: 'Gabriel',       username: 'GabrielUber',   password: 'GabrielUber',   rol: 'CHARLIE',    modulosPermitidos: ['carreras'], color: 'negro' },
 ];
 
 async function main() {
@@ -36,11 +37,12 @@ async function main() {
       rol: u.rol as any,
       modulosPermitidos: u.modulosPermitidos,
       activo: true,
+      color: u.color,
     };
 
     const res = await prisma.usuario.upsert({
       where: { username: u.username },
-      update: { nombre: data.nombre, passwordHash, rol: data.rol, modulosPermitidos: data.modulosPermitidos, activo: true },
+      update: { nombre: data.nombre, passwordHash, rol: data.rol, modulosPermitidos: data.modulosPermitidos, activo: true, color: u.color },
       create: data,
       select: { id: true, username: true, rol: true, modulosPermitidos: true },
     });

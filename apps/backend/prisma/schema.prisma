@@ -22,6 +22,7 @@ model Usuario {
   rol               RolUsuario @default(CHARLIE)
   modulosPermitidos String[] @map("modulos_permitidos") @default([])
   activo            Boolean  @default(true)
+  color             String?  // color de identidad (key de paleta: verde, azul, negro, rojo...)
   createdAt         DateTime @default(now()) @map("created_at")
 
   carrerasCreadas   Carrera[] @relation("CarrerasCreadas")
@@ -93,6 +94,7 @@ enum EstadoUnidad {
   disponible
   ocupado
   inactivo
+  descanso
 }
 
 model Unidad {
@@ -106,7 +108,9 @@ model Unidad {
   chofer         Chofer?      @relation(fields: [choferId], references: [id])
   choferNombre   String?      @map("chofer_nombre")
   choferTelefono String?      @map("chofer_telefono")
-  color          String?
+  color          String?      // color FISICO del vehiculo (texto libre: Blanco, Plomo...)
+  colorIdentidad String?      @map("color_identidad") // color de identidad UI (key de paleta)
+  activadoEn     DateTime?    @map("activado_en") // cola de despacho: !=null => en cola; orden = FIFO por este timestamp
   anio           Int?
   estado         EstadoUnidad @default(disponible)
   createdAt      DateTime     @default(now()) @map("created_at")

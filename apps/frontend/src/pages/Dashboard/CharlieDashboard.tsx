@@ -2,21 +2,22 @@ import { Car, Users, Clock, Plus, Search, Trash2 } from 'lucide-react';
 import { useState, useMemo } from 'react';
 
 import { useClientes } from '../../features/clientes/hooks/useClientes';
-import { useUnidades, useCambiarEstadoUnidad } from '../../features/unidades/hooks/useUnidades';
+import { useColaDespacho } from '../../features/unidades/hooks/useColaDespacho';
 import type { EstadoUnidad } from '../../features/unidades/services/unidades.service';
-import { EstadoUnidadBadge, ESTADO_UNIDAD_STYLES, nextEstadoToggle } from '../../features/unidades/components/EstadoUnidadBadge';
+import { EstadoUnidadBadge, ESTADO_UNIDAD_STYLES } from '../../features/unidades/components/EstadoUnidadBadge';
 import { useCarreras, useCreateCarrera, useCompletarCarrera, useCancelarCarrera, usePerderCarrera, useDeleteCarrera } from '../../features/carreras/hooks/useCarreras';
 import { CarreraFormModal } from './CarreraFormModal';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { CodigoBadge } from '../../components/ui/CodigoBadge';
 import { EstadoCarreraBadge } from '../../features/carreras/components/EstadoCarreraBadge';
 import { rankBy, scoreUnidad, scoreCliente } from '../../core/search/matchers';
+import { colorOperador } from '../../core/operadores/colores';
 import { useAuth } from '../../features/auth/context/AuthContext';
 
 export const CharlieDashboard = () => {
   const { user } = useAuth();
   const { data: clientes = [] } = useClientes();
-  const { data: unidades = [] } = useUnidades();
+  const { activas, carrerasHoy, proximaId } = useColaDespacho();
   const { data: allRidesData = [] } = useCarreras();
   
   // El Charlie solo ve las carreras que él mismo creó (memoizado: no recalcula en cada poll si no cambió).
@@ -26,7 +27,6 @@ export const CharlieDashboard = () => {
   );
 
   const createCarreraMutation = useCreateCarrera();
-  const cambiarEstadoMutation = useCambiarEstadoUnidad();
   const completarMutation = useCompletarCarrera();
   const cancelarMutation = useCancelarCarrera();
   const perderMutation = usePerderCarrera();
@@ -40,15 +40,11 @@ export const CharlieDashboard = () => {
   const [draggedItem, setDraggedItem] = useState<{type: 'CHOFER' | 'CLIENTE', id: number} | null>(null);
   const [dragOverItem, setDragOverItem] = useState<{type: 'CHOFER' | 'CLIENTE', id: number} | null>(null);
 
+  // La Charlie solo ve las unidades ACTIVAS, en el orden de la cola (FIFO). Filtra preservando el orden.
   const filteredUnidades = useMemo(
-    () => rankBy(unidades, searchChofer, scoreUnidad),
-    [unidades, searchChofer]
+    () => (searchChofer.trim() ? activas.filter((u) => scoreUnidad(u, searchChofer) > 0) : activas),
+    [activas, searchChofer]
   );
-
-  // Regla del click de la Charlie: usa el toggle compartido (misma logica en todo el sistema).
-  const toggleEstadoUnidad = (u: any) => {
-    cambiarEstadoMutation.mutate({ id: u.id, estado: nextEstadoToggle(u.estado || 'disponible') });
-  };
 
   // El filtro más caro (sobre miles de clientes): memoizado para no correr en cada render/poll.
   const filteredClientes = useMemo(
@@ -62,25 +58,6 @@ export const CharlieDashboard = () => {
       return date.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' });
     } catch {
       return '';
-    }
-  };
-
-  const getTurnoColor = (isoString: string) => {
-    try {
-      const date = new Date(isoString);
-      const hour = date.getHours();
-      // Mañana: 7 AM a 11:59 AM (Azul)
-      if (hour >= 7 && hour < 12) {
-        return { border: 'border-l-blue-500', icon: 'text-blue-500', text: 'text-blue-700' };
-      }
-      // Tarde: 12 PM a 6:59 PM (Naranja)
-      if (hour >= 12 && hour < 19) {
-        return { border: 'border-l-orange-500', icon: 'text-orange-500', text: 'text-orange-700' };
-      }
-      // Noche/Madrugada: 7 PM a 6:59 AM (Negro/Gris Oscuro)
-      return { border: 'border-l-gray-800', icon: 'text-gray-800', text: 'text-gray-800' };
-    } catch {
-      return { border: 'border-l-gray-300', icon: 'text-gray-400', text: 'text-gray-500' };
     }
   };
 
@@ -98,7 +75,7 @@ export const CharlieDashboard = () => {
               <h2 className="text-xl font-bold m-0 tracking-wide">Choferes</h2>
             </div>
             <span className="bg-amber-700/50 px-3 py-1 rounded-full text-sm font-bold shadow-inner">
-              {unidades.length}
+              {filteredUnidades.length}
             </span>
           </div>
           <div className="px-5 pt-5 bg-slate-50/50">
@@ -114,15 +91,16 @@ export const CharlieDashboard = () => {
             </div>
           </div>
           <div className="flex-1 overflow-y-auto px-5 pb-5 pt-3 flex flex-col gap-2.5 bg-slate-50/50">
-            {filteredUnidades.map((u: any, idx: number) => {
+            {filteredUnidades.map((u: any) => {
               const isDragOver = dragOverItem?.type === 'CHOFER' && dragOverItem.id === u.id;
               const est = ESTADO_UNIDAD_STYLES[(u.estado as EstadoUnidad) || 'disponible'];
+              const esProxima = u.id === proximaId;
+              const hoy = carrerasHoy.get(u.id) || 0;
               return (
                 <div
                   key={u.id}
                   draggable
-                  title="Click para cambiar estado · Arrastrá un cliente acá para asignar carrera"
-                  onClick={() => toggleEstadoUnidad(u)}
+                  title="Arrastrá un cliente acá para asignar carrera"
                   onDragStart={(e) => {
                     setDraggedItem({ type: 'CHOFER', id: u.id });
                     e.dataTransfer.setData('text/plain', JSON.stringify({ type: 'CHOFER', id: u.id }));
@@ -140,23 +118,28 @@ export const CharlieDashboard = () => {
                     }
                     setDraggedItem(null); setDragOverItem(null);
                   }}
-                  className={`border p-3 rounded-xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] hover:-translate-y-1 hover:shadow-[0_8px_15px_-3px_rgba(6,81,237,0.15)] transition-all duration-300 group cursor-pointer active:cursor-grabbing ${isDragOver ? 'bg-amber-50 ring-2 ring-amber-400 border-amber-300 scale-[1.02]' : 'bg-white border-gray-100'}`}
+                  className={`border p-3 rounded-xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] hover:-translate-y-1 hover:shadow-[0_8px_15px_-3px_rgba(6,81,237,0.15)] transition-all duration-300 group cursor-grab active:cursor-grabbing ${isDragOver ? 'bg-amber-50 ring-2 ring-amber-400 border-amber-300 scale-[1.02]' : esProxima ? 'bg-white ring-2 ring-emerald-400 border-emerald-200' : 'bg-white border-gray-100'}`}
                 >
                   <div className="flex items-center gap-3">
                     <div className={`w-11 h-11 min-w-11 rounded-full flex items-center justify-center font-black text-base border group-hover:text-white transition-colors duration-300 shadow-sm pointer-events-none ${est.avatar}`}>
                       {u.numeroUnidad || 'S/N'}
                     </div>
                     <div className="pointer-events-none flex-1 min-w-0">
-                      <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide m-0">Chofer</p>
-                      <h3 className="font-bold text-gray-800 m-0 text-[13px] leading-tight truncate">{u.choferNombre || 'Sin Chofer'}</h3>
+                      <div className="flex items-center gap-1.5">
+                        <h3 className="font-bold text-gray-800 m-0 text-[13px] leading-tight truncate">{u.choferNombre || 'Sin Chofer'}</h3>
+                        {esProxima && <span className="text-[9px] font-black uppercase bg-emerald-500 text-white px-1.5 py-0.5 rounded shrink-0">Próxima</span>}
+                      </div>
                       <p className="text-gray-500 text-[11px] m-0 mt-0.5 font-medium truncate">Placa {u.placa} · {u.vehiculo || 'Vehículo N/A'}</p>
                     </div>
-                    <EstadoUnidadBadge unidad={u} className="pointer-events-none shrink-0" />
+                    <div className="flex flex-col items-end gap-1 pointer-events-none shrink-0">
+                      <EstadoUnidadBadge unidad={u} />
+                      <span className="text-[10px] font-bold text-blue-700 bg-blue-50 border border-blue-100 px-1.5 py-0.5 rounded" title="Carreras de hoy">{hoy} hoy</span>
+                    </div>
                   </div>
                 </div>
               );
             })}
-            {filteredUnidades.length === 0 && <div className="text-center text-gray-400 mt-10 font-medium">No hay choferes encontrados</div>}
+            {filteredUnidades.length === 0 && <div className="text-center text-gray-400 mt-10 font-medium">{searchChofer ? 'Sin resultados' : 'No hay unidades activas'}</div>}
           </div>
         </div>
 
@@ -247,16 +230,16 @@ export const CharlieDashboard = () => {
           </div>
           <div className="flex-1 overflow-y-auto p-5 flex flex-col gap-4 bg-slate-50/50">
             {allRides.map((r: any, idx: number) => {
-              const turno = getTurnoColor(r.createdAt);
+              const op = colorOperador(r.creadoPor);
 
               return (
-                <div key={r.id} className={`bg-white border-l-4 ${turno.border} border border-y-gray-100 border-r-gray-100 p-4 rounded-xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] hover:-translate-x-1 hover:shadow-[0_8px_15px_-3px_rgba(6,81,237,0.15)] transition-all duration-300`}>
+                <div key={r.id} className={`bg-white border-l-4 ${op.border} border border-y-gray-100 border-r-gray-100 p-4 rounded-xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] hover:-translate-x-1 hover:shadow-[0_8px_15px_-3px_rgba(6,81,237,0.15)] transition-all duration-300`}>
                   <div className="flex justify-between items-start mb-2">
-                    <h3 className={`font-bold m-0 text-[16px] truncate max-w-[70%] ${turno.text}`}>#{r.numeroDiario || r.id} - {r.cliente?.nombre || 'Cliente'}</h3>
+                    <h3 className={`font-bold m-0 text-[16px] truncate max-w-[70%] ${op.text}`}>#{r.numeroDiario || r.id} - {r.cliente?.nombre || 'Cliente'}</h3>
                     <span className="text-xs font-black text-gray-400 bg-gray-50 px-2 py-1 rounded-md">{formatTime(r.createdAt)}</span>
                   </div>
                   <p className="text-sm text-gray-600 m-0 flex items-center gap-2 font-medium">
-                    <Car size={16} className={turno.icon}/> 
+                    <Car size={16} className={op.icon}/>
                     {r.unidad ? `Unidad ${r.unidad.numeroUnidad} - ${r.unidad.choferNombre}` : 'Sin unidad asignada'}
                   </p>
                   <div className="mt-3 flex items-center justify-between">

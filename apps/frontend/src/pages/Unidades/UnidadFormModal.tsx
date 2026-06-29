@@ -3,6 +3,7 @@ import { Modal } from '../../components/ui/Modal';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { useUnidades, useCreateUnidad, useUpdateUnidad } from '../../features/unidades/hooks/useUnidades';
+import { ColorPicker } from '../../components/ui/ColorPicker';
 import { notify } from '../../components/ui/toast';
 
 interface UnidadFormModalProps {
@@ -24,6 +25,7 @@ export const UnidadFormModal: React.FC<UnidadFormModalProps> = ({ isOpen, onClos
     vehiculo: '',
     choferTelefono: '',
   });
+  const [colorIdentidad, setColorIdentidad] = useState<string | null>(null);
 
   useEffect(() => {
     if (editingId && isOpen) {
@@ -36,6 +38,7 @@ export const UnidadFormModal: React.FC<UnidadFormModalProps> = ({ isOpen, onClos
           vehiculo: unidad.vehiculo || '',
           choferTelefono: unidad.choferTelefono || '',
         });
+        setColorIdentidad((unidad as any).colorIdentidad ?? null);
       }
     } else {
       setFormData({
@@ -45,6 +48,7 @@ export const UnidadFormModal: React.FC<UnidadFormModalProps> = ({ isOpen, onClos
         vehiculo: '',
         choferTelefono: '',
       });
+      setColorIdentidad(null);
     }
   }, [editingId, isOpen, unidades]);
 
@@ -65,6 +69,7 @@ export const UnidadFormModal: React.FC<UnidadFormModalProps> = ({ isOpen, onClos
       placa: formData.placa.trim(),
       vehiculo: formData.vehiculo.trim(),
       choferTelefono: formData.choferTelefono.trim() || undefined,
+      colorIdentidad,
     };
 
     try {
@@ -118,12 +123,17 @@ export const UnidadFormModal: React.FC<UnidadFormModalProps> = ({ isOpen, onClos
           />
         </div>
 
-        <div className="border-t border-gray-100 mt-2 pt-4">
+        <div className="border-t border-gray-100 mt-2 pt-4 flex flex-col gap-4">
           <Input
             label="Teléfono del Chofer"
             value={formData.choferTelefono}
             onChange={(e) => setFormData({ ...formData, choferTelefono: e.target.value })}
             placeholder="Opcional"
+          />
+          <ColorPicker
+            label="Color de identidad de la unidad"
+            value={colorIdentidad}
+            onChange={setColorIdentidad}
           />
         </div>
 

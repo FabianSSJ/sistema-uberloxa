@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { useCarreras } from '../../features/carreras/hooks/useCarreras';
 import { useUnidades } from '../../features/unidades/hooks/useUnidades';
 import { rankBy, scoreUnidad, scoreUsuario } from '../../core/search/matchers';
+import { colorOperador, colorUnidad } from '../../core/operadores/colores';
 import { Car, CheckCircle2, XCircle, AlertTriangle, TrendingUp, Calendar, Users, Search, Clock } from 'lucide-react';
 
 export const AdminDashboard = () => {
@@ -178,7 +179,7 @@ export const AdminDashboard = () => {
                 <tr key={stat.unidad.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
-                      <div className="flex-shrink-0 h-10 w-10 bg-gray-100 rounded-full flex items-center justify-center text-gray-500">
+                      <div className={`flex-shrink-0 h-10 w-10 rounded-full flex items-center justify-center ${colorUnidad(stat.unidad).avatar}`}>
                         <Car size={20} />
                       </div>
                       <div className="ml-4">
@@ -260,7 +261,7 @@ export const AdminDashboard = () => {
                 <tr key={stat.charlie.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
-                      <div className="flex-shrink-0 h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-600">
+                      <div className={`flex-shrink-0 h-10 w-10 rounded-full flex items-center justify-center ${colorOperador(stat.charlie).avatar}`}>
                         <Users size={20} />
                       </div>
                       <div className="ml-4">
