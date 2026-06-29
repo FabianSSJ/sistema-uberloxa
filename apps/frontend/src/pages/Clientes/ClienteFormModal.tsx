@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Modal } from '../../components/ui/Modal';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
@@ -24,6 +24,7 @@ export const ClienteFormModal: React.FC<ClienteFormModalProps> = ({
   const updateMutation = useUpdateCliente();
 
   const [formData, setFormData] = useState<CreateClienteDto>({
+    codigo: undefined,
     nombre: '',
     telefono: '',
     telefonoAlt: '',
@@ -32,14 +33,17 @@ export const ClienteFormModal: React.FC<ClienteFormModalProps> = ({
     linkGoogleMaps: '',
     sectorId: undefined,
   });
+  const [codigoError, setCodigoError] = useState<string | null>(null);
 
   const isEditing = clienteId !== null;
 
   useEffect(() => {
+    setCodigoError(null);
     if (isEditing && clientes) {
       const cliente = clientes.find(c => c.id === clienteId);
       if (cliente) {
         setFormData({
+          codigo: cliente.codigo ?? undefined,
           nombre: cliente.nombre,
           telefono: cliente.telefono || '',
           telefonoAlt: cliente.telefonoAlt || '',
@@ -51,6 +55,7 @@ export const ClienteFormModal: React.FC<ClienteFormModalProps> = ({
       }
     } else {
       setFormData({
+        codigo: undefined,
         nombre: '',
         telefono: '',
         telefonoAlt: '',
@@ -62,11 +67,21 @@ export const ClienteFormModal: React.FC<ClienteFormModalProps> = ({
     }
   }, [clienteId, isEditing, clientes, isOpen]);
 
+  // Chequeo PROACTIVO del código: contra los clientes ya cargados en memoria (instantáneo, sin red).
+  // Excluye al propio cliente al editar. La validación del backend queda como red de seguridad.
+  const codigoOcupadoPor = useMemo(() => {
+    if (formData.codigo == null) return null;
+    return clientes?.find((c) => c.codigo === formData.codigo && c.id !== clienteId) ?? null;
+  }, [formData.codigo, clientes, clienteId]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+    setCodigoError(null);
+    if (codigoOcupadoPor) return; // ya avisado en el form; no enviamos
+
     // Preparar payload, limpiando strings vacíos
     const payload: CreateClienteDto = {
+      codigo: formData.codigo ?? undefined,
       nombre: formData.nombre,
       telefono: formData.telefono || undefined,
       telefonoAlt: formData.telefonoAlt || undefined,
@@ -76,13 +91,16 @@ export const ClienteFormModal: React.FC<ClienteFormModalProps> = ({
       sectorId: formData.sectorId ? Number(formData.sectorId) : undefined,
     };
 
+    // El backend valida el código único (409): mostramos su mensaje y mantenemos el modal abierto.
+    const onError = (err: any) => {
+      const msg = err?.response?.data?.message;
+      setCodigoError(Array.isArray(msg) ? msg.join(', ') : (msg || 'No se pudo guardar el cliente.'));
+    };
+
     if (isEditing) {
-      updateMutation.mutate(
-        { id: clienteId!, data: payload },
-        { onSuccess: onClose }
-      );
+      updateMutation.mutate({ id: clienteId!, data: payload }, { onSuccess: onClose, onError });
     } else {
-      createMutation.mutate(payload, { onSuccess: onClose });
+      createMutation.mutate(payload, { onSuccess: onClose, onError });
     }
   };
 
@@ -94,13 +112,39 @@ export const ClienteFormModal: React.FC<ClienteFormModalProps> = ({
       maxWidth="lg"
     >
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-        
-        <Input 
-          label="Nombre Completo *" 
-          value={formData.nombre || ''} 
-          onChange={(e) => setFormData({ ...formData, nombre: e.target.value })} 
-          autoFocus
-        />
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-start">
+          <div>
+            <Input
+              label="Código"
+              type="number"
+              value={formData.codigo ?? ''}
+              onChange={(e) => {
+                const v = e.target.value;
+                setFormData({ ...formData, codigo: v ? Number(v) : undefined });
+                setCodigoError(null);
+              }}
+              placeholder="Nº cliente"
+            />
+            {codigoOcupadoPor ? (
+              <span className="text-xs text-red-600 mt-1 inline-block font-medium">
+                Código ocupado por "{codigoOcupadoPor.nombre}". Elegí otro.
+              </span>
+            ) : codigoError ? (
+              <span className="text-xs text-red-600 mt-1 inline-block font-medium">{codigoError}</span>
+            ) : formData.codigo != null ? (
+              <span className="text-xs text-emerald-600 mt-1 inline-block font-medium">Código disponible ✓</span>
+            ) : null}
+          </div>
+          <div className="sm:col-span-2">
+            <Input
+              label="Nombre Completo *"
+              value={formData.nombre || ''}
+              onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
+              autoFocus
+            />
+          </div>
+        </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
           <div>
@@ -174,7 +218,7 @@ export const ClienteFormModal: React.FC<ClienteFormModalProps> = ({
             variant="primary" 
             fullWidth
             isLoading={createMutation.isPending || updateMutation.isPending}
-            disabled={!formData.nombre.trim()}
+            disabled={!formData.nombre.trim() || !!codigoOcupadoPor}
           >
             {isEditing ? 'Guardar Cambios' : 'Crear Cliente'}
           </Button>

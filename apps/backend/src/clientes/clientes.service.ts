@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateClienteDto } from './dto/create-cliente.dto';
 import { UpdateClienteDto } from './dto/update-cliente.dto';
@@ -17,9 +17,23 @@ export class ClientesService {
     }
   }
 
+  // El código es único en TODA la base (incluye clientes inactivos). Si ya está tomado,
+  // mensaje claro para que el usuario elija otro. excludeId: para no chocar consigo mismo al editar.
+  private async _validarCodigoUnico(codigo: number, excludeId?: number) {
+    const existente = await this.prisma.cliente.findFirst({
+      where: { codigo, ...(excludeId ? { id: { not: excludeId } } : {}) },
+    });
+    if (existente) {
+      throw new ConflictException(`El código ${codigo} ya está ocupado por "${existente.nombre}". Elegí otro.`);
+    }
+  }
+
   async create(createClienteDto: CreateClienteDto) {
     if (createClienteDto.sectorId) {
       await this._validarSector(createClienteDto.sectorId);
+    }
+    if (createClienteDto.codigo != null) {
+      await this._validarCodigoUnico(createClienteDto.codigo);
     }
 
     return this.prisma.cliente.create({
@@ -145,6 +159,9 @@ export class ClientesService {
     if (updateClienteDto.sectorId) {
       await this._validarSector(updateClienteDto.sectorId);
     }
+    if (updateClienteDto.codigo != null) {
+      await this._validarCodigoUnico(updateClienteDto.codigo, id);
+    }
 
     return this.prisma.cliente.update({
       where: { id },
@@ -156,10 +173,11 @@ export class ClientesService {
     // Verificar existencia
     const cliente = await this.findOne(id);
 
-    // Soft delete
+    // Soft delete + liberar el código: el registro queda (historial) pero su código vuelve a estar
+    // disponible para otro cliente (el código es único en toda la base, incluidos los inactivos).
     await this.prisma.cliente.update({
       where: { id },
-      data: { activo: false },
+      data: { activo: false, codigo: null },
     });
 
     return {
