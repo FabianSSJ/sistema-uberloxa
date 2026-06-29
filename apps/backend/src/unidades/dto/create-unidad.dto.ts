@@ -21,4 +21,9 @@ export class CreateUnidadDto {
   @IsString()
   @IsOptional()
   choferTelefono?: string;
+
+  // Color de identidad UI (key de paleta: verde, azul, negro, ...). Separado del color físico.
+  @IsString()
+  @IsOptional()
+  colorIdentidad?: string;
 }

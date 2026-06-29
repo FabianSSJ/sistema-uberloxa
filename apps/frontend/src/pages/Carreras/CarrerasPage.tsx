@@ -7,6 +7,7 @@ import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { CodigoBadge } from '../../components/ui/CodigoBadge';
 import { EstadoCarreraBadge } from '../../features/carreras/components/EstadoCarreraBadge';
 import { rankBy, scoreCarrera } from '../../core/search/matchers';
+import { colorOperador } from '../../core/operadores/colores';
 import { useAuth } from '../../features/auth/context/AuthContext';
 
 export const CarrerasPage = () => {
@@ -35,18 +36,6 @@ export const CarrerasPage = () => {
     }
   };
 
-  const getTurnoColor = (isoString: string) => {
-    try {
-      const date = new Date(isoString);
-      const hour = date.getHours();
-      if (hour >= 7 && hour < 12) return { border: 'border-l-blue-500', icon: 'text-blue-500', text: 'text-blue-700' };
-      if (hour >= 12 && hour < 19) return { border: 'border-l-orange-500', icon: 'text-orange-500', text: 'text-orange-700' };
-      return { border: 'border-l-gray-800', icon: 'text-gray-800', text: 'text-gray-800' };
-    } catch {
-      return { border: 'border-l-gray-300', icon: 'text-gray-400', text: 'text-gray-500' };
-    }
-  };
-
   const filteredCarreras = rankBy(carreras, searchQuery, scoreCarrera);
 
   return (
@@ -71,7 +60,7 @@ export const CarrerasPage = () => {
           type="text"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Buscar por ID de carrera u operador (Charlie)..."
+          placeholder="Buscar por cliente, código, placa, chofer, dirección, operador, Nº..."
           className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 shadow-sm"
         />
       </div>
@@ -98,21 +87,21 @@ export const CarrerasPage = () => {
       ) : (
         <div className="grid gap-4">
           {filteredCarreras.map((carrera: any) => {
-            const turno = getTurnoColor(carrera.createdAt);
+            const op = colorOperador(carrera.creadoPor);
             return (
-            <div 
-              key={carrera.id} 
-              className={`bg-white rounded-xl p-5 border-l-4 ${turno.border} border-y-gray-200 border-r-gray-200 shadow-sm hover:shadow-md transition-all duration-200 flex flex-col md:flex-row md:justify-between md:items-center gap-4`}
+            <div
+              key={carrera.id}
+              className={`bg-white rounded-xl p-5 border-l-4 ${op.border} border-y-gray-200 border-r-gray-200 shadow-sm hover:shadow-md transition-all duration-200 flex flex-col md:flex-row md:justify-between md:items-center gap-4`}
             >
               <div className="flex-1 min-w-0">
                 {/* Unidad */}
                 <div className="flex items-center gap-2 mb-2">
-                  <span className={`px-2 py-0.5 bg-gray-100 ${turno.text} text-[11px] font-bold rounded-md shrink-0`}>
+                  <span className={`px-2 py-0.5 bg-gray-100 ${op.text} text-[11px] font-bold rounded-md shrink-0`}>
                     #{carrera.numeroDiario || carrera.id}
                   </span>
                   <div className="min-w-0">
                     <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide m-0 leading-none">Unidad</p>
-                    <h3 className={`text-[13px] font-bold m-0 truncate ${turno.text}`}>
+                    <h3 className={`text-[13px] font-bold m-0 truncate ${op.text}`}>
                       {carrera.unidad ? `${carrera.unidad.placa} · ${carrera.unidad.choferNombre}` : 'Sin unidad asignada'}
                     </h3>
                   </div>
@@ -133,7 +122,7 @@ export const CarrerasPage = () => {
                 <div className="mb-1.5">
                   <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide m-0">Operador</p>
                   <div className="flex items-center gap-1.5 min-w-0">
-                    <span className="text-[12px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded truncate">
+                    <span className={`text-[12px] font-bold px-2 py-0.5 rounded truncate ${op.badge}`}>
                       {carrera.creadoPor ? carrera.creadoPor.nombre : 'Sistema'}
                     </span>
                   </div>

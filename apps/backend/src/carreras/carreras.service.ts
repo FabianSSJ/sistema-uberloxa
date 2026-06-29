@@ -50,7 +50,7 @@ export class CarrerasService {
           include: { modelo: { include: { marca: true } } }
         },
         creadoPor: {
-          select: { id: true, nombre: true, rol: true }
+          select: { id: true, nombre: true, rol: true, color: true }
         }
       }
     });
@@ -90,7 +90,7 @@ export class CarrerasService {
           include: { modelo: { include: { marca: true } } }
         },
         creadoPor: {
-          select: { id: true, nombre: true, rol: true }
+          select: { id: true, nombre: true, rol: true, color: true }
         }
       },
       orderBy: { id: 'desc' },
@@ -114,7 +114,7 @@ export class CarrerasService {
         unidad: {
           include: { modelo: { include: { marca: true } } }
         },
-        creadoPor: { select: { id: true, nombre: true, rol: true } }
+        creadoPor: { select: { id: true, nombre: true, rol: true, color: true } }
       },
       orderBy: { id: 'desc' },
     });
@@ -130,7 +130,7 @@ export class CarrerasService {
         unidad: {
           include: { modelo: { include: { marca: true } } }
         },
-        creadoPor: { select: { id: true, nombre: true, rol: true } }
+        creadoPor: { select: { id: true, nombre: true, rol: true, color: true } }
       }
     });
     if (!carrera) {
@@ -166,7 +166,7 @@ export class CarrerasService {
         unidad: {
           include: { modelo: { include: { marca: true } } }
         },
-        creadoPor: { select: { id: true, nombre: true, rol: true } }
+        creadoPor: { select: { id: true, nombre: true, rol: true, color: true } }
       }
     });
 
@@ -210,7 +210,7 @@ export class CarrerasService {
         unidad: {
           include: { modelo: { include: { marca: true } } }
         },
-        creadoPor: { select: { id: true, nombre: true, rol: true } }
+        creadoPor: { select: { id: true, nombre: true, rol: true, color: true } }
       }
     });
 

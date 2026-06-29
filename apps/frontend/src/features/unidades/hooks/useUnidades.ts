@@ -55,6 +55,7 @@ export const useDeleteUnidad = () => {
 const ESTADO_LABEL: Record<EstadoUnidad, string> = {
   disponible: 'Unidad disponible',
   ocupado: 'Unidad ocupada',
+  descanso: 'Unidad en descanso',
   inactivo: 'Unidad inactiva',
 };
 

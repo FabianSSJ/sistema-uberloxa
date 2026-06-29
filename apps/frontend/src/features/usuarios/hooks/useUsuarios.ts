@@ -38,7 +38,7 @@ export const useDeleteUsuario = () => {
     mutationFn: usuariosService.delete,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['usuarios'] });
-      notify.success('Usuario eliminado');
+      notify.success('Usuario desactivado');
     },
   });
 };

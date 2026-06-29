@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useUsuarios, useCreateUsuario, useUpdateUsuario, useDeleteUsuario } from '../../../features/usuarios/hooks/useUsuarios';
 import { Button } from '../../../components/ui/Button';
-import { Edit2, Trash2, Plus } from 'lucide-react';
+import { Edit2, Plus, UserX, UserCheck } from 'lucide-react';
 import { UsuarioFormModal } from './UsuarioFormModal';
+import { getPaleta } from '../../../core/operadores/colores';
 
 export const UsuariosTab = () => {
   const { data: usuarios = [], isLoading } = useUsuarios();
@@ -21,10 +22,15 @@ export const UsuariosTab = () => {
     setModalData({ isOpen: false, usuario: null });
   };
 
-  const handleDelete = (id: number) => {
-    if (window.confirm('¿Eliminar usuario permanentemente?')) {
-      deleteMutation.mutate(id);
+  // "Eliminar" = desactivar (soft-delete): bloquea el login, conserva el historial.
+  const handleDeactivate = (u: any) => {
+    if (window.confirm(`¿Desactivar a ${u.nombre}? No podrá iniciar sesión, pero se conserva su historial.`)) {
+      deleteMutation.mutate(u.id);
     }
+  };
+
+  const handleReactivate = (u: any) => {
+    updateMutation.mutate({ id: u.id, data: { activo: true } });
   };
 
   if (isLoading) return <div>Cargando...</div>;
@@ -50,10 +56,23 @@ export const UsuariosTab = () => {
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {usuarios.map((u) => (
-              <tr key={u.id}>
+              <tr key={u.id} className={u.activo ? '' : 'opacity-50 bg-gray-50'}>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm font-medium text-gray-900">{u.nombre}</div>
-                  <div className="text-sm text-gray-500">@{u.username}</div>
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`inline-block h-3 w-3 rounded-full shrink-0 ${getPaleta(u.color).swatch}`}
+                      title={u.color ? `Color: ${u.color}` : 'Sin color'}
+                    />
+                    <div>
+                      <div className="text-sm font-medium text-gray-900 flex items-center gap-2">
+                        {u.nombre}
+                        {!u.activo && (
+                          <span className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-gray-200 text-gray-600 uppercase">Inactivo</span>
+                        )}
+                      </div>
+                      <div className="text-sm text-gray-500">@{u.username}</div>
+                    </div>
+                  </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${u.rol === 'SUPERADMIN' ? 'bg-purple-100 text-purple-800' : 'bg-green-100 text-green-800'}`}>
@@ -68,12 +87,18 @@ export const UsuariosTab = () => {
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  <button onClick={() => setModalData({ isOpen: true, usuario: u })} className="text-indigo-600 hover:text-indigo-900 mr-4">
+                  <button onClick={() => setModalData({ isOpen: true, usuario: u })} className="text-indigo-600 hover:text-indigo-900 mr-4" title="Editar">
                     <Edit2 size={18} />
                   </button>
-                  <button onClick={() => handleDelete(u.id)} className="text-red-600 hover:text-red-900">
-                    <Trash2 size={18} />
-                  </button>
+                  {u.activo ? (
+                    <button onClick={() => handleDeactivate(u)} className="text-red-600 hover:text-red-900" title="Desactivar (bloquear acceso)">
+                      <UserX size={18} />
+                    </button>
+                  ) : (
+                    <button onClick={() => handleReactivate(u)} className="text-green-600 hover:text-green-900" title="Reactivar">
+                      <UserCheck size={18} />
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}
@@ -81,8 +106,8 @@ export const UsuariosTab = () => {
         </table>
       </div>
 
-      <UsuarioFormModal 
-        isOpen={modalData.isOpen} 
+      <UsuarioFormModal
+        isOpen={modalData.isOpen}
         onClose={() => setModalData({ isOpen: false, usuario: null })}
         onSubmit={handleCreateOrEdit}
         usuario={modalData.usuario}

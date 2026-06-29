@@ -46,6 +46,7 @@ export class UnidadesService {
         vehiculo: this.toTitleCase(createUnidadDto.vehiculo),
         choferNombre: this.toTitleCase(createUnidadDto.choferNombre),
         choferTelefono: createUnidadDto.choferTelefono || null,
+        colorIdentidad: createUnidadDto.colorIdentidad ?? null,
       }
     });
   }
@@ -109,10 +110,22 @@ export class UnidadesService {
   }
 
   async cambiarEstado(id: number, estado: EstadoUnidad) {
-    await this.findOne(id); // verifica existencia
+    const unidad = await this.findOne(id); // verifica existencia + me da el activadoEn actual
+
+    // Regla única de la cola de despacho (FIFO con posición fija):
+    //  - inactivo            -> sale de la cola (activadoEn = null), pierde su turno.
+    //  - entra a la cola      -> primera activación (activadoEn era null) toma now() y va al final.
+    //  - ya estaba en la cola -> disponible/ocupado/descanso NO tocan activadoEn => conserva su lugar.
+    const data: any = { estado };
+    if (estado === 'inactivo') {
+      data.activadoEn = null;
+    } else if (!unidad.activadoEn) {
+      data.activadoEn = new Date();
+    }
+
     return this.prisma.unidad.update({
       where: { id },
-      data: { estado },
+      data,
     });
   }
 
