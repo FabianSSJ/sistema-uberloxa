@@ -30,65 +30,73 @@ export const LoginPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="flex justify-center text-green-600">
-          <Car size={48} />
+    <div className="min-h-screen bg-black flex flex-col justify-center py-12 sm:px-6 lg:px-8 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-green-900/20 via-black to-black">
+      <div className="sm:mx-auto sm:w-full sm:max-w-md flex flex-col items-center">
+        {/* Usamos el logo que enviaste. Si aún no está en la carpeta, mostramos el carrito como fallback temporal */}
+        <div className="relative flex justify-center mb-6">
+          <img 
+            src="/logo.jpg" 
+            alt="Uber Loxa Taxi" 
+            className="w-56 h-auto object-contain drop-shadow-[0_0_25px_rgba(34,197,94,0.3)] z-10" 
+            onError={(e) => { 
+              e.currentTarget.style.display = 'none'; 
+              e.currentTarget.nextElementSibling?.classList.remove('hidden');
+            }} 
+          />
+          <div className="hidden text-green-500">
+            <Car size={64} />
+          </div>
         </div>
-        <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-          Uber Loxa
-        </h2>
-        <p className="mt-2 text-center text-sm text-gray-600">
-          Sistema de Gestión de Taxis
-        </p>
       </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10 border border-gray-100">
+      <div className="mt-4 sm:mx-auto sm:w-full sm:max-w-md">
+        <div className="bg-[#111] py-8 px-4 shadow-2xl sm:rounded-2xl sm:px-10 border border-green-900/30 backdrop-blur-sm">
           <form className="space-y-6" onSubmit={handleSubmit}>
             {error && (
-              <div className="bg-red-50 text-red-600 p-3 rounded-md text-sm font-medium">
+              <div className="bg-red-900/50 border border-red-500 text-red-200 p-3 rounded-md text-sm font-medium text-center">
                 {error}
               </div>
             )}
             
             <div>
-              <label className="block text-sm font-medium text-gray-700">
+              <label className="block text-sm font-medium text-gray-300">
                 Usuario
               </label>
-              <div className="mt-1">
+              <div className="mt-2">
                 <input
                   type="text"
                   required
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm"
+                  className="appearance-none block w-full px-4 py-3 bg-[#0a0a0a] border border-gray-800 rounded-xl shadow-inner text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all sm:text-sm"
+                  placeholder="Ingresa tu usuario"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700">
+              <label className="block text-sm font-medium text-gray-300">
                 Contraseña
               </label>
-              <div className="mt-1">
+              <div className="mt-2">
                 <input
                   type="password"
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm"
+                  className="appearance-none block w-full px-4 py-3 bg-[#0a0a0a] border border-gray-800 rounded-xl shadow-inner text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all sm:text-sm"
+                  placeholder="••••••••"
                 />
               </div>
             </div>
 
-            <div>
+            <div className="pt-2">
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
+                className="w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-[0_0_15px_rgba(34,197,94,0.4)] text-sm font-bold text-white bg-green-600 hover:bg-green-500 hover:shadow-[0_0_25px_rgba(34,197,94,0.6)] hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 focus:ring-offset-black transition-all duration-300 disabled:opacity-50 disabled:hover:translate-y-0"
               >
-                {isLoading ? 'Iniciando...' : 'Iniciar Sesión'}
+                {isLoading ? 'Iniciando...' : 'INGRESAR'}
               </button>
             </div>
           </form>

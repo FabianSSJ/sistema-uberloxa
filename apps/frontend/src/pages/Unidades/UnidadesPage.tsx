@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useUnidades, useDeleteUnidad } from '../../features/unidades/hooks/useUnidades';
+import { useAuth } from '../../features/auth/context/AuthContext';
 import { useColaDespacho } from '../../features/unidades/hooks/useColaDespacho';
 import { UnidadFormModal } from './UnidadFormModal';
 import { Button } from '../../components/ui/Button';
@@ -13,6 +14,7 @@ import { Car, Search, Edit2, Trash2, Plus, ListOrdered, LayoutGrid } from 'lucid
 type Tab = 'asignacion' | 'lista';
 
 export const UnidadesPage = () => {
+  const { user } = useAuth();
   const { data: unidades = [], isLoading, isError } = useUnidades();
   const { carrerasHoy } = useColaDespacho();
   const deleteMutation = useDeleteUnidad();
@@ -85,18 +87,20 @@ export const UnidadesPage = () => {
             />
           </div>
 
-          <div className="flex gap-2">
-            <Button onClick={handleOpenCreate} icon={<Plus size={18} />}>
-              Nueva Unidad
-            </Button>
-          </div>
+          {user?.rol !== 'CHARLIE' && (
+            <div className="flex gap-2">
+              <Button onClick={handleOpenCreate} icon={<Plus size={18} />}>
+                Nueva Unidad
+              </Button>
+            </div>
+          )}
         </div>
       </div>
 
       {/* Tabs (segmentado) */}
       <div className="inline-flex items-center gap-1 bg-gray-100 p-1 rounded-xl mb-6">
         {tabBtn('asignacion', 'Asignación', <ListOrdered size={16} />)}
-        {tabBtn('lista', 'Lista de unidades', <LayoutGrid size={16} />)}
+        {user?.rol !== 'CHARLIE' && tabBtn('lista', 'Lista de unidades', <LayoutGrid size={16} />)}
       </div>
 
       {isLoading ? (
