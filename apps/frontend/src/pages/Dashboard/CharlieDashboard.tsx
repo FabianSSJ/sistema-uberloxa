@@ -1,4 +1,4 @@
-import { Car, Users, Clock, Plus, Search, Trash2 } from 'lucide-react';
+import { Car, Users, Clock, Plus, Search, Trash2, MapPin } from 'lucide-react';
 import { useState, useMemo } from 'react';
 
 import { useClientes } from '../../features/clientes/hooks/useClientes';
@@ -11,7 +11,7 @@ import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { CodigoBadge } from '../../components/ui/CodigoBadge';
 import { EstadoCarreraBadge } from '../../features/carreras/components/EstadoCarreraBadge';
 import { rankBy, scoreUnidad, scoreCliente } from '../../core/search/matchers';
-import { colorOperador } from '../../core/operadores/colores';
+import { colorOperador, colorUnidad } from '../../core/operadores/colores';
 import { useAuth } from '../../features/auth/context/AuthContext';
 
 export const CharlieDashboard = () => {
@@ -96,6 +96,7 @@ export const CharlieDashboard = () => {
               const est = ESTADO_UNIDAD_STYLES[(u.estado as EstadoUnidad) || 'disponible'];
               const esProxima = u.id === proximaId;
               const hoy = carrerasHoy.get(u.id) || 0;
+              const colorU = colorUnidad(u);
               return (
                 <div
                   key={u.id}
@@ -118,11 +119,11 @@ export const CharlieDashboard = () => {
                     }
                     setDraggedItem(null); setDragOverItem(null);
                   }}
-                  className={`border p-3 rounded-xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] hover:-translate-y-1 hover:shadow-[0_8px_15px_-3px_rgba(6,81,237,0.15)] transition-all duration-300 group cursor-grab active:cursor-grabbing ${isDragOver ? 'bg-amber-50 ring-2 ring-amber-400 border-amber-300 scale-[1.02]' : esProxima ? 'bg-white ring-2 ring-emerald-400 border-emerald-200' : 'bg-white border-gray-100'}`}
+                  className={`border-y border-r border-l-4 p-3 rounded-xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] hover:-translate-y-1 hover:shadow-[0_8px_15px_-3px_rgba(6,81,237,0.15)] transition-all duration-300 group cursor-grab active:cursor-grabbing ${isDragOver ? 'bg-amber-50 ring-2 ring-amber-400 border-amber-300 scale-[1.02]' : esProxima ? `bg-white ${colorU.key ? colorU.ring : 'ring-2 ring-emerald-400 border-emerald-200'}` : `bg-white border-y-gray-100 border-r-gray-100 ${colorU.key ? colorU.border : 'border-l-gray-200'}`}`}
                 >
                   <div className="flex items-center gap-3">
                     <div className="flex flex-col items-center shrink-0 pointer-events-none">
-                      <div className={`w-11 h-11 min-w-11 rounded-full flex items-center justify-center font-black text-base border group-hover:text-white transition-colors duration-300 shadow-sm ${est.avatar}`}>
+                      <div className={`w-11 h-11 min-w-11 rounded-full flex items-center justify-center font-black text-base border group-hover:opacity-90 transition-opacity duration-300 shadow-sm ${colorU.key ? colorU.badge : est.avatar}`}>
                         {u.numeroUnidad || 'S/N'}
                       </div>
                       <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wide mt-0.5">Unidad</span>
@@ -198,8 +199,15 @@ export const CharlieDashboard = () => {
                   className={`border p-2.5 rounded-lg shadow-sm hover:-translate-y-0.5 hover:shadow transition-all duration-200 group flex items-center justify-between gap-2 cursor-grab active:cursor-grabbing ${isDragOver ? 'bg-blue-50 ring-2 ring-blue-400 border-blue-300 scale-[1.02]' : 'bg-white border-gray-100'}`}
                 >
                   <div className="flex-1 min-w-0 pointer-events-none">
-                    <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide m-0">Cliente</p>
-                    <h3 className="font-bold text-gray-800 m-0 text-[13px] leading-tight truncate">{c.nombre}</h3>
+                    <h3 className="font-bold text-gray-800 m-0 text-[14px] leading-tight truncate">{c.nombre}</h3>
+                    {c.direccion ? (
+                      <div className="flex items-start gap-1.5 mt-1 text-gray-800 bg-slate-100/80 rounded px-2 py-1.5 border border-slate-200 shadow-sm">
+                        <MapPin size={15} className="shrink-0 text-blue-600 mt-0.5" />
+                        <span className="text-[13px] font-bold leading-snug break-words line-clamp-2">{c.direccion}</span>
+                      </div>
+                    ) : (
+                      <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide m-0 mt-1">Sin dirección</p>
+                    )}
                   </div>
                   <CodigoBadge codigo={c.codigo} className="pointer-events-none shrink-0" />
                 </div>

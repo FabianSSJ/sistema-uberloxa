@@ -3,6 +3,7 @@ import { UserPlus, Phone, MapPin, CheckCircle2, Trash2, Inbox } from 'lucide-rea
 import { usePendientes, useDeleteCliente } from '../../features/clientes/hooks/useClientes';
 import { ClienteFormModal } from '../Clientes/ClienteFormModal';
 import { Button } from '../../components/ui/Button';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 
 /**
  * Bandeja de "Nuevos clientes": clientes agregados en caliente SIN código.
@@ -12,11 +13,10 @@ export const NuevosClientesPage = () => {
   const { data: pendientes = [], isLoading } = usePendientes();
   const deleteMutation = useDeleteCliente();
   const [completarId, setCompletarId] = useState<number | null>(null);
+  const [descartarData, setDescartarData] = useState<{ id: number; nombre: string } | null>(null);
 
   const handleDescartar = (id: number, nombre: string) => {
-    if (window.confirm(`¿Descartar a "${nombre}"? Se eliminará de la bandeja.`)) {
-      deleteMutation.mutate(id);
-    }
+    setDescartarData({ id, nombre });
   };
 
   return (
@@ -82,6 +82,25 @@ export const NuevosClientesPage = () => {
           isOpen={completarId !== null}
           onClose={() => setCompletarId(null)}
           clienteId={completarId}
+        />
+      )}
+
+      {descartarData && (
+        <ConfirmDialog
+          isOpen={true}
+          onClose={() => setDescartarData(null)}
+          onConfirm={() => {
+            deleteMutation.mutate(descartarData.id);
+            setDescartarData(null);
+          }}
+          title="Descartar cliente"
+          message={
+            <span>
+              ¿Descartar a <span className="font-bold">"{descartarData.nombre}"</span>? Se eliminará de la bandeja.
+            </span>
+          }
+          confirmText="Descartar"
+          variant="danger"
         />
       )}
     </div>

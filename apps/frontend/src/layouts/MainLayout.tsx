@@ -39,8 +39,8 @@ const MainLayout = () => {
       return true;
     }
     if (user?.rol === 'CHARLIE') {
-      // El Charlie no debe ver los menús de CRUD completos de unidades ni clientes
-      if (item.reqModule === 'unidades' || item.reqModule === 'clientes') return false;
+      // El Charlie no debe ver el menú de CRUD de clientes (unidades ahora sí, a pedido del usuario)
+      if (item.reqModule === 'clientes') return false;
       return true;
     }
     return user?.modulosPermitidos?.includes(item.reqModule);
