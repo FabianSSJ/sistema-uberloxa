@@ -1,10 +1,10 @@
-import { Car, Clock, Plus, Search, Trash2, MapPin, Phone } from 'lucide-react';
-import { useState, useMemo } from 'react';
+import { Car, Clock, Plus, Search, Trash2, MapPin, Phone, Moon, Play, Power, PowerOff, Unlock } from 'lucide-react';
+import { useState, useMemo, type ReactNode } from 'react';
 
 import { useClientes } from '../../features/clientes/hooks/useClientes';
 import { useColaDespacho } from '../../features/unidades/hooks/useColaDespacho';
 import { useCambiarEstadoUnidad } from '../../features/unidades/hooks/useUnidades';
-import { EstadoUnidadBadge } from '../../features/unidades/components/EstadoUnidadBadge';
+import { ESTADO_UNIDAD_STYLES } from '../../features/unidades/components/EstadoUnidadBadge';
 import { UnidadDetalleModal } from '../../features/unidades/components/UnidadDetalleModal';
 import { useCarreras, useCreateCarrera, useCompletarCarrera, useCancelarCarrera, usePerderCarrera, useDeleteCarrera } from '../../features/carreras/hooks/useCarreras';
 import { CarreraFormModal } from './CarreraFormModal';
@@ -75,13 +75,15 @@ export const CharlieDashboard = () => {
 
   const cambiarEstado = (id: number, estado: string) => cambiarEstadoMutation.mutate({ id, estado: estado as any });
 
-  // Botón compacto de estado dentro de la card (stopPropagation: no abre el modal ni arrastra).
-  const btnEstado = (label: string, cls: string, onClick: () => void) => (
+  // Botón de icono de estado dentro de la card (stopPropagation: no abre el modal ni arrastra).
+  // El title da el nombre de la acción, ya que el icono va sin texto para ahorrar espacio.
+  const btnEstado = (icon: ReactNode, title: string, cls: string, onClick: () => void) => (
     <button
       onClick={(e) => { e.stopPropagation(); onClick(); }}
-      className={`text-[9px] font-black uppercase text-white ${cls} px-1.5 py-0.5 rounded hover:brightness-110 transition shadow-sm`}
+      title={title}
+      className={`inline-flex items-center justify-center text-white ${cls} w-7 h-7 rounded-md hover:brightness-110 transition shadow-sm`}
     >
-      {label}
+      {icon}
     </button>
   );
 
@@ -113,8 +115,17 @@ export const CharlieDashboard = () => {
                 onChange={e => setSearchChofer(e.target.value)}
               />
             </div>
+            {/* Leyenda del punto de color: se explica el código una vez, no card por card. */}
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2 text-[10px] font-semibold text-gray-500">
+              {(['disponible', 'ocupado', 'descanso', 'inactivo'] as const).map((e) => (
+                <span key={e} className="inline-flex items-center gap-1">
+                  <span className={`w-2 h-2 rounded-full ${ESTADO_UNIDAD_STYLES[e].dot}`} />
+                  {ESTADO_UNIDAD_STYLES[e].label}
+                </span>
+              ))}
+            </div>
           </div>
-          <div className="flex-1 overflow-y-auto px-5 pb-5 pt-3 grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-2 content-start bg-slate-50/50">
+          <div className="flex-1 overflow-y-auto px-5 pb-5 pt-3 grid grid-cols-[repeat(auto-fill,minmax(116px,1fr))] gap-2 content-start bg-slate-50/50">
             {filteredUnidades.map((u: any) => {
               const isDragOver = dragOverItem?.type === 'CHOFER' && dragOverItem.id === u.id;
               const estado = u.estado || 'disponible';
@@ -125,7 +136,7 @@ export const CharlieDashboard = () => {
                   key={u.id}
                   draggable
                   onClick={() => setDetalleUnidad(u)}
-                  title="Click: ver detalle · Arrastrá un cliente acá para asignar carrera"
+                  title={`Unidad ${u.numeroUnidad || 'S/N'} · ${u.choferNombre || 'Sin chofer'} · ${ESTADO_UNIDAD_STYLES[estado as keyof typeof ESTADO_UNIDAD_STYLES]?.label ?? estado} · Click para ver detalle`}
                   onDragStart={(e) => {
                     setDraggedItem({ type: 'CHOFER', id: u.id });
                     e.dataTransfer.setData('text/plain', JSON.stringify({ type: 'CHOFER', id: u.id }));
@@ -143,28 +154,29 @@ export const CharlieDashboard = () => {
                     }
                     setDraggedItem(null); setDragOverItem(null);
                   }}
-                  className={`flex flex-col gap-1 p-2 rounded-lg border border-black/5 border-l-4 cursor-pointer transition overflow-hidden shadow-sm ${isDragOver ? 'bg-amber-100 ring-2 ring-amber-400 border-amber-300' : `${colorU.card} hover:brightness-105 ${colorU.key ? colorU.border : 'border-l-gray-200'}`}`}
+                  className={`flex flex-col gap-1 p-2 rounded-lg border border-black/5 border-l-4 cursor-pointer transition overflow-hidden shadow-sm ${isDragOver ? 'bg-amber-100 ring-2 ring-amber-400 border-amber-300' : 'hover:brightness-105'}`}
+                  style={isDragOver ? undefined : { ...colorU.card, ...colorU.borderLeft }}
                 >
                   <div className="flex items-start justify-between gap-1 pointer-events-none">
                     <span className="text-3xl font-black leading-none tracking-tight">{u.numeroUnidad || 'S/N'}</span>
-                    <EstadoUnidadBadge unidad={u} className="shrink-0" />
+                    <div className="flex items-center gap-1 shrink-0 mt-1" title={`${hoy} carreras hoy`}>
+                      <Car size={13} className="opacity-70" />
+                      <span className="text-sm font-black leading-none tabular-nums">{hoy}</span>
+                      <span className={`w-2.5 h-2.5 rounded-full ring-2 ring-white/70 ${ESTADO_UNIDAD_STYLES[estado as keyof typeof ESTADO_UNIDAD_STYLES]?.dot ?? 'bg-gray-400'}`} />
+                    </div>
                   </div>
-                  <p className="text-[12px] font-bold truncate leading-tight pointer-events-none mt-1">{u.choferNombre || 'Sin Chofer'}</p>
-                  <p className="text-sm font-bold font-mono truncate leading-tight pointer-events-none mt-0.5 opacity-80">{u.placa}</p>
-                  <div className="flex items-center gap-1 pointer-events-none mt-1">
-                    <span className="text-[11px] font-bold text-blue-700 bg-blue-50 border border-blue-100 px-1.5 py-0.5 rounded" title="Carreras de hoy">{hoy} hoy</span>
-                  </div>
-                  <div className="flex flex-wrap gap-1 mt-1.5">
+                  <p className="text-xs font-bold font-mono truncate leading-tight pointer-events-none mt-1 opacity-80">{u.placa}</p>
+                  <div className="flex flex-wrap gap-1 mt-auto pt-1.5">
                     {estado === 'inactivo'
-                      ? btnEstado('Activar', 'bg-emerald-600', () => cambiarEstado(u.id, 'disponible'))
+                      ? btnEstado(<Power size={14} />, 'Activar', 'bg-emerald-600', () => cambiarEstado(u.id, 'disponible'))
                       : (
                         <>
                           {estado === 'descanso'
-                            ? btnEstado('Volver', 'bg-emerald-600', () => cambiarEstado(u.id, 'disponible'))
+                            ? btnEstado(<Play size={14} />, 'Volver a disponible', 'bg-emerald-600', () => cambiarEstado(u.id, 'disponible'))
                             : estado === 'ocupado'
-                              ? btnEstado('Liberar', 'bg-emerald-600', () => cambiarEstado(u.id, 'disponible'))
-                              : btnEstado('Descanso', 'bg-sky-600', () => cambiarEstado(u.id, 'descanso'))}
-                          {btnEstado('Sacar', 'bg-gray-700', () => cambiarEstado(u.id, 'inactivo'))}
+                              ? btnEstado(<Unlock size={14} />, 'Liberar', 'bg-emerald-600', () => cambiarEstado(u.id, 'disponible'))
+                              : btnEstado(<Moon size={14} />, 'Poner en descanso', 'bg-sky-600', () => cambiarEstado(u.id, 'descanso'))}
+                          {btnEstado(<PowerOff size={14} />, 'Sacar (inactivar)', 'bg-gray-700', () => cambiarEstado(u.id, 'inactivo'))}
                         </>
                       )}
                   </div>
@@ -301,13 +313,13 @@ export const CharlieDashboard = () => {
                 {carrerasDelDia.map((r: any) => {
                   const op = colorOperador(r.creadoPor);
                   return (
-                    <div key={r.id} className={`bg-white border-l-4 ${op.border} border border-y-gray-100 border-r-gray-100 p-4 rounded-xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] hover:-translate-x-1 hover:shadow-[0_8px_15px_-3px_rgba(6,81,237,0.15)] transition-all duration-300`}>
+                    <div key={r.id} style={op.borderLeft} className="bg-white border-l-4 border border-y-gray-100 border-r-gray-100 p-4 rounded-xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] hover:-translate-x-1 hover:shadow-[0_8px_15px_-3px_rgba(6,81,237,0.15)] transition-all duration-300">
                       <div className="flex justify-between items-start mb-2">
-                        <h3 className={`font-bold m-0 text-[16px] truncate max-w-[70%] ${op.text}`}>#{r.numeroDiario || r.id} - {r.cliente?.nombre || 'Cliente'}</h3>
+                        <h3 style={op.textColor} className="font-bold m-0 text-[16px] truncate max-w-[70%]">#{r.numeroDiario || r.id} - {r.cliente?.nombre || 'Cliente'}</h3>
                         <span className="text-xs font-black text-gray-400 bg-gray-50 px-2 py-1 rounded-md">{formatTime(r.createdAt)}</span>
                       </div>
                       <p className="text-sm text-gray-600 m-0 flex items-center gap-2 font-medium">
-                        <Car size={16} className={op.icon}/>
+                        <Car size={16} style={op.textColor}/>
                         {r.unidad ? `Unidad ${r.unidad.numeroUnidad} - ${r.unidad.choferNombre}` : 'Sin unidad asignada'}
                       </p>
                       <div className="mt-3 flex items-center justify-between">
