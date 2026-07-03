@@ -84,14 +84,24 @@ export class ClientesService {
       return { data, total, page: safePage, totalPages: Math.ceil(total / safeLimit) || 1 };
     }
 
-    // Con búsqueda: RANKING por relevancia en SQL (espejo de scoreCliente en el frontend).
-    // Pesos: codigo 100, nombre 50, telefono/alt 40, sector 20, direccion 15, descripcion 10.
-    // Multiplicador: igual exacto ×3, empieza con ×2, contiene ×1.
     const q = search.trim().toLowerCase();
+
+    // Query PURAMENTE NUMÉRICA = búsqueda por CÓDIGO exacta ("12" trae solo el 12).
+    // Espejo de scoreCliente en el frontend. Evita el ruido de nombres/direcciones con dígitos.
+    if (/^\d+$/.test(q)) {
+      const where = { activo: true, codigo: Number(q) };
+      const [data, total] = await Promise.all([
+        this.prisma.cliente.findMany({ where, include: { sector: true }, skip: offset, take: safeLimit }),
+        this.prisma.cliente.count({ where }),
+      ]);
+      return { data, total, page: safePage, totalPages: Math.ceil(total / safeLimit) || 1 };
+    }
+
+    // Con búsqueda de texto: RANKING por relevancia en SQL (espejo de scoreCliente en el frontend).
+    // Pesos: codigo 100, nombre 50, telefono/alt 40, sector 20, direccion 15, descripcion 10.
     const score = Prisma.sql`GREATEST(
-      CASE WHEN lower(c.codigo::text) = ${q} THEN 300
-           WHEN lower(c.codigo::text) LIKE ${q} || '%' THEN 200
-           WHEN lower(c.codigo::text) LIKE '%' || ${q} || '%' THEN 100 ELSE 0 END,
+      -- Código: SOLO coincidencia exacta ("12" trae el 12, no el 120/121). Espejo de matchers.ts.
+      CASE WHEN c.codigo::text = ${q} THEN 300 ELSE 0 END,
       CASE WHEN lower(c.nombre) = ${q} THEN 150
            WHEN lower(c.nombre) LIKE ${q} || '%' THEN 100
            WHEN lower(c.nombre) LIKE '%' || ${q} || '%' THEN 50 ELSE 0 END,

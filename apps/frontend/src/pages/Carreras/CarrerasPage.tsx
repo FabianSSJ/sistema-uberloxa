@@ -8,6 +8,7 @@ import { CodigoBadge } from '../../components/ui/CodigoBadge';
 import { EstadoCarreraBadge } from '../../features/carreras/components/EstadoCarreraBadge';
 import { rankBy, scoreCarrera } from '../../core/search/matchers';
 import { colorOperador } from '../../core/operadores/colores';
+import { hora, fechaCorta } from '../../core/tiempo';
 import { useAuth } from '../../features/auth/context/AuthContext';
 
 export const CarrerasPage = () => {
@@ -18,23 +19,9 @@ export const CarrerasPage = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [careerToDelete, setCareerToDelete] = useState<number | null>(null);
 
-  const formatTime = (isoString: string) => {
-    try {
-      const date = new Date(isoString);
-      return date.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' });
-    } catch {
-      return '';
-    }
-  };
-
-  const formatDate = (isoString: string) => {
-    try {
-      const date = new Date(isoString);
-      return date.toLocaleDateString('es-EC', { day: '2-digit', month: '2-digit', year: 'numeric' });
-    } catch {
-      return '';
-    }
-  };
+  // Hora de Ecuador (fuente única en core/tiempo).
+  const formatTime = (isoString: string) => { try { return hora(isoString); } catch { return ''; } };
+  const formatDate = (isoString: string) => { try { return fechaCorta(isoString); } catch { return ''; } };
 
   const filteredCarreras = rankBy(carreras, searchQuery, scoreCarrera);
 
