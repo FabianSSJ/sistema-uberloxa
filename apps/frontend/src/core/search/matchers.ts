@@ -21,10 +21,12 @@
 interface FieldDef<T> {
   weight: number;
   get: (x: T) => unknown;
+  /** Si es true, SOLO cuenta la coincidencia exacta (no prefijo ni "contiene"). Ej: código: "12" → solo el 12. */
+  exact?: boolean;
 }
 
 const CLIENTE_FIELDS: FieldDef<any>[] = [
-  { weight: 100, get: (c) => c?.codigo },
+  { weight: 100, get: (c) => c?.codigo, exact: true },
   { weight: 50, get: (c) => c?.nombre },
   { weight: 40, get: (c) => c?.telefono },
   { weight: 40, get: (c) => c?.telefonoAlt },
@@ -52,7 +54,7 @@ const CARRERA_FIELDS: FieldDef<any>[] = [
   { weight: 60, get: (r) => r?.creadoPor?.nombre },
   { weight: 60, get: (r) => r?.creadoPor?.username },
   // Datos del cliente
-  { weight: 100, get: (r) => r?.cliente?.codigo },
+  { weight: 100, get: (r) => r?.cliente?.codigo, exact: true },
   { weight: 50, get: (r) => r?.cliente?.nombre },
   { weight: 40, get: (r) => r?.cliente?.telefono },
   { weight: 20, get: (r) => r?.cliente?.sector?.nombre },
@@ -95,7 +97,9 @@ const scoreFields = <T>(item: T, query: string, fields: FieldDef<T>[]): number =
   if (!q) return 0;
   let best = 0;
   for (const f of fields) {
-    const s = f.weight * matchMultiplier(f.get(item), q);
+    // Campos 'exact' (ej. código): solo suman si coinciden EXACTO. El resto: exacto/prefijo/contiene.
+    const mult = f.exact ? (norm(f.get(item)) === q ? 3 : 0) : matchMultiplier(f.get(item), q);
+    const s = f.weight * mult;
     if (s > best) best = s;
   }
   return best;
@@ -117,7 +121,13 @@ export const rankBy = <T>(items: T[], query: string, scoreFn: (item: T, q: strin
 
 // --- Scorers por entidad (para buscadores de listas) ---
 
-export const scoreCliente = (cliente: any, query: string): number => scoreFields(cliente, query, CLIENTE_FIELDS);
+export const scoreCliente = (cliente: any, query: string): number => {
+  const q = query.trim();
+  // Query PURAMENTE NUMÉRICA = búsqueda por CÓDIGO: solo coincidencia exacta.
+  // Así "12" trae únicamente el código 12 (no el 120, ni nombres/direcciones que contengan "12").
+  if (/^\d+$/.test(q)) return String(cliente?.codigo ?? '') === q ? 300 : 0;
+  return scoreFields(cliente, query, CLIENTE_FIELDS);
+};
 export const scoreUnidad = (unidad: any, query: string): number => scoreFields(unidad, query, UNIDAD_FIELDS);
 export const scoreCarrera = (carrera: any, query: string): number => scoreFields(carrera, query, CARRERA_FIELDS);
 export const scoreUsuario = (usuario: any, query: string): number => scoreFields(usuario, query, USUARIO_FIELDS);
