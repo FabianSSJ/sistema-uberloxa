@@ -1,87 +1,180 @@
 /**
- * REGISTRO DE PALETAS DE IDENTIDAD: una sola fuente de verdad para los colores de
+ * MOTOR DE COLOR DE IDENTIDAD: una sola fuente de verdad para los colores de
  * Charlies (operadores) y de unidades de taxi.
  *
- * El color se elige de una PALETA FIJA y se persiste en la DB como una `key` estable
- * (ej: 'verde', 'azul'). Acá se mapea esa key → clases de Tailwind para cada contexto
- * visual (borde de tarjeta, badge, avatar, swatch del picker, etc.).
+ * El color se guarda en la DB como un string que puede ser:
+ *   - una `key` de preset estable (ej: 'verde', 'azul') — acceso rápido, y
+ *   - un HEX libre elegido con el picker (ej: '#3fce88').
  *
- * IMPORTANTE: las clases de Tailwind se escriben COMPLETAS, nunca concatenadas en runtime
- * (`bg-${c}-500` se purga del bundle). Por eso cada paleta lista sus clases una por una.
- * Agregar un color = sumar una entrada a PALETAS. Se propaga solo a todos los consumidores.
+ * De ese color base se DERIVA todo por matemática (relleno, contraste de texto,
+ * tinte suave, borde) con estilos INLINE. Nada de clases de Tailwind en runtime:
+ * un hex arbitrario nunca podría ser `bg-[#...]` pre-generado, así que el motor
+ * devuelve objetos `CSSProperties` que funcionan igual para presets y para hex.
  */
+import type { CSSProperties } from 'react';
 
-export interface Paleta {
-  /** key estable que se guarda en la DB */
-  key: string;
-  /** etiqueta para el picker */
-  label: string;
-  /** bg-* sólido para el swatch del selector y el puntito */
-  swatch: string;
-  /** border-l-*: borde izquierdo de la tarjeta de carrera */
-  border: string;
-  /** text-*: título / acento */
-  text: string;
-  /** text-*: íconos */
-  icon: string;
-  /** bg-* text-*: badge ("Operador", etiqueta de unidad) */
-  badge: string;
-  /** bg-* text-*: avatar redondo de reportes */
-  avatar: string;
-  /** ring-2 ring-*-400 border-*-200: para destacar toda la tarjeta */
-  ring: string;
-  /** bg-*-50: tinte MUY suave y difuminado para pintar toda la tarjeta */
-  tint: string;
-  /** bg-* text-*: relleno FUERTE del color + texto que contrasta (blanco en oscuros, negro en claros) */
-  card: string;
-}
+// ---------------------------------------------------------------------------
+// Matemática de color (todo derivado del hex base)
+// ---------------------------------------------------------------------------
 
-/** Paleta neutra: operadores/unidades SIN color asignado (o sistema/null). No rompe nada. */
-export const NEUTRAL: Paleta = {
-  key: '',
-  label: 'Sin color',
-  swatch: 'bg-gray-300',
-  border: 'border-l-gray-300',
-  text: 'text-gray-600',
-  icon: 'text-gray-400',
-  badge: 'bg-gray-100 text-gray-600',
-  avatar: 'bg-gray-100 text-gray-500',
-  ring: 'ring-2 ring-gray-400 border-gray-200',
-  tint: 'bg-white',
-  card: 'bg-white text-gray-900',
+const HEX_RE = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i;
+
+/** ¿Es un hex válido (#rgb o #rrggbb)? */
+export const esHex = (v?: string | null): v is string => !!v && HEX_RE.test(v.trim());
+
+const hexToRgb = (hex: string): [number, number, number] => {
+  let h = hex.trim().replace('#', '');
+  if (h.length === 3) h = h.split('').map((c) => c + c).join('');
+  const n = parseInt(h, 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
 };
 
-/** Paleta fija seleccionable. El ORDEN es el que se muestra en el picker. */
-export const PALETAS: Paleta[] = [
-  { key: 'verde',    label: 'Verde',    swatch: 'bg-green-500',  border: 'border-l-green-500',  text: 'text-green-700',  icon: 'text-green-500',  badge: 'bg-green-100 text-green-700',   avatar: 'bg-green-100 text-green-600', ring: 'ring-2 ring-green-400 border-green-200', tint: 'bg-green-50', card: 'bg-green-500 text-white' },
-  { key: 'azul',     label: 'Azul',     swatch: 'bg-blue-500',   border: 'border-l-blue-500',   text: 'text-blue-700',   icon: 'text-blue-500',   badge: 'bg-blue-100 text-blue-700',     avatar: 'bg-blue-100 text-blue-600', ring: 'ring-2 ring-blue-400 border-blue-200', tint: 'bg-blue-50', card: 'bg-blue-500 text-white' },
-  { key: 'negro',    label: 'Negro',    swatch: 'bg-gray-900',   border: 'border-l-gray-900',   text: 'text-gray-900',   icon: 'text-gray-900',   badge: 'bg-gray-200 text-gray-900',     avatar: 'bg-gray-900 text-white', ring: 'ring-2 ring-gray-500 border-gray-300', tint: 'bg-gray-100', card: 'bg-gray-900 text-white' },
-  { key: 'rojo',     label: 'Rojo',     swatch: 'bg-red-500',    border: 'border-l-red-500',    text: 'text-red-700',    icon: 'text-red-500',    badge: 'bg-red-100 text-red-700',       avatar: 'bg-red-100 text-red-600', ring: 'ring-2 ring-red-400 border-red-200', tint: 'bg-red-50', card: 'bg-red-500 text-white' },
-  { key: 'naranja',  label: 'Naranja',  swatch: 'bg-orange-500', border: 'border-l-orange-500', text: 'text-orange-700', icon: 'text-orange-500', badge: 'bg-orange-100 text-orange-700', avatar: 'bg-orange-100 text-orange-600', ring: 'ring-2 ring-orange-400 border-orange-200', tint: 'bg-orange-50', card: 'bg-orange-500 text-white' },
-  { key: 'violeta',  label: 'Violeta',  swatch: 'bg-purple-500', border: 'border-l-purple-500', text: 'text-purple-700', icon: 'text-purple-500', badge: 'bg-purple-100 text-purple-700', avatar: 'bg-purple-100 text-purple-600', ring: 'ring-2 ring-purple-400 border-purple-200', tint: 'bg-purple-50', card: 'bg-purple-500 text-white' },
-  { key: 'celeste',  label: 'Celeste',  swatch: 'bg-sky-500',    border: 'border-l-sky-500',    text: 'text-sky-700',    icon: 'text-sky-500',    badge: 'bg-sky-100 text-sky-700',       avatar: 'bg-sky-100 text-sky-600', ring: 'ring-2 ring-sky-400 border-sky-200', tint: 'bg-sky-50', card: 'bg-sky-500 text-white' },
-  { key: 'amarillo', label: 'Amarillo', swatch: 'bg-amber-500',  border: 'border-l-amber-500',  text: 'text-amber-700',  icon: 'text-amber-500',  badge: 'bg-amber-100 text-amber-800',   avatar: 'bg-amber-100 text-amber-600', ring: 'ring-2 ring-amber-400 border-amber-200', tint: 'bg-amber-50', card: 'bg-amber-400 text-gray-900' },
-  { key: 'rosa',     label: 'Rosa',     swatch: 'bg-pink-500',   border: 'border-l-pink-500',   text: 'text-pink-700',   icon: 'text-pink-500',   badge: 'bg-pink-100 text-pink-700',     avatar: 'bg-pink-100 text-pink-600', ring: 'ring-2 ring-pink-400 border-pink-200', tint: 'bg-pink-50', card: 'bg-pink-500 text-white' },
-  { key: 'turquesa', label: 'Turquesa', swatch: 'bg-teal-500',   border: 'border-l-teal-500',   text: 'text-teal-700',   icon: 'text-teal-500',   badge: 'bg-teal-100 text-teal-700',     avatar: 'bg-teal-100 text-teal-600', ring: 'ring-2 ring-teal-400 border-teal-200', tint: 'bg-teal-50', card: 'bg-teal-500 text-white' },
-  { key: 'indigo',   label: 'Índigo',   swatch: 'bg-indigo-500', border: 'border-l-indigo-500', text: 'text-indigo-700', icon: 'text-indigo-500', badge: 'bg-indigo-100 text-indigo-700', avatar: 'bg-indigo-100 text-indigo-600', ring: 'ring-2 ring-indigo-400 border-indigo-200', tint: 'bg-indigo-50', card: 'bg-indigo-500 text-white' },
-  { key: 'gris',     label: 'Gris',     swatch: 'bg-slate-500',  border: 'border-l-slate-500',  text: 'text-slate-700',  icon: 'text-slate-500',  badge: 'bg-slate-100 text-slate-700',   avatar: 'bg-slate-100 text-slate-600', ring: 'ring-2 ring-slate-400 border-slate-200', tint: 'bg-slate-50', card: 'bg-slate-500 text-white' },
+const clamp = (n: number) => Math.max(0, Math.min(255, Math.round(n)));
+const rgbToHex = ([r, g, b]: [number, number, number]) =>
+  '#' + [r, g, b].map((c) => clamp(c).toString(16).padStart(2, '0')).join('');
 
-  // Nuevos colores agregados a petición
-  { key: 'vino',     label: 'Concho de Vino', swatch: 'bg-rose-800', border: 'border-l-rose-800', text: 'text-rose-900', icon: 'text-rose-800', badge: 'bg-rose-100 text-rose-800', avatar: 'bg-rose-100 text-rose-700', ring: 'ring-2 ring-rose-400 border-rose-300', tint: 'bg-rose-50', card: 'bg-rose-800 text-white' },
-  { key: 'dorado',   label: 'Dorado',         swatch: 'bg-yellow-600', border: 'border-l-yellow-600', text: 'text-yellow-800', icon: 'text-yellow-600', badge: 'bg-yellow-100 text-yellow-800', avatar: 'bg-yellow-100 text-yellow-700', ring: 'ring-2 ring-yellow-400 border-yellow-200', tint: 'bg-yellow-50', card: 'bg-yellow-500 text-gray-900' },
-  { key: 'plata',    label: 'Plata / Plomo',  swatch: 'bg-gray-400', border: 'border-l-gray-400', text: 'text-gray-600', icon: 'text-gray-400', badge: 'bg-gray-100 text-gray-600', avatar: 'bg-gray-100 text-gray-500', ring: 'ring-2 ring-gray-300 border-gray-200', tint: 'bg-gray-50', card: 'bg-gray-400 text-gray-900' },
-  { key: 'esmeralda',label: 'Esmeralda',      swatch: 'bg-emerald-500', border: 'border-l-emerald-500', text: 'text-emerald-700', icon: 'text-emerald-500', badge: 'bg-emerald-100 text-emerald-700', avatar: 'bg-emerald-100 text-emerald-600', ring: 'ring-2 ring-emerald-400 border-emerald-200', tint: 'bg-emerald-50', card: 'bg-emerald-500 text-white' },
-  { key: 'lima',     label: 'Lima',           swatch: 'bg-lime-500', border: 'border-l-lime-500', text: 'text-lime-700', icon: 'text-lime-500', badge: 'bg-lime-100 text-lime-700', avatar: 'bg-lime-100 text-lime-600', ring: 'ring-2 ring-lime-400 border-lime-200', tint: 'bg-lime-50', card: 'bg-lime-400 text-gray-900' },
-  { key: 'fucsia',   label: 'Fucsia',         swatch: 'bg-fuchsia-500', border: 'border-l-fuchsia-500', text: 'text-fuchsia-700', icon: 'text-fuchsia-500', badge: 'bg-fuchsia-100 text-fuchsia-700', avatar: 'bg-fuchsia-100 text-fuchsia-600', ring: 'ring-2 ring-fuchsia-400 border-fuchsia-200', tint: 'bg-fuchsia-50', card: 'bg-fuchsia-500 text-white' },
-  { key: 'marrón',   label: 'Marrón / Café',  swatch: 'bg-stone-600', border: 'border-l-stone-600', text: 'text-stone-800', icon: 'text-stone-600', badge: 'bg-stone-100 text-stone-700', avatar: 'bg-stone-100 text-stone-600', ring: 'ring-2 ring-stone-400 border-stone-300', tint: 'bg-stone-50', card: 'bg-stone-600 text-white' },
-  { key: 'blanco',   label: 'Blanco',         swatch: 'bg-white border border-gray-300', border: 'border-l-gray-300', text: 'text-gray-800', icon: 'text-gray-500', badge: 'bg-white border border-gray-200 text-gray-800', avatar: 'bg-gray-100 text-gray-800', ring: 'ring-2 ring-gray-200 border-gray-100', tint: 'bg-gray-50', card: 'bg-gray-100 text-gray-900' },
+/** Mezcla lineal de dos hex (t=0 → a, t=1 → b). */
+const mix = (a: string, b: string, t: number): string => {
+  const ra = hexToRgb(a), rb = hexToRgb(b);
+  return rgbToHex([
+    ra[0] + (rb[0] - ra[0]) * t,
+    ra[1] + (rb[1] - ra[1]) * t,
+    ra[2] + (rb[2] - ra[2]) * t,
+  ]);
+};
+
+/** Luminancia relativa (WCAG) 0..1 — sirve para decidir contraste. */
+const luminancia = (hex: string): number => {
+  const [r, g, b] = hexToRgb(hex).map((c) => {
+    const s = c / 255;
+    return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+};
+
+/** Texto que contrasta sobre un relleno FUERTE del color: blanco en oscuros, casi-negro en claros. */
+const textoContraste = (hex: string): string => (luminancia(hex) > 0.5 ? '#111827' : '#ffffff');
+
+/** Versión del color LEGIBLE sobre fondo blanco (para títulos/íconos/badges). Oscurece si es muy claro. */
+const legibleEnBlanco = (hex: string): string => {
+  const l = luminancia(hex);
+  if (l > 0.6) return mix(hex, '#000000', 0.55);
+  if (l > 0.4) return mix(hex, '#000000', 0.3);
+  return hex;
+};
+
+/** Tinte MUY suave (equivalente a un shade -50): el color mezclado con mucho blanco. */
+const tinte = (hex: string): string => mix(hex, '#ffffff', 0.86);
+
+// ---------------------------------------------------------------------------
+// Presets: solo {key, label, hex}. Todo lo demás se deriva.
+// ---------------------------------------------------------------------------
+
+export interface Preset {
+  key: string;
+  label: string;
+  hex: string;
+}
+
+/** Paleta fija de acceso rápido. El ORDEN es el que se muestra en el picker. */
+export const PALETAS: Preset[] = [
+  { key: 'verde',     label: 'Verde',          hex: '#22c55e' },
+  { key: 'azul',      label: 'Azul',           hex: '#3b82f6' },
+  { key: 'negro',     label: 'Negro',          hex: '#111827' },
+  { key: 'rojo',      label: 'Rojo',           hex: '#ef4444' },
+  { key: 'naranja',   label: 'Naranja',        hex: '#f97316' },
+  { key: 'violeta',   label: 'Violeta',        hex: '#a855f7' },
+  { key: 'celeste',   label: 'Celeste',        hex: '#0ea5e9' },
+  { key: 'amarillo',  label: 'Amarillo',       hex: '#f59e0b' },
+  { key: 'rosa',      label: 'Rosa',           hex: '#ec4899' },
+  { key: 'turquesa',  label: 'Turquesa',       hex: '#14b8a6' },
+  { key: 'indigo',    label: 'Índigo',         hex: '#6366f1' },
+  { key: 'gris',      label: 'Gris',           hex: '#64748b' },
+  { key: 'vino',      label: 'Concho de Vino', hex: '#9f1239' },
+  { key: 'dorado',    label: 'Dorado',         hex: '#ca8a04' },
+  { key: 'plata',     label: 'Plata / Plomo',  hex: '#9ca3af' },
+  { key: 'esmeralda', label: 'Esmeralda',      hex: '#10b981' },
+  { key: 'lima',      label: 'Lima',           hex: '#84cc16' },
+  { key: 'fucsia',    label: 'Fucsia',         hex: '#d946ef' },
+  { key: 'marrón',    label: 'Marrón / Café',  hex: '#57534e' },
+  { key: 'blanco',    label: 'Blanco',         hex: '#f3f4f6' },
 ];
 
-const PALETA_POR_KEY = new Map(PALETAS.map((p) => [p.key, p]));
+const PRESET_POR_KEY = new Map(PALETAS.map((p) => [p.key, p]));
 
-/** Devuelve la paleta de una key guardada en DB. Sin key conocida → gris neutro. */
-export const getPaleta = (key?: string | null): Paleta =>
-  (key && PALETA_POR_KEY.get(key)) || NEUTRAL;
+// ---------------------------------------------------------------------------
+// Identidad: descriptor con estilos inline, derivado del color base
+// ---------------------------------------------------------------------------
+
+export interface Identidad {
+  /** valor original guardado en DB ('verde' | '#3fce88' | '') — para comparar selección */
+  key: string;
+  /** hex base del color, o null si es neutro (sin color) */
+  base: string | null;
+  /** etiqueta legible: nombre del preset, 'Personalizado' (hex) o 'Sin color' */
+  label: string;
+  /** relleno FUERTE + texto que contrasta (cuadradito de unidad) */
+  card: CSSProperties;
+  /** borde izquierdo del color (card de carrera / lista) */
+  borderLeft: CSSProperties;
+  /** color de texto legible sobre blanco (títulos, íconos) */
+  textColor: CSSProperties;
+  /** puntito / swatch sólido del color */
+  swatch: CSSProperties;
+  /** tinte suave de fondo */
+  tintBg: CSSProperties;
+  /** badge/avatar: fondo tinte + texto legible */
+  badge: CSSProperties;
+}
+
+const NEUTRO: Identidad = {
+  key: '',
+  base: null,
+  label: 'Sin color',
+  card: { backgroundColor: '#ffffff', color: '#111827' },
+  borderLeft: { borderLeftColor: '#d1d5db' },
+  textColor: { color: '#4b5563' },
+  swatch: { backgroundColor: '#d1d5db' },
+  tintBg: { backgroundColor: '#f9fafb' },
+  badge: { backgroundColor: '#f3f4f6', color: '#4b5563' },
+};
+
+/** Neutro exportado para operadores/unidades SIN color (admin, sistema, null). */
+export const NEUTRAL = NEUTRO;
+
+/** Construye el descriptor de identidad a partir de un hex base. */
+const desdeHex = (key: string, base: string, label: string): Identidad => {
+  const legible = legibleEnBlanco(base);
+  const suave = tinte(base);
+  return {
+    key,
+    base,
+    label,
+    card: { backgroundColor: base, color: textoContraste(base) },
+    borderLeft: { borderLeftColor: base },
+    textColor: { color: legible },
+    swatch: {
+      backgroundColor: base,
+      // si es muy claro (blanco), un borde para que no se pierda en fondo blanco
+      ...(luminancia(base) > 0.85 ? { border: '1px solid #d1d5db' } : {}),
+    },
+    tintBg: { backgroundColor: suave },
+    badge: { backgroundColor: suave, color: legible },
+  };
+};
+
+/**
+ * Resuelve un valor guardado (preset key o hex) al descriptor de identidad.
+ * Sin valor conocido → neutro. Nunca rompe.
+ */
+export const getPaleta = (valor?: string | null): Identidad => {
+  if (!valor) return NEUTRO;
+  const v = valor.trim();
+  if (esHex(v)) return desdeHex(v, v, 'Personalizado');
+  const preset = PRESET_POR_KEY.get(v);
+  if (preset) return desdeHex(preset.key, preset.hex, preset.label);
+  return NEUTRO;
+};
 
 // --- Fallback legado por NOMBRE (mientras existan Charlies sin `color` en DB) ---
 const LEGADO_POR_NOMBRE: Record<string, string> = {
@@ -99,22 +192,22 @@ const normalizar = (v: unknown): string =>
     .trim();
 
 /**
- * Paleta de un OPERADOR (Charlie). Prioriza el `color` guardado en DB; si no lo tiene,
- * cae al mapeo legado por nombre; si nada matchea (admin, superadmin, sistema) → gris.
+ * Identidad de un OPERADOR (Charlie). Prioriza el `color` guardado en DB (preset o hex);
+ * si no lo tiene, cae al mapeo legado por nombre; si nada matchea (admin, sistema) → neutro.
  */
 export const colorOperador = (
   operador?: { color?: string | null; nombre?: string | null } | null,
-): Paleta => {
-  if (!operador) return NEUTRAL;
+): Identidad => {
+  if (!operador) return NEUTRO;
   if (operador.color) return getPaleta(operador.color);
   const n = normalizar(operador.nombre);
   for (const key of Object.keys(LEGADO_POR_NOMBRE)) {
     if (n === key || n.split(/\s+/).includes(key)) return getPaleta(LEGADO_POR_NOMBRE[key]);
   }
-  return NEUTRAL;
+  return NEUTRO;
 };
 
-/** Paleta de una UNIDAD según su color de identidad (key de paleta en DB). */
+/** Identidad de una UNIDAD según su color (preset o hex en DB). */
 export const colorUnidad = (
   unidad?: { colorIdentidad?: string | null } | null,
-): Paleta => getPaleta(unidad?.colorIdentidad);
+): Identidad => getPaleta(unidad?.colorIdentidad);

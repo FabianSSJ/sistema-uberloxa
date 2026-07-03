@@ -179,7 +179,7 @@ export const AdminDashboard = () => {
                 <tr key={stat.unidad.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
-                      <div className={`flex-shrink-0 h-10 w-10 rounded-full flex items-center justify-center ${colorUnidad(stat.unidad).avatar}`}>
+                      <div style={colorUnidad(stat.unidad).badge} className="flex-shrink-0 h-10 w-10 rounded-full flex items-center justify-center">
                         <Car size={20} />
                       </div>
                       <div className="ml-4">
@@ -261,7 +261,7 @@ export const AdminDashboard = () => {
                 <tr key={stat.charlie.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
-                      <div className={`flex-shrink-0 h-10 w-10 rounded-full flex items-center justify-center ${colorOperador(stat.charlie).avatar}`}>
+                      <div style={colorOperador(stat.charlie).badge} className="flex-shrink-0 h-10 w-10 rounded-full flex items-center justify-center">
                         <Users size={20} />
                       </div>
                       <div className="ml-4">

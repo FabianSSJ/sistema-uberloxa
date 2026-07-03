@@ -60,7 +60,8 @@ export const UsuariosTab = () => {
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center gap-2">
                     <span
-                      className={`inline-block h-3 w-3 rounded-full shrink-0 ${getPaleta(u.color).swatch}`}
+                      className="inline-block h-3 w-3 rounded-full shrink-0"
+                      style={getPaleta(u.color).swatch}
                       title={u.color ? `Color: ${u.color}` : 'Sin color'}
                     />
                     <div>

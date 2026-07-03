@@ -129,7 +129,8 @@ export const UnidadesPage = () => {
             {currentItems.map((unidad) => (
               <div
                 key={unidad.id}
-                className={`bg-white rounded-xl p-5 border border-gray-200 border-l-4 ${colorUnidad(unidad).border} shadow-sm hover:shadow-md hover:border-blue-200 transition-all duration-200 group flex flex-col justify-between`}
+                style={colorUnidad(unidad).borderLeft}
+                className="bg-white rounded-xl p-5 border border-gray-200 border-l-4 shadow-sm hover:shadow-md hover:border-blue-200 transition-all duration-200 group flex flex-col justify-between"
               >
                 <div>
                   <div className="flex justify-between items-start gap-3 mb-3">

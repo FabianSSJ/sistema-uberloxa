@@ -47,7 +47,8 @@ export const AsignacionPanel = ({ searchTerm }: AsignacionPanelProps) => {
       draggable
       onDragStart={() => setDragId(u.id)}
       onDragEnd={() => { setDragId(null); setHoverZona(null); }}
-      className={`flex items-center gap-2.5 bg-white border border-gray-200 border-l-4 ${colorUnidad(u).border} rounded-lg p-2.5 cursor-grab active:cursor-grabbing hover:shadow-sm transition`}
+      style={colorUnidad(u).borderLeft}
+      className="flex items-center gap-2.5 bg-white border border-gray-200 border-l-4 rounded-lg p-2.5 cursor-grab active:cursor-grabbing hover:shadow-sm transition"
     >
       <GripVertical size={16} className="text-gray-300 shrink-0" />
       <div className="flex flex-col items-center shrink-0">

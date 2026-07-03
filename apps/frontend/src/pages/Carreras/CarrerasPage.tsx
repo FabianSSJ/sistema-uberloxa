@@ -78,17 +78,18 @@ export const CarrerasPage = () => {
             return (
             <div
               key={carrera.id}
-              className={`bg-white rounded-xl p-5 border-l-4 ${op.border} border-y-gray-200 border-r-gray-200 shadow-sm hover:shadow-md transition-all duration-200 flex flex-col md:flex-row md:justify-between md:items-center gap-4`}
+              style={op.borderLeft}
+              className="bg-white rounded-xl p-5 border-l-4 border-y-gray-200 border-r-gray-200 shadow-sm hover:shadow-md transition-all duration-200 flex flex-col md:flex-row md:justify-between md:items-center gap-4"
             >
               <div className="flex-1 min-w-0">
                 {/* Unidad */}
                 <div className="flex items-center gap-2 mb-2">
-                  <span className={`px-2 py-0.5 bg-gray-100 ${op.text} text-[11px] font-bold rounded-md shrink-0`}>
+                  <span style={op.textColor} className="px-2 py-0.5 bg-gray-100 text-[11px] font-bold rounded-md shrink-0">
                     #{carrera.numeroDiario || carrera.id}
                   </span>
                   <div className="min-w-0">
                     <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide m-0 leading-none">Unidad</p>
-                    <h3 className={`text-[13px] font-bold m-0 truncate ${op.text}`}>
+                    <h3 style={op.textColor} className="text-[13px] font-bold m-0 truncate">
                       {carrera.unidad ? `${carrera.unidad.placa} · ${carrera.unidad.choferNombre}` : 'Sin unidad asignada'}
                     </h3>
                   </div>
@@ -109,7 +110,7 @@ export const CarrerasPage = () => {
                 <div className="mb-1.5">
                   <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide m-0">Operador</p>
                   <div className="flex items-center gap-1.5 min-w-0">
-                    <span className={`text-[12px] font-bold px-2 py-0.5 rounded truncate ${op.badge}`}>
+                    <span style={op.badge} className="text-[12px] font-bold px-2 py-0.5 rounded truncate">
                       {carrera.creadoPor ? carrera.creadoPor.nombre : 'Sistema'}
                     </span>
                   </div>
