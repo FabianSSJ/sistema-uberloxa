@@ -15,20 +15,20 @@ export class EstadisticasService {
       this.prisma.$queryRawUnsafe<Array<{ estado: string; cantidad: number }>>(
         `SELECT estado::text AS estado, COUNT(*)::int AS cantidad FROM carreras GROUP BY estado`,
       ),
-      // Volumen por día (últimos 30 días)
+      // Volumen por día (últimos 30 días) — día en HORA DE ECUADOR
       this.prisma.$queryRawUnsafe<Array<{ dia: string; cantidad: number }>>(
-        `SELECT to_char(date_trunc('day', created_at), 'YYYY-MM-DD') AS dia, COUNT(*)::int AS cantidad
+        `SELECT to_char(date_trunc('day', created_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Guayaquil'), 'YYYY-MM-DD') AS dia, COUNT(*)::int AS cantidad
          FROM carreras WHERE created_at >= now() - interval '30 days'
          GROUP BY 1 ORDER BY 1`,
       ),
-      // Hora pico: distribución por hora del día
+      // Hora pico: distribución por hora del día — hora en HORA DE ECUADOR
       this.prisma.$queryRawUnsafe<Array<{ hora: number; cantidad: number }>>(
-        `SELECT EXTRACT(HOUR FROM created_at)::int AS hora, COUNT(*)::int AS cantidad
+        `SELECT EXTRACT(HOUR FROM created_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Guayaquil')::int AS hora, COUNT(*)::int AS cantidad
          FROM carreras GROUP BY 1 ORDER BY 1`,
       ),
-      // Salud: carreras perdidas por hora (dónde se pierde demanda)
+      // Salud: carreras perdidas por hora (dónde se pierde demanda) — hora en HORA DE ECUADOR
       this.prisma.$queryRawUnsafe<Array<{ hora: number; cantidad: number }>>(
-        `SELECT EXTRACT(HOUR FROM created_at)::int AS hora, COUNT(*)::int AS cantidad
+        `SELECT EXTRACT(HOUR FROM created_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Guayaquil')::int AS hora, COUNT(*)::int AS cantidad
          FROM carreras WHERE estado = 'perdida' GROUP BY 1 ORDER BY 1`,
       ),
       // Ranking de unidades por carreras
