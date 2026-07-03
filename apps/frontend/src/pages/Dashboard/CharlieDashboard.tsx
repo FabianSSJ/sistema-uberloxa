@@ -16,6 +16,9 @@ import { colorOperador, colorUnidad } from '../../core/operadores/colores';
 import { hora, esHoy } from '../../core/tiempo';
 import { useAuth } from '../../features/auth/context/AuthContext';
 
+// Estados "en proceso" (aún sin resolver): siguen visibles aunque cambie el día, para no perderlos.
+const EN_PROCESO = new Set(['pendiente', 'asignada']);
+
 export const CharlieDashboard = () => {
   const { user } = useAuth();
   const { data: clientes = [] } = useClientes();
@@ -28,8 +31,12 @@ export const CharlieDashboard = () => {
     [allRidesData, user?.id]
   );
 
-  // Carreras de HOY (día de Ecuador) — lo que se muestra registrándose en el panel.
-  const carrerasDelDia = useMemo(() => allRides.filter((r: any) => esHoy(r.createdAt)), [allRides]);
+  // Lo que se muestra en el panel: las carreras de HOY (día de Ecuador) MÁS las que sigan
+  // en proceso aunque sean de ayer. Así una carrera de las 23:58 sin cerrar no se pierde al pasar la medianoche.
+  const carrerasDelDia = useMemo(
+    () => allRides.filter((r: any) => esHoy(r.createdAt) || EN_PROCESO.has(r.estado)),
+    [allRides]
+  );
 
   const createCarreraMutation = useCreateCarrera();
   const completarMutation = useCompletarCarrera();
