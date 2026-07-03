@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { ScheduleModule } from '@nestjs/schedule';
 import { AuthModule } from './auth/auth.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { SectoresModule } from './sectores/sectores.module';
@@ -10,6 +11,7 @@ import { UnidadesModule } from './unidades/unidades.module';
 import { CarrerasModule } from './carreras/carreras.module';
 import { UsuariosModule } from './usuarios/usuarios.module';
 import { EstadisticasModule } from './estadisticas/estadisticas.module';
+import { ReportesModule } from './reportes/reportes.module';
 
 @Module({
   imports: [
@@ -17,6 +19,7 @@ import { EstadisticasModule } from './estadisticas/estadisticas.module';
       isGlobal: true,   // disponible en toda la app sin re-importar
       envFilePath: '.env',
     }),
+    ScheduleModule.forRoot(),
     PrismaModule,
     AuthModule,
     SectoresModule,
@@ -27,6 +30,7 @@ import { EstadisticasModule } from './estadisticas/estadisticas.module';
     CarrerasModule,
     UsuariosModule,
     EstadisticasModule,
+    ReportesModule,
   ],
 })
 export class AppModule {}

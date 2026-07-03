@@ -1,7 +1,9 @@
 import type { ReactNode } from 'react';
-import { BarChart3, TrendingUp, Clock, Car, Users, AlertTriangle } from 'lucide-react';
+import { BarChart3, TrendingUp, Clock, Car, Users, AlertTriangle, Download, Send, MessageCircle } from 'lucide-react';
 import { useEstadisticas } from '../../features/estadisticas/hooks/useEstadisticas';
 import type { EstadisticasResumen } from '../../features/estadisticas/services/estadisticas.service';
+import { useEnviarReporte, useEstadoWhatsapp, descargarInformeHoy } from '../../features/reportes/hooks/useReportes';
+import { Button } from '../../components/ui/Button';
 
 const pad = (n: number) => String(n).padStart(2, '0');
 /** "18:00 y las 19:00" — para usar como "entre las {franja} h". */
@@ -24,6 +26,8 @@ const Panel = ({ title, icon, children }: { title: string; icon: ReactNode; chil
 
 export const EstadisticasPage = () => {
   const { data, isLoading, isError } = useEstadisticas();
+  const enviar = useEnviarReporte();
+  const { data: wa } = useEstadoWhatsapp();
 
   if (isLoading) {
     return <div className="flex justify-center py-20"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" /></div>;
@@ -44,9 +48,25 @@ export const EstadisticasPage = () => {
 
   return (
     <div className="animate-[fadeIn_0.5s_ease-in]">
-      <div className="flex items-center gap-3 mb-8">
-        <BarChart3 className="text-blue-600" size={32} />
-        <h2 className="text-2xl md:text-[28px] text-gray-800 m-0 font-bold">Estadísticas</h2>
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
+        <div className="flex items-center gap-3">
+          <BarChart3 className="text-blue-600" size={32} />
+          <h2 className="text-2xl md:text-[28px] text-gray-800 m-0 font-bold">Estadísticas</h2>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <span
+            className={`text-xs font-bold px-2 py-1 rounded-full flex items-center gap-1 ${wa?.conectado ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}
+            title="Estado del emisor de WhatsApp"
+          >
+            <MessageCircle size={13} /> WhatsApp {wa?.conectado ? 'conectado' : 'sin conectar'}
+          </span>
+          <Button variant="secondary" icon={<Download size={16} />} onClick={descargarInformeHoy}>
+            Informe de hoy
+          </Button>
+          <Button icon={<Send size={16} />} isLoading={enviar.isPending} onClick={() => enviar.mutate()}>
+            Enviar ahora
+          </Button>
+        </div>
       </div>
 
       {t.total === 0 ? (
