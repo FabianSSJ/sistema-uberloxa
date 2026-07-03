@@ -35,8 +35,8 @@ export const UnidadDetalleModal = ({ unidad, carrerasHoy, onClose }: UnidadDetal
         <Row
           icon={<Palette size={16} />}
           label="Color"
-          value={paleta.key
-            ? <span className="inline-flex items-center gap-2 justify-end"><span className={`w-4 h-4 rounded-full ${paleta.swatch}`} />{paleta.label}</span>
+          value={paleta.base
+            ? <span className="inline-flex items-center gap-2 justify-end"><span className="w-4 h-4 rounded-full" style={paleta.swatch} />{paleta.label}</span>
             : <span className="text-gray-400 italic font-normal">Sin color</span>}
         />
       </div>
