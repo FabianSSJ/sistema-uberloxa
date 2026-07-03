@@ -1,7 +1,10 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCarreraDto } from './dto/create-carrera.dto';
 import { EstadoCarrera } from '../../generated/prisma/client';
+
+// Al asignar una carrera, la unidad queda ocupada este tiempo y luego se auto-libera.
+const MINUTOS_OCUPADO = 15;
 
 @Injectable()
 export class CarrerasService {
@@ -38,7 +41,9 @@ export class CarrerasService {
         clienteId: createCarreraDto.clienteId,
         unidadId: createCarreraDto.unidadId || null,
         notas: createCarreraDto.notas || null,
-        estado: createCarreraDto.unidadId ? 'asignada' : 'pendiente',
+        // Por defecto la carrera nace TERMINADA (se completa sola). Solo se marca cancelada/perdida a mano.
+        estado: createCarreraDto.unidadId ? 'completada' : 'pendiente',
+        fechaFin: createCarreraDto.unidadId ? new Date() : null,
         creadoPorId: userId || null,
         numeroDiario: count + 1,
       },
@@ -63,11 +68,12 @@ export class CarrerasService {
       }
     });
 
-    // Al asignarle una carrera, la unidad pasa a 'ocupado' automaticamente.
+    // Al asignarle una carrera, la unidad pasa a 'ocupado' por MINUTOS_OCUPADO; luego se auto-libera.
     if (createCarreraDto.unidadId) {
+      const ocupadoHasta = new Date(Date.now() + MINUTOS_OCUPADO * 60 * 1000);
       await this.prisma.unidad.update({
         where: { id: createCarreraDto.unidadId },
-        data: { estado: 'ocupado' },
+        data: { estado: 'ocupado', ocupadoHasta },
       });
     }
 
@@ -178,25 +184,15 @@ export class CarrerasService {
       }
     });
 
-    if (uId) {
-      await this.prisma.unidad.update({
-        where: { id: uId },
-        data: { estado: 'disponible' }
-      });
-    }
-
+    // Terminar NO libera la unidad: sigue ocupada sus 15 min (solo cancelar/perder la liberan al instante).
+    void uId;
     return updated;
   }
 
   async actualizarEstado(id: number, nuevoEstado: EstadoCarrera) {
     const carrera = await this.findOne(id);
-    
-    // Validar que no se puede regresar a 'pendiente' o 'asignada' si ya está finalizada
-    const estadosFinales = ['completada', 'cancelada', 'perdida'];
-    if (estadosFinales.includes(carrera.estado)) {
-      throw new BadRequestException(`No se puede cambiar el estado de una carrera que ya está ${carrera.estado}`);
-    }
 
+    // La carrera nace 'completada'; se permite re-clasificarla (cancelada / perdida / volver a terminada).
     const updated = await this.prisma.carrera.update({
       where: { id },
       data: {
@@ -222,10 +218,11 @@ export class CarrerasService {
       }
     });
 
-    if (estadosFinales.includes(nuevoEstado) && carrera.unidadId) {
+    // Cancelar/Perder liberan la unidad al instante (+ limpian el timer). 'completada' no la toca (sigue sus 15 min).
+    if ((nuevoEstado === 'cancelada' || nuevoEstado === 'perdida') && carrera.unidadId) {
       await this.prisma.unidad.update({
         where: { id: carrera.unidadId },
-        data: { estado: 'disponible' }
+        data: { estado: 'disponible', ocupadoHasta: null }
       });
     }
 

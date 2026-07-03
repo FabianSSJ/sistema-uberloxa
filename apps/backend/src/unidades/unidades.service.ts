@@ -51,7 +51,17 @@ export class UnidadesService {
     });
   }
 
+  // Libera las unidades cuyo tiempo de ocupación (15 min) ya venció. Se llama en cada lectura
+  // (el front pollea cada 1s), así se auto-liberan sin necesidad de un cron.
+  private async _liberarOcupadasVencidas() {
+    await this.prisma.unidad.updateMany({
+      where: { estado: 'ocupado', ocupadoHasta: { not: null, lt: new Date() } },
+      data: { estado: 'disponible', ocupadoHasta: null },
+    });
+  }
+
   async findAll() {
+    await this._liberarOcupadasVencidas();
     return this.prisma.unidad.findMany({
       orderBy: { id: 'desc' },
     });

@@ -86,6 +86,7 @@ model Unidad {
   estado         EstadoUnidad @default(inactivo)
   colorIdentidad String?      @map("color_identidad")
   activadoEn     DateTime?    @map("activado_en")
+  ocupadoHasta   DateTime?    @map("ocupado_hasta") // ocupada por carrera hasta este momento; pasado esto se auto-libera
   carreras       Carrera[]
   modelo         Modelo?      @relation(fields: [modeloId], references: [id])
 
