@@ -88,15 +88,15 @@ export const CharlieDashboard = () => {
     <button
       onClick={(e) => { e.stopPropagation(); onClick(); }}
       title={title}
-      className={`inline-flex items-center justify-center text-white ${cls} w-7 h-7 rounded-md hover:brightness-110 transition shadow-sm`}
+      className={`inline-flex items-center justify-center text-white ${cls} w-6 h-6 rounded-md hover:brightness-110 transition shadow-sm flex-shrink-0`}
     >
       {icon}
     </button>
   );
 
   return (
-    <div className="-mt-4 -mx-4 md:-mx-6 -mb-10 h-[calc(100vh-70px)] bg-gray-100 p-4 animate-[fadeIn_0.5s_ease-in]">
-      <div className="flex gap-5 h-full w-full">
+    <div className="-mt-4 -mx-4 md:-mx-6 -mb-10 min-h-[calc(100vh-70px)] h-auto lg:h-[calc(100vh-70px)] bg-gray-100 p-4 animate-[fadeIn_0.5s_ease-in]">
+      <div className="flex flex-col lg:flex-row gap-5 h-full w-full">
 
         {/* Panel 1: Choferes / Unidades (más ancho: es el foco del despacho) */}
         <div className="flex-[1.5] bg-white rounded-2xl shadow-md border border-gray-200/60 flex flex-col overflow-hidden transition-all duration-300 hover:shadow-xl">
@@ -105,7 +105,7 @@ export const CharlieDashboard = () => {
               <div className="bg-white/20 p-2 rounded-xl backdrop-blur-sm">
                 <Car size={24} className="text-white" />
               </div>
-              <h2 className="text-xl font-bold m-0 tracking-wide">Choferes</h2>
+              <h2 className="text-xl font-bold m-0 tracking-wide">Unidades</h2>
             </div>
             <span className="bg-amber-700/50 px-3 py-1 rounded-full text-sm font-bold shadow-inner">
               {filteredUnidades.length}
@@ -132,7 +132,7 @@ export const CharlieDashboard = () => {
               ))}
             </div>
           </div>
-          <div className="flex-1 overflow-y-auto px-5 pb-5 pt-3 grid grid-cols-[repeat(auto-fill,minmax(116px,1fr))] gap-2 content-start bg-slate-50/50">
+          <div className="flex-1 overflow-y-auto px-5 pb-5 pt-3 grid grid-cols-[repeat(auto-fill,minmax(7rem,1fr))] gap-2 content-start bg-slate-50/50">
             {filteredUnidades.map((u: any) => {
               const isDragOver = dragOverItem?.type === 'CHOFER' && dragOverItem.id === u.id;
               const estado = u.estado || 'disponible';
@@ -161,29 +161,29 @@ export const CharlieDashboard = () => {
                     }
                     setDraggedItem(null); setDragOverItem(null);
                   }}
-                  className={`flex flex-col gap-1 p-2 rounded-lg border border-black/5 border-l-4 cursor-pointer transition overflow-hidden shadow-sm ${isDragOver ? 'bg-amber-100 ring-2 ring-amber-400 border-amber-300' : 'hover:brightness-105'}`}
+                  className={`flex flex-col gap-0.5 p-2 rounded-lg border border-black/5 border-l-4 cursor-pointer transition shadow-sm min-h-[5rem] ${isDragOver ? 'bg-amber-100 ring-2 ring-amber-400 border-amber-300' : 'hover:brightness-105'}`}
                   style={isDragOver ? undefined : { ...colorU.card, ...colorU.borderLeft }}
                 >
                   <div className="flex items-start justify-between gap-1 pointer-events-none">
-                    <span className="text-3xl font-black leading-none tracking-tight">{u.numeroUnidad || 'S/N'}</span>
-                    <div className="flex items-center gap-1 shrink-0 mt-1" title={`${hoy} carreras hoy`}>
-                      <Car size={13} className="opacity-70" />
-                      <span className="text-sm font-black leading-none tabular-nums">{hoy}</span>
-                      <span className={`w-2.5 h-2.5 rounded-full ring-2 ring-white/70 ${ESTADO_UNIDAD_STYLES[estado as keyof typeof ESTADO_UNIDAD_STYLES]?.dot ?? 'bg-gray-400'}`} />
+                    <span className="text-xl font-black leading-none tracking-tight">{u.numeroUnidad || 'S/N'}</span>
+                    <div className="flex items-center gap-0.5 shrink-0 mt-0.5" title={`${hoy} carreras hoy`}>
+                      <Car size={11} className="opacity-70" />
+                      <span className="text-xs font-black leading-none tabular-nums">{hoy}</span>
+                      <span className={`w-2 h-2 ml-0.5 rounded-full ring-1 ring-white/70 ${ESTADO_UNIDAD_STYLES[estado as keyof typeof ESTADO_UNIDAD_STYLES]?.dot ?? 'bg-gray-400'}`} />
                     </div>
                   </div>
-                  <p className="text-xs font-bold font-mono truncate leading-tight pointer-events-none mt-1 opacity-80">{u.placa}</p>
-                  <div className="flex flex-wrap gap-1 mt-auto pt-1.5">
+                  <p className="text-[10px] font-bold font-mono truncate leading-tight pointer-events-none mt-0.5 opacity-80">{u.placa}</p>
+                  <div className="flex flex-wrap gap-1 mt-auto pt-1">
                     {estado === 'inactivo'
-                      ? btnEstado(<Power size={14} />, 'Activar', 'bg-emerald-600', () => cambiarEstado(u.id, 'disponible'))
+                      ? btnEstado(<Power size={12} />, 'Activar', 'bg-emerald-600', () => cambiarEstado(u.id, 'disponible'))
                       : (
                         <>
                           {estado === 'descanso'
-                            ? btnEstado(<Play size={14} />, 'Volver a disponible', 'bg-emerald-600', () => cambiarEstado(u.id, 'disponible'))
+                            ? btnEstado(<Play size={12} />, 'Volver a disponible', 'bg-emerald-600', () => cambiarEstado(u.id, 'disponible'))
                             : estado === 'ocupado'
-                              ? btnEstado(<Unlock size={14} />, 'Liberar', 'bg-emerald-600', () => cambiarEstado(u.id, 'disponible'))
-                              : btnEstado(<Moon size={14} />, 'Poner en descanso', 'bg-sky-600', () => cambiarEstado(u.id, 'descanso'))}
-                          {btnEstado(<PowerOff size={14} />, 'Sacar (inactivar)', 'bg-gray-700', () => cambiarEstado(u.id, 'inactivo'))}
+                              ? btnEstado(<Unlock size={12} />, 'Liberar', 'bg-emerald-600', () => cambiarEstado(u.id, 'disponible'))
+                              : btnEstado(<Moon size={12} />, 'Poner en descanso', 'bg-sky-600', () => cambiarEstado(u.id, 'descanso'))}
+                          {btnEstado(<PowerOff size={12} />, 'Sacar (inactivar)', 'bg-gray-700', () => cambiarEstado(u.id, 'inactivo'))}
                         </>
                       )}
                   </div>
