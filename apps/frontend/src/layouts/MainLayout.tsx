@@ -47,8 +47,8 @@ const MainLayout = () => {
       return true;
     }
     if (user?.rol === 'CHARLIE') {
-      // El Charlie no debe ver el menú de CRUD de clientes (unidades ahora sí, a pedido del usuario)
-      if (item.reqModule === 'clientes') return false;
+      // El Charlie solo debe ver el Dashboard (null) y Carreras
+      if (item.reqModule === 'clientes' || item.reqModule === 'unidades') return false;
       return true;
     }
     return user?.modulosPermitidos?.includes(item.reqModule);
