@@ -35,6 +35,7 @@ function App() {
               </Route>
               <Route element={<PrivateRoute requiredModule="clientes" />}>
                 <Route path="clientes" element={<ClientesPage />} />
+                <Route path="nuevos-clientes" element={<NuevosClientesPage />} />
               </Route>
               <Route element={<PrivateRoute requiredModule="unidades" />}>
                 <Route path="unidades" element={<UnidadesPage />} />
@@ -43,7 +44,6 @@ function App() {
                 <Route path="gestor-usuarios" element={<GestorUsuariosPage />} />
               </Route>
               <Route element={<PrivateRoute allowedRoles={['SUPERADMIN', 'ADMIN']} />}>
-                <Route path="nuevos-clientes" element={<NuevosClientesPage />} />
                 <Route path="estadisticas" element={<EstadisticasPage />} />
               </Route>
             </Route>
