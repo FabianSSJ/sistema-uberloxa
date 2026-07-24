@@ -1,5 +1,7 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { CreateUsuarioDto } from './dto/create-usuario.dto';
+import { UpdateUsuarioDto } from './dto/update-usuario.dto';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
@@ -32,7 +34,7 @@ export class UsuariosService {
     });
   }
 
-  async create(data: any) {
+  async create(data: CreateUsuarioDto) {
     const existing = await this.prisma.usuario.findUnique({ where: { username: data.username } });
     if (existing) {
       throw new BadRequestException('El nombre de usuario ya existe');
@@ -57,7 +59,7 @@ export class UsuariosService {
     });
   }
 
-  async update(id: number, data: any) {
+  async update(id: number, data: UpdateUsuarioDto) {
     // undefined → Prisma ignora el campo; null → lo limpia. Así 'color' se puede setear o borrar.
     const updateData: any = {
       nombre: data.nombre,
