@@ -48,9 +48,12 @@ const UNIDAD_FIELDS: FieldDef<any>[] = [
 ];
 
 const CARRERA_FIELDS: FieldDef<any>[] = [
-  // Identificadores de la carrera (número diario + operador que la creó)
-  { weight: 100, get: (r) => r?.id },
-  { weight: 100, get: (r) => r?.numeroDiario },
+  // OJO con los identificadores "numéricos" acá: NO incluir r.id (PK interna, invisible)
+  // NI r.numeroDiario (el "#1" de la card): ese contador se REINICIA todos los días
+  // (carreras.service.ts: `count + 1` sobre las carreras de hoy), así que "carrera #1" existe
+  // una vez por cada día del historial. Si entra al score, buscar "1" trae carreras de fechas
+  // completamente distintas sin ninguna unidad en común — exactamente el bug reportado.
+  // El identificador numérico real y estable es el número de unidad (u.numeroUnidad).
   { weight: 60, get: (r) => r?.creadoPor?.nombre },
   { weight: 60, get: (r) => r?.creadoPor?.username },
   // Datos del cliente
@@ -129,7 +132,26 @@ export const scoreCliente = (cliente: any, query: string): number => {
   return scoreFields(cliente, query, CLIENTE_FIELDS);
 };
 export const scoreUnidad = (unidad: any, query: string): number => scoreFields(unidad, query, UNIDAD_FIELDS);
-export const scoreCarrera = (carrera: any, query: string): number => scoreFields(carrera, query, CARRERA_FIELDS);
+export const scoreCarrera = (carrera: any, query: string): number => {
+  const q = query.trim();
+  // Query PURAMENTE NUMÉRICA = búsqueda por NÚMERO DE UNIDAD (identificador real y estable),
+  // con el código de cliente como segundo criterio también exacto. NO se usa r.numeroDiario
+  // (se reinicia cada día, ver comentario en CARRERA_FIELDS) ni ningún otro campo por
+  // "contiene": "1" no debe traer la unidad "10", un teléfono o una dirección con un 1 adentro.
+  //
+  // OJO: numeroUnidad es un campo STRING libre (schema.prisma: String? @unique), así que en la
+  // DB puede estar guardado con cero adelante ("01", "03"...). Comparar como STRING ("01"==="1")
+  // da false y no matchea nada — hay que comparar como NÚMERO (Number("01")===Number("1")) para
+  // que "1" encuentre la unidad Nº 01 sin volver a abrir la puerta a matches por "contiene".
+  if (/^\d+$/.test(q)) {
+    const qNum = Number(q);
+    const numUnidad = carrera?.unidad?.numeroUnidad;
+    if (numUnidad != null && Number(numUnidad) === qNum) return 300;
+    if (String(carrera?.cliente?.codigo ?? '') === q) return 200;
+    return 0;
+  }
+  return scoreFields(carrera, query, CARRERA_FIELDS);
+};
 export const scoreUsuario = (usuario: any, query: string): number => scoreFields(usuario, query, USUARIO_FIELDS);
 
 // --- searchText para opciones de <Select> (busca por todos los campos, no solo el label visible) ---
