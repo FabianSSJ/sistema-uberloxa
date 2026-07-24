@@ -16,14 +16,18 @@ export const useEnviarReporte = () =>
     onError: () => notify.error('No se pudo enviar el informe.'),
   });
 
-/** Descarga el PDF y dispara la bajada en el navegador. */
-export const descargarInformeHoy = async () => {
+/**
+ * Descarga el PDF y dispara la bajada en el navegador. Sin `fecha`, es el informe de hoy;
+ * con `fecha` y `hasta` (distintos), el informe del rango completo.
+ */
+export const descargarInforme = async (fecha?: string, hasta?: string) => {
   try {
-    const blob = await reportesService.descargarPDF();
+    const blob = await reportesService.descargarPDF(fecha, hasta);
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'Informe_UberLoxa_hoy.pdf';
+    const nombre = fecha && hasta && hasta !== fecha ? `${fecha}_al_${hasta}` : (fecha || 'hoy');
+    a.download = `Informe_UberLoxa_${nombre}.pdf`;
     document.body.appendChild(a);
     a.click();
     a.remove();
