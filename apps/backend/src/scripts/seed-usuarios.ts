@@ -15,14 +15,15 @@ const prisma = new PrismaClient({ adapter });
 // Permisos derivados del código actual (guards + MainLayout), NO inventados:
 //  - SUPERADMIN: el guard lo bypassa -> modulosPermitidos no aplica ([]).
 //  - ADMIN: no bypassa -> necesita todos los modulos para acceso operativo full.
-//  - CHARLIE: no bypassa; el front lo limita a Carreras -> solo 'carreras'.
+//  - CHARLIE: no bypassa; el front lo limita a Carreras + Clientes (CRUD completo, incluye
+//    la bandeja de Nuevos Clientes) -> 'carreras' + 'clientes'. Unidades sigue sin acceso.
 const USUARIOS = [
   { nombre: 'Administrador', username: 'admin',         password: 'admin123',      rol: 'SUPERADMIN', modulosPermitidos: [] as string[], color: null as string | null },
   { nombre: 'Byron',         username: 'ByronUber',     password: 'byronuber',     rol: 'ADMIN',      modulosPermitidos: ['carreras', 'clientes', 'unidades', 'choferes'], color: null },
-  { nombre: 'Kathia',        username: 'KathiaUber',    password: 'KathiaUber',    rol: 'CHARLIE',    modulosPermitidos: ['carreras'], color: 'rojo' },
-  { nombre: 'Carmita',       username: 'CarmitaUber',   password: 'CarmitaUber',   rol: 'CHARLIE',    modulosPermitidos: ['carreras'], color: 'verde' },
-  { nombre: 'Alejandra',     username: 'AlejandraUber', password: 'AlejandraUber', rol: 'CHARLIE',    modulosPermitidos: ['carreras'], color: 'azul' },
-  { nombre: 'Gabriel',       username: 'GabrielUber',   password: 'GabrielUber',   rol: 'CHARLIE',    modulosPermitidos: ['carreras'], color: 'negro' },
+  { nombre: 'Kathia',        username: 'KathiaUber',    password: 'KathiaUber',    rol: 'CHARLIE',    modulosPermitidos: ['carreras', 'clientes'], color: 'rojo' },
+  { nombre: 'Carmita',       username: 'CarmitaUber',   password: 'CarmitaUber',   rol: 'CHARLIE',    modulosPermitidos: ['carreras', 'clientes'], color: 'verde' },
+  { nombre: 'Alejandra',     username: 'AlejandraUber', password: 'AlejandraUber', rol: 'CHARLIE',    modulosPermitidos: ['carreras', 'clientes'], color: 'azul' },
+  { nombre: 'Gabriel',       username: 'GabrielUber',   password: 'GabrielUber',   rol: 'CHARLIE',    modulosPermitidos: ['carreras', 'clientes'], color: 'negro' },
 ];
 
 async function main() {
