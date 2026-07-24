@@ -82,7 +82,7 @@ export const Select: React.FC<SelectProps> = ({
       
       {/* Trigger Button */}
       <div
-        className={`flex items-center justify-between px-3 py-2.5 bg-white border rounded-md text-[15px] cursor-pointer transition-colors duration-200 outline-none ${errorClass} ${isOpen ? 'ring-2 ring-blue-500 border-blue-500 ring-opacity-50' : ''}`}
+        className={`flex items-center justify-between px-3 py-2.5 bg-white border rounded-md text-[0.9375rem] cursor-pointer transition-colors duration-200 outline-none ${errorClass} ${isOpen ? 'ring-2 ring-blue-500 border-blue-500 ring-opacity-50' : ''}`}
         onClick={() => setIsOpen(!isOpen)}
         tabIndex={0}
         onKeyDown={(e) => {
@@ -132,7 +132,7 @@ export const Select: React.FC<SelectProps> = ({
                 {filteredOptions.map((option) => (
                   <li
                     key={option.value}
-                    className={`px-4 py-2.5 text-[15px] cursor-pointer flex items-center justify-between transition-colors
+                    className={`px-4 py-2.5 text-[0.9375rem] cursor-pointer flex items-center justify-between transition-colors
                       ${option.value === value 
                         ? 'bg-blue-50 text-blue-700 font-medium' 
                         : 'text-gray-700 hover:bg-gray-100'

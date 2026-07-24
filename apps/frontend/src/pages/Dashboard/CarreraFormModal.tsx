@@ -84,7 +84,7 @@ export const CarreraFormModal: React.FC<CarreraFormModalProps> = ({
         <div className="flex flex-col gap-1.5 w-full">
           <label className="text-sm font-semibold text-gray-700">Notas / Detalles de la Carrera</label>
           <textarea
-            className="px-3 py-2.5 bg-white border border-gray-300 rounded-md text-[15px] text-gray-800 transition-colors duration-200 outline-none focus:ring-2 focus:ring-opacity-50 focus:ring-blue-500 focus:border-blue-500 hover:border-gray-400 w-full resize-none h-20"
+            className="px-3 py-2.5 bg-white border border-gray-300 rounded-md text-[0.9375rem] text-gray-800 transition-colors duration-200 outline-none focus:ring-2 focus:ring-opacity-50 focus:ring-blue-500 focus:border-blue-500 hover:border-gray-400 w-full resize-none h-20"
             value={formData.notas}
             onChange={(e) => setFormData({ ...formData, notas: e.target.value })}
             placeholder="Detalles sobre el punto de recogida, indicaciones, etc."

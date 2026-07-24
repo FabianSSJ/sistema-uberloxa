@@ -7,6 +7,7 @@ import { Button } from '../../components/ui/Button';
 import { Pagination } from '../../components/ui/Pagination';
 import { EstadoUnidadBadge } from '../../features/unidades/components/EstadoUnidadBadge';
 import { AsignacionPanel } from '../../features/unidades/components/AsignacionPanel';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { rankBy, scoreUnidad } from '../../core/search/matchers';
 import { colorUnidad } from '../../core/operadores/colores';
 import { Car, Search, Edit2, Trash2, Plus, ListOrdered, LayoutGrid } from 'lucide-react';
@@ -22,15 +23,17 @@ export const UnidadesPage = () => {
   const [isUnidadModalOpen, setIsUnidadModalOpen] = useState(false);
   const [editingUnidadId, setEditingUnidadId] = useState<number | null>(null);
 
-  const [tab, setTab] = useState<Tab>('asignacion');
+  // Default "Lista de unidades" para quien la puede ver; CHARLIE no tiene ese botón (más abajo),
+  // así que para ese rol el default sigue siendo su única pestaña real: "Asignación".
+  const [tab, setTab] = useState<Tab>(() => (user?.rol === 'CHARLIE' ? 'asignacion' : 'lista'));
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 12;
 
-  const handleDelete = async (id: number, numero: string) => {
-    if (window.confirm(`¿Estás seguro de eliminar la unidad ${numero}?`)) {
-      deleteMutation.mutate(id);
-    }
+  const [unidadToDelete, setUnidadToDelete] = useState<{ id: number; numero: string } | null>(null);
+
+  const handleDelete = (id: number, numero: string) => {
+    setUnidadToDelete({ id, numero });
   };
 
   const handleOpenEdit = (id: number) => {
@@ -70,7 +73,7 @@ export const UnidadesPage = () => {
     <div className="animate-[fadeIn_0.5s_ease-in]">
       {/* Header & Actions */}
       <div className="flex flex-col xl:flex-row xl:justify-between xl:items-center mb-6 gap-4">
-        <h2 className="text-2xl md:text-[28px] text-gray-800 m-0 font-bold flex items-center gap-3">
+        <h2 className="text-2xl md:text-[1.75rem] text-gray-800 m-0 font-bold flex items-center gap-3">
           <Car className="text-blue-600" size={32} />
           Gestión de Unidades
         </h2>
@@ -117,7 +120,7 @@ export const UnidadesPage = () => {
         <div className="text-center py-[60px] px-5 text-gray-500 bg-white rounded-lg border border-gray-200 border-dashed">
           <Car size={64} className="mx-auto mb-5 opacity-50 text-blue-400" />
           <h3 className="text-xl font-medium text-gray-700 mb-2">Aún no hay unidades registradas</h3>
-          <p className="text-[16px] text-gray-500 max-w-md mx-auto">
+          <p className="text-[1rem] text-gray-500 max-w-md mx-auto">
             {searchTerm
               ? 'No encontramos ninguna unidad que coincida con tu búsqueda.'
               : 'Comienza a gestionar tu flota agregando la primera unidad al sistema.'}
@@ -125,7 +128,7 @@ export const UnidadesPage = () => {
         </div>
       ) : (
         <>
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <div className="grid gap-4 grid-cols-[repeat(auto-fill,minmax(280px,1fr))]">
             {currentItems.map((unidad) => (
               <div
                 key={unidad.id}
@@ -144,14 +147,14 @@ export const UnidadesPage = () => {
                         </span>
                         <EstadoUnidadBadge unidad={unidad} />
                         {(() => { const n = carrerasHoy.get(unidad.id) || 0; return (
-                        <span className="text-[10px] font-bold text-blue-700 bg-blue-50 border border-blue-100 px-1.5 py-0.5 rounded">
+                        <span className="text-[0.625rem] font-bold text-blue-700 bg-blue-50 border border-blue-100 px-1.5 py-0.5 rounded">
                           {n} {n === 1 ? 'carrera' : 'carreras'} hoy
                         </span>
                         ); })()}
                       </div>
 
-                      <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide m-0">Vehículo</p>
-                      <p className="text-[13px] font-bold text-gray-800 m-0 truncate">{unidad.vehiculo || 'Sin detalle'}</p>
+                      <p className="text-[0.625rem] font-semibold text-gray-400 uppercase tracking-wide m-0">Vehículo</p>
+                      <p className="text-[0.8125rem] font-bold text-gray-800 m-0 truncate">{unidad.vehiculo || 'Sin detalle'}</p>
                     </div>
 
                     {/* Actions */}
@@ -176,15 +179,15 @@ export const UnidadesPage = () => {
 
                 {/* Footer info (Chofer) */}
                 <div className="mt-4 pt-3 border-t border-gray-100">
-                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide m-0 mb-1">Conductor Asignado</p>
+                  <p className="text-[0.625rem] font-semibold text-gray-400 uppercase tracking-wide m-0 mb-1">Conductor Asignado</p>
                   <div className="flex justify-between items-center gap-2">
-                    <span className="text-[13px] font-bold text-gray-800 truncate">{unidad.choferNombre}</span>
+                    <span className="text-[0.8125rem] font-bold text-gray-800 truncate">{unidad.choferNombre}</span>
                     {unidad.choferTelefono ? (
-                      <span className="shrink-0 text-blue-700 font-mono text-[11px] font-bold bg-blue-50 border border-blue-100 px-2 py-0.5 rounded">
+                      <span className="shrink-0 text-blue-700 font-mono text-[0.6875rem] font-bold bg-blue-50 border border-blue-100 px-2 py-0.5 rounded">
                         {unidad.choferTelefono}
                       </span>
                     ) : (
-                      <span className="shrink-0 text-gray-400 italic text-[11px]">Sin teléfono</span>
+                      <span className="shrink-0 text-gray-400 italic text-[0.6875rem]">Sin teléfono</span>
                     )}
                   </div>
                 </div>
@@ -213,6 +216,21 @@ export const UnidadesPage = () => {
         />
       )}
 
+      <ConfirmDialog
+        isOpen={unidadToDelete !== null}
+        onClose={() => setUnidadToDelete(null)}
+        onConfirm={() => {
+          if (unidadToDelete) deleteMutation.mutate(unidadToDelete.id);
+          setUnidadToDelete(null);
+        }}
+        title="Eliminar Unidad"
+        message={
+          <span>
+            ¿Estás seguro de eliminar la unidad <span className="font-bold">"{unidadToDelete?.numero}"</span>? Esta acción no se puede deshacer.
+          </span>
+        }
+        confirmText="Sí, Eliminar"
+      />
     </div>
   );
 };

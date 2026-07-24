@@ -13,7 +13,7 @@ export const formatCodigo = (codigo?: number | null): string =>
 
 export const CodigoBadge = ({ codigo, className = '' }: CodigoBadgeProps) => (
   <span
-    className={`inline-flex items-center bg-blue-50 text-blue-700 border border-blue-100 text-[11px] font-bold font-mono px-2 py-1 rounded-md whitespace-nowrap ${className}`}
+    className={`inline-flex items-center bg-blue-50 text-blue-700 border border-blue-100 text-[0.6875rem] font-bold font-mono px-2 py-1 rounded-md whitespace-nowrap ${className}`}
   >
     Cód. {formatCodigo(codigo)}
   </span>

@@ -3,6 +3,7 @@ import { Modal } from '../../components/ui/Modal';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { Select } from '../../components/ui/Select';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { useModelos, useCreateModelo, useUpdateModelo, useDeleteModelo } from '../../features/modelos/hooks/useModelos';
 import { useMarcas } from '../../features/marcas/hooks/useMarcas';
 import { notify } from '../../components/ui/toast';
@@ -48,23 +49,29 @@ export const ModeloManagerModal: React.FC<ModeloManagerModalProps> = ({ isOpen, 
     setMarcaId(currentMarcaId);
   };
 
-  const handleDelete = async (id: number, nombre: string) => {
-    if (window.confirm(`¿Eliminar modelo ${nombre}?`)) {
-      try {
-        await deleteMutation.mutateAsync(id);
-      } catch (error: any) {
-        notify.error(error.response?.data?.message || 'Error al eliminar el modelo (puede estar en uso)');
-      }
+  const [modeloToDelete, setModeloToDelete] = useState<{ id: number; nombre: string } | null>(null);
+
+  const handleDelete = (id: number, nombre: string) => {
+    setModeloToDelete({ id, nombre });
+  };
+
+  const confirmDelete = async () => {
+    if (!modeloToDelete) return;
+    try {
+      await deleteMutation.mutateAsync(modeloToDelete.id);
+    } catch (error: any) {
+      notify.error(error.response?.data?.message || 'Error al eliminar el modelo (puede estar en uso)');
     }
+    setModeloToDelete(null);
   };
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Gestión de Modelos">
       <div className="flex flex-col gap-6">
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-          <div className="flex gap-2 items-end">
-            <div className="flex-1">
-              <Select 
+          <div className="flex flex-wrap gap-2 items-end">
+            <div className="flex-1 min-w-35">
+              <Select
                 label="Marca"
                 options={marcas.map(m => ({ value: m.id, label: m.nombre }))}
                 value={marcaId}
@@ -73,8 +80,8 @@ export const ModeloManagerModal: React.FC<ModeloManagerModalProps> = ({ isOpen, 
                 searchable
               />
             </div>
-            <div className="flex-1">
-              <Input 
+            <div className="flex-1 min-w-35">
+              <Input
                 label={editingId ? 'Editar Modelo' : 'Nuevo Modelo'}
                 value={nombre}
                 onChange={(e) => setNombre(e.target.value)}
@@ -90,7 +97,7 @@ export const ModeloManagerModal: React.FC<ModeloManagerModalProps> = ({ isOpen, 
             </Button>
             {editingId && (
               <Button type="button" variant="secondary" onClick={() => { setEditingId(null); setNombre(''); }}>
-                Cancel
+                Cancelar
               </Button>
             )}
           </div>
@@ -132,6 +139,19 @@ export const ModeloManagerModal: React.FC<ModeloManagerModalProps> = ({ isOpen, 
           )}
         </div>
       </div>
+
+      <ConfirmDialog
+        isOpen={modeloToDelete !== null}
+        onClose={() => setModeloToDelete(null)}
+        onConfirm={confirmDelete}
+        title="Eliminar Modelo"
+        message={
+          <span>
+            ¿Eliminar el modelo <span className="font-bold">"{modeloToDelete?.nombre}"</span>?
+          </span>
+        }
+        confirmText="Sí, Eliminar"
+      />
     </Modal>
   );
 };

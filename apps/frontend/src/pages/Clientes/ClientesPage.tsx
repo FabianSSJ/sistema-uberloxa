@@ -7,6 +7,7 @@ import { Cliente } from '../../features/clientes/services/clientes.service';
 import { Button } from '../../components/ui/Button';
 import { Pagination } from '../../components/ui/Pagination';
 import { CodigoBadge } from '../../components/ui/CodigoBadge';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 
 export const ClientesPage = () => {
   const deleteMutation = useDeleteCliente();
@@ -32,10 +33,10 @@ export const ClientesPage = () => {
   const currentItems = result?.data ?? [];
   const totalClientes = result?.total ?? 0;
 
-  const handleDelete = async (id: number, nombre: string) => {
-    if (window.confirm(`¿Estás seguro de eliminar al cliente ${nombre}?`)) {
-      deleteMutation.mutate(id);
-    }
+  const [clienteToDelete, setClienteToDelete] = useState<{ id: number; nombre: string } | null>(null);
+
+  const handleDelete = (id: number, nombre: string) => {
+    setClienteToDelete({ id, nombre });
   };
 
   const handleOpenEdit = (id: number) => {
@@ -56,7 +57,7 @@ export const ClientesPage = () => {
     <div className="animate-[fadeIn_0.5s_ease-in] flex flex-col h-full">
       {/* Header & Actions */}
       <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-6 gap-4">
-        <h2 className="text-2xl md:text-[28px] text-gray-800 m-0 font-bold flex items-center gap-3">
+        <h2 className="text-2xl md:text-[1.75rem] text-gray-800 m-0 font-bold flex items-center gap-3">
           <Users className="text-blue-600" size={32} />
           Directorio de Clientes
         </h2>
@@ -132,7 +133,7 @@ export const ClientesPage = () => {
                     {/* Teléfono */}
                     <td className="px-6 py-4 align-top text-gray-700">
                       {cliente.telefono ? (
-                        <div className="font-mono font-medium text-[15px]">{cliente.telefono}</div>
+                        <div className="font-mono font-medium text-[0.9375rem]">{cliente.telefono}</div>
                       ) : (
                         <div className="text-gray-400 italic">No registrado</div>
                       )}
@@ -144,7 +145,7 @@ export const ClientesPage = () => {
                     {/* Sector */}
                     <td className="px-6 py-4 align-top text-gray-700">
                       {cliente.sector ? (
-                        <span className="bg-white text-slate-700 px-3 py-1.5 rounded-md font-medium text-[13px] border border-slate-200 whitespace-nowrap inline-block shadow-sm">
+                        <span className="bg-white text-slate-700 px-3 py-1.5 rounded-md font-medium text-[0.8125rem] border border-slate-200 whitespace-nowrap inline-block shadow-sm">
                           {cliente.sector.nombre}
                         </span>
                       ) : (
@@ -156,7 +157,7 @@ export const ClientesPage = () => {
                     <td className="px-6 py-4 align-top text-gray-700">
                       <div className="flex items-start gap-1">
                         {cliente.direccion ? (
-                          <span className="line-clamp-2 leading-relaxed text-[13px] text-gray-600">{cliente.direccion}</span>
+                          <span className="line-clamp-2 leading-relaxed text-[0.8125rem] text-gray-600">{cliente.direccion}</span>
                         ) : (
                           <span className="text-gray-400 italic">No registrada</span>
                         )}
@@ -216,10 +217,26 @@ export const ClientesPage = () => {
       )}
 
       {/* Detalles Modal */}
-      <ClienteDetailsModal 
+      <ClienteDetailsModal
         isOpen={!!viewingCliente}
         onClose={() => setViewingCliente(null)}
         cliente={viewingCliente}
+      />
+
+      <ConfirmDialog
+        isOpen={clienteToDelete !== null}
+        onClose={() => setClienteToDelete(null)}
+        onConfirm={() => {
+          if (clienteToDelete) deleteMutation.mutate(clienteToDelete.id);
+          setClienteToDelete(null);
+        }}
+        title="Eliminar Cliente"
+        message={
+          <span>
+            ¿Estás seguro de eliminar a <span className="font-bold">"{clienteToDelete?.nombre}"</span>? Esta acción no se puede deshacer.
+          </span>
+        }
+        confirmText="Sí, Eliminar"
       />
     </div>
   );

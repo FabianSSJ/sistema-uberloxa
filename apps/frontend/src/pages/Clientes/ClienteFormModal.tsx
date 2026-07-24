@@ -37,13 +37,25 @@ export const ClienteFormModal: React.FC<ClienteFormModalProps> = ({
 
   const isEditing = clienteId !== null;
 
+  // Código sugerido: el primer hueco libre en la secuencia (ej: 1..999 ocupados y 1100 también
+  // ocupado -> sugiere 1000, no 1101). Solo se usa como valor inicial en "Nuevo Cliente"; el
+  // usuario puede pisarlo con cualquier otro número.
+  const codigoSugerido = useMemo(() => {
+    const usados = new Set((clientes ?? []).map((c) => c.codigo).filter((c): c is number => c != null));
+    let candidato = 1;
+    while (usados.has(candidato)) candidato++;
+    return candidato;
+  }, [clientes]);
+
   useEffect(() => {
     setCodigoError(null);
     if (isEditing && clientes) {
       const cliente = clientes.find(c => c.id === clienteId);
       if (cliente) {
         setFormData({
-          codigo: cliente.codigo ?? undefined,
+          // Si el cliente ya venía sin código (bandeja de "Nuevos Clientes"), lo prellenamos
+          // igual que en alta nueva; si ya tiene uno asignado, se respeta el existente.
+          codigo: cliente.codigo ?? codigoSugerido,
           nombre: cliente.nombre,
           telefono: cliente.telefono || '',
           telefonoAlt: cliente.telefonoAlt || '',
@@ -55,7 +67,7 @@ export const ClienteFormModal: React.FC<ClienteFormModalProps> = ({
       }
     } else {
       setFormData({
-        codigo: undefined,
+        codigo: codigoSugerido,
         nombre: '',
         telefono: '',
         telefonoAlt: '',
@@ -65,7 +77,7 @@ export const ClienteFormModal: React.FC<ClienteFormModalProps> = ({
         sectorId: undefined,
       });
     }
-  }, [clienteId, isEditing, clientes, isOpen]);
+  }, [clienteId, isEditing, clientes, isOpen, codigoSugerido]);
 
   // Chequeo PROACTIVO del código: contra los clientes ya cargados en memoria (instantáneo, sin red).
   // Excluye al propio cliente al editar. La validación del backend queda como red de seguridad.
@@ -197,7 +209,7 @@ export const ClienteFormModal: React.FC<ClienteFormModalProps> = ({
         <div className="flex flex-col gap-1.5 w-full">
           <label className="text-sm font-semibold text-gray-700">Notas / Descripción extra</label>
           <textarea
-            className="px-3 py-2.5 bg-white border border-gray-300 rounded-md text-[15px] text-gray-800 transition-colors duration-200 outline-none focus:ring-2 focus:ring-opacity-50 focus:ring-blue-500 focus:border-blue-500 hover:border-gray-400 w-full resize-none h-20"
+            className="px-3 py-2.5 bg-white border border-gray-300 rounded-md text-[0.9375rem] text-gray-800 transition-colors duration-200 outline-none focus:ring-2 focus:ring-opacity-50 focus:ring-blue-500 focus:border-blue-500 hover:border-gray-400 w-full resize-none h-20"
             value={formData.descripcion}
             onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
             placeholder="Color de la casa, referencias, etc."

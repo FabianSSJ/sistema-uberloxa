@@ -11,7 +11,8 @@ const MainLayout = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const esAdmin = user?.rol === 'SUPERADMIN' || user?.rol === 'ADMIN';
-  const { data: pendientesCount = 0 } = usePendientesCount(esAdmin);
+  const puedeClientes = esAdmin || Boolean(user?.modulosPermitidos?.includes('clientes'));
+  const { data: pendientesCount = 0 } = usePendientesCount(puedeClientes);
 
   // Reloj en vivo (hora de Ecuador). Se actualiza cada segundo.
   const [ahora, setAhora] = useState(() => new Date());
@@ -32,8 +33,12 @@ const MainLayout = () => {
     { path: '/carreras', icon: Clock, label: 'Carreras', reqModule: 'carreras' }
   ];
 
-  if (esAdmin) {
+  // "Nuevos Clientes" (bandeja de pendientes) va de la mano del acceso a Clientes, no es
+  // exclusivo de admin: cualquier rol con el módulo 'clientes' la necesita para completar altas.
+  if (puedeClientes) {
     allNavItems.push({ path: '/nuevos-clientes', icon: UserPlus, label: 'Nuevos Clientes', reqModule: null, badge: pendientesCount });
+  }
+  if (esAdmin) {
     allNavItems.push({ path: '/estadisticas', icon: BarChart3, label: 'Estadísticas', reqModule: null });
   }
 
@@ -41,17 +46,12 @@ const MainLayout = () => {
     allNavItems.push({ path: '/gestor-usuarios', icon: Settings, label: 'Gestor de Usuarios', reqModule: null });
   }
 
+  // El acceso por módulo es 100% data-driven (modulosPermitidos, cargado desde el usuario);
+  // no hace falta hardcodear excepciones por rol acá, el guard del backend usa la misma fuente.
   const navItems = allNavItems.filter((item) => {
     if (!item.reqModule) return true;
-    if (user?.rol === 'SUPERADMIN') {
-      return true;
-    }
-    if (user?.rol === 'CHARLIE') {
-      // El Charlie solo debe ver el Dashboard (null) y Carreras
-      if (item.reqModule === 'clientes' || item.reqModule === 'unidades') return false;
-      return true;
-    }
-    return user?.modulosPermitidos?.includes(item.reqModule);
+    if (user?.rol === 'SUPERADMIN') return true;
+    return Boolean(user?.modulosPermitidos?.includes(item.reqModule));
   });
 
   return (
@@ -84,7 +84,7 @@ const MainLayout = () => {
                 <item.icon size={16} />
                 {item.label}
                 {item.badge ? (
-                  <span className="ml-0.5 min-w-5 h-4 px-1 flex items-center justify-center text-[10px] font-bold bg-red-500 text-white rounded-full">
+                  <span className="ml-0.5 min-w-5 h-4 px-1 flex items-center justify-center text-[0.625rem] font-bold bg-red-500 text-white rounded-full">
                     {item.badge}
                   </span>
                 ) : null}
@@ -95,12 +95,12 @@ const MainLayout = () => {
           {/* Reloj (hora de Ecuador) + usuario */}
           <div className="flex items-center gap-3 shrink-0">
             <div className="text-right leading-tight hidden sm:block">
-              <div className="text-[11px] text-gray-500 font-medium capitalize">{fechaLarga(ahora)}</div>
+              <div className="text-[0.6875rem] text-gray-500 font-medium capitalize">{fechaLarga(ahora)}</div>
               <div className="text-sm font-bold text-slate-800 tabular-nums">{hora(ahora, true)}</div>
             </div>
             <div className="h-8 w-px bg-gray-300 hidden sm:block" />
             <span className="font-bold text-slate-800 text-sm whitespace-nowrap">{user?.nombre}</span>
-            <span className="px-2 py-0.5 text-[11px] font-bold bg-amber-100 text-amber-800 rounded-full">{user?.rol}</span>
+            <span className="px-2 py-0.5 text-[0.6875rem] font-bold bg-amber-100 text-amber-800 rounded-full">{user?.rol}</span>
             <button onClick={handleLogout} className="text-gray-500 hover:text-red-600 transition-colors cursor-pointer" title="Cerrar Sesión">
               <LogOut size={18} />
             </button>

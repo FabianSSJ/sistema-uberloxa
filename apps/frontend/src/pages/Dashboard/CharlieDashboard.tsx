@@ -1,4 +1,4 @@
-import { Car, Clock, Plus, Search, Trash2, MapPin, Phone, Moon, Play, Power, PowerOff, Unlock } from 'lucide-react';
+import { Car, Clock, Plus, Search, Trash2, MapPin, Phone, Moon, Play, Power, PowerOff, Unlock, TrendingUp, CheckCircle2, AlertTriangle, XCircle } from 'lucide-react';
 import { useState, useMemo, type ReactNode } from 'react';
 
 import { useClientes } from '../../features/clientes/hooks/useClientes';
@@ -6,40 +6,41 @@ import { useColaDespacho } from '../../features/unidades/hooks/useColaDespacho';
 import { useCambiarEstadoUnidad } from '../../features/unidades/hooks/useUnidades';
 import { ESTADO_UNIDAD_STYLES } from '../../features/unidades/components/EstadoUnidadBadge';
 import { UnidadDetalleModal } from '../../features/unidades/components/UnidadDetalleModal';
-import { useCarreras, useCreateCarrera, useCompletarCarrera, useCancelarCarrera, usePerderCarrera, useDeleteCarrera } from '../../features/carreras/hooks/useCarreras';
+import { usePanelCarreras, useCreateCarrera, useCancelarCarrera, usePerderCarrera, useDeleteCarrera } from '../../features/carreras/hooks/useCarreras';
 import { CarreraFormModal } from './CarreraFormModal';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { CodigoBadge, formatCodigo } from '../../components/ui/CodigoBadge';
 import { EstadoCarreraBadge } from '../../features/carreras/components/EstadoCarreraBadge';
 import { rankBy, scoreUnidad, scoreCliente } from '../../core/search/matchers';
 import { colorOperador, colorUnidad } from '../../core/operadores/colores';
-import { hora, esHoy } from '../../core/tiempo';
+import { hora } from '../../core/tiempo';
 import { useAuth } from '../../features/auth/context/AuthContext';
-
-// Estados "en proceso" (aún sin resolver): siguen visibles aunque cambie el día, para no perderlos.
-const EN_PROCESO = new Set(['pendiente', 'asignada']);
 
 export const CharlieDashboard = () => {
   const { user } = useAuth();
   const { data: clientes = [] } = useClientes();
   const { unidades: todasUnidades, carrerasHoy } = useColaDespacho();
-  const { data: allRidesData = [] } = useCarreras();
+  const { data: allRidesData = [] } = usePanelCarreras();
 
-  // El Charlie solo ve las carreras que él mismo creó (memoizado: no recalcula en cada poll si no cambió).
-  const allRides = useMemo(
+  // El server ya resuelve "hoy + en proceso con ventana de gracia" — acá solo se filtra
+  // por dueño (el Charlie ve las suyas; las de creador null quedan visibles para todos).
+  const carrerasDelDia = useMemo(
     () => allRidesData.filter((r: any) => !r.creadoPorId || r.creadoPorId === user?.id),
     [allRidesData, user?.id]
   );
 
-  // Lo que se muestra en el panel: las carreras de HOY (día de Ecuador) MÁS las que sigan
-  // en proceso aunque sean de ayer. Así una carrera de las 23:58 sin cerrar no se pierde al pasar la medianoche.
-  const carrerasDelDia = useMemo(
-    () => allRides.filter((r: any) => esHoy(r.createdAt) || EN_PROCESO.has(r.estado)),
-    [allRides]
-  );
+  // Resumen rápido del día por estado, sobre las mismas carreras que ya se ven en el panel.
+  const resumenDia = useMemo(() => {
+    let completadas = 0, canceladas = 0, perdidas = 0;
+    for (const r of carrerasDelDia as any[]) {
+      if (r.estado === 'completada') completadas++;
+      else if (r.estado === 'cancelada') canceladas++;
+      else if (r.estado === 'perdida') perdidas++;
+    }
+    return { total: carrerasDelDia.length, completadas, canceladas, perdidas };
+  }, [carrerasDelDia]);
 
   const createCarreraMutation = useCreateCarrera();
-  const completarMutation = useCompletarCarrera();
   const cancelarMutation = useCancelarCarrera();
   const perderMutation = usePerderCarrera();
   const deleteCarreraMutation = useDeleteCarrera();
@@ -100,14 +101,43 @@ export const CharlieDashboard = () => {
 
         {/* Panel 1: Choferes / Unidades (más ancho: es el foco del despacho) */}
         <div className="flex-[1.5] bg-white rounded-2xl shadow-md border border-gray-200/60 flex flex-col overflow-hidden transition-all duration-300 hover:shadow-xl">
-          <div className="bg-gradient-to-r from-amber-500 to-amber-600 p-4 text-white flex justify-between items-center shadow-sm">
-            <div className="flex items-center gap-3">
-              <div className="bg-white/20 p-2 rounded-xl backdrop-blur-sm">
+          <div className="bg-gradient-to-r from-amber-500 to-amber-600 p-4 text-white flex items-center gap-3 shadow-sm">
+            <div className="flex items-center gap-3 shrink-0">
+              <div className="bg-white/20 p-2 rounded-xl backdrop-blur-sm shrink-0">
                 <Car size={24} className="text-white" />
               </div>
-              <h2 className="text-xl font-bold m-0 tracking-wide">Unidades</h2>
+              <h2 className="text-xl font-bold m-0 tracking-wide shrink-0">Unidades</h2>
             </div>
-            <span className="bg-amber-700/50 px-3 py-1 rounded-full text-sm font-bold shadow-inner">
+            {/* Resumen del día ocupando el espacio libre del header (4 pills a lo ancho, flex-1
+                cada una = mismo ancho, sin desperdiciar el hueco). Fondo blanco sólido por pill
+                para que el color semántico contraste contra el header ámbar — mismo código
+                verde/naranja/rojo/azul que en el reporte de Admin (heurística de Nielsen #4:
+                consistencia). Etiqueta de texto SIEMPRE visible, no depende de :hover del title
+                (en touch/tablet no existe) — heurística #6: reconocer, no recordar. "pop" al
+                cambiar el valor (remount vía key) = feedback periférico. */}
+            <div className="hidden md:flex flex-1 flex-wrap items-center gap-2 pl-4 ml-1 border-l border-white/25 min-w-0">
+              <span key={`t-${resumenDia.total}`} className="stat-pop flex-1 inline-flex items-center justify-center gap-1.5 bg-white rounded-lg px-3 py-1.5 shadow-sm" title="Carreras de hoy">
+                <TrendingUp size={14} className="text-blue-600" />
+                <span className="text-[0.625rem] font-bold uppercase tracking-wide text-blue-400">Hoy</span>
+                <span className="text-sm font-black tabular-nums text-blue-700">{resumenDia.total}</span>
+              </span>
+              <span key={`c-${resumenDia.completadas}`} className="stat-pop flex-1 inline-flex items-center justify-center gap-1.5 bg-white rounded-lg px-3 py-1.5 shadow-sm" title="Completadas hoy">
+                <CheckCircle2 size={14} className="text-green-600" />
+                <span className="text-[0.625rem] font-bold uppercase tracking-wide text-green-400">OK</span>
+                <span className="text-sm font-black tabular-nums text-green-700">{resumenDia.completadas}</span>
+              </span>
+              <span key={`p-${resumenDia.perdidas}`} className="stat-pop flex-1 inline-flex items-center justify-center gap-1.5 bg-white rounded-lg px-3 py-1.5 shadow-sm" title="Perdidas hoy">
+                <AlertTriangle size={14} className="text-orange-600" />
+                <span className="text-[0.625rem] font-bold uppercase tracking-wide text-orange-400">Perd</span>
+                <span className="text-sm font-black tabular-nums text-orange-700">{resumenDia.perdidas}</span>
+              </span>
+              <span key={`x-${resumenDia.canceladas}`} className="stat-pop flex-1 inline-flex items-center justify-center gap-1.5 bg-white rounded-lg px-3 py-1.5 shadow-sm" title="Canceladas hoy">
+                <XCircle size={14} className="text-red-600" />
+                <span className="text-[0.625rem] font-bold uppercase tracking-wide text-red-400">Canc</span>
+                <span className="text-sm font-black tabular-nums text-red-700">{resumenDia.canceladas}</span>
+              </span>
+            </div>
+            <span className="bg-amber-700/50 px-3 py-1 rounded-full text-sm font-bold shadow-inner shrink-0 ml-auto md:ml-0">
               {filteredUnidades.length}
             </span>
           </div>
@@ -123,7 +153,7 @@ export const CharlieDashboard = () => {
               />
             </div>
             {/* Leyenda del punto de color: se explica el código una vez, no card por card. */}
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2 text-[10px] font-semibold text-gray-500">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2 text-[0.625rem] font-semibold text-gray-500">
               {(['disponible', 'ocupado', 'descanso', 'inactivo'] as const).map((e) => (
                 <span key={e} className="inline-flex items-center gap-1">
                   <span className={`w-2 h-2 rounded-full ${ESTADO_UNIDAD_STYLES[e].dot}`} />
@@ -172,7 +202,7 @@ export const CharlieDashboard = () => {
                       <span className={`w-2 h-2 ml-0.5 rounded-full ring-1 ring-white/70 ${ESTADO_UNIDAD_STYLES[estado as keyof typeof ESTADO_UNIDAD_STYLES]?.dot ?? 'bg-gray-400'}`} />
                     </div>
                   </div>
-                  <p className="text-[10px] font-bold font-mono truncate leading-tight pointer-events-none mt-0.5 opacity-80">{u.placa}</p>
+                  <p className="text-[0.625rem] font-bold font-mono truncate leading-tight pointer-events-none mt-0.5 opacity-80">{u.placa}</p>
                   <div className="flex flex-wrap gap-1 mt-auto pt-1">
                     {estado === 'inactivo'
                       ? btnEstado(<Power size={12} />, 'Activar', 'bg-emerald-600', () => cambiarEstado(u.id, 'disponible'))
@@ -230,7 +260,7 @@ export const CharlieDashboard = () => {
               />
             </div>
             {searchCliente.trim() && (
-              <p className="text-[11px] text-gray-500 mt-1.5 px-1">Arrastrá una unidad sobre el cliente para asignarle la carrera.</p>
+              <p className="text-[0.6875rem] text-gray-500 mt-1.5 px-1">Arrastrá una unidad sobre el cliente para asignarle la carrera.</p>
             )}
           </div>
 
@@ -270,7 +300,7 @@ export const CharlieDashboard = () => {
                           <div className="flex items-start justify-between gap-4">
                             <h3 className="font-black text-gray-900 m-0 text-3xl leading-tight break-words">{c.nombre}</h3>
                             <span className="shrink-0 inline-flex flex-col items-center bg-blue-50 text-blue-700 border border-blue-200 rounded-2xl px-5 py-2 shadow-sm">
-                              <span className="text-[10px] font-bold uppercase tracking-widest text-blue-400">Código</span>
+                              <span className="text-[0.625rem] font-bold uppercase tracking-widest text-blue-400">Código</span>
                               <span className="text-4xl font-black font-mono leading-none">{formatCodigo(c.codigo)}</span>
                             </span>
                           </div>
@@ -295,14 +325,14 @@ export const CharlieDashboard = () => {
                         /* Vista compacta: búsqueda por nombre → lista de varios */
                         <>
                           <div className="flex-1 min-w-0 pointer-events-none">
-                            <h3 className="font-bold text-gray-800 m-0 text-[14px] leading-tight truncate">{c.nombre}</h3>
+                            <h3 className="font-bold text-gray-800 m-0 text-[0.875rem] leading-tight truncate">{c.nombre}</h3>
                             {c.direccion ? (
                               <div className="flex items-start gap-1.5 mt-1 text-gray-800 bg-slate-100/80 rounded px-2 py-1.5 border border-slate-200 shadow-sm">
                                 <MapPin size={15} className="shrink-0 text-blue-600 mt-0.5" />
-                                <span className="text-[13px] font-bold leading-snug break-words line-clamp-2">{c.direccion}</span>
+                                <span className="text-[0.8125rem] font-bold leading-snug break-words line-clamp-2">{c.direccion}</span>
                               </div>
                             ) : (
-                              <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide m-0 mt-1">Sin dirección</p>
+                              <p className="text-[0.6875rem] font-semibold text-gray-400 uppercase tracking-wide m-0 mt-1">Sin dirección</p>
                             )}
                           </div>
                           <CodigoBadge codigo={c.codigo} className="pointer-events-none shrink-0" />
@@ -322,7 +352,7 @@ export const CharlieDashboard = () => {
                   return (
                     <div key={r.id} style={op.borderLeft} className="bg-white border-l-4 border border-y-gray-100 border-r-gray-100 p-4 rounded-xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] hover:-translate-x-1 hover:shadow-[0_8px_15px_-3px_rgba(6,81,237,0.15)] transition-all duration-300">
                       <div className="flex justify-between items-start mb-2">
-                        <h3 style={op.textColor} className="font-bold m-0 text-[16px] truncate max-w-[70%]">#{r.numeroDiario || r.id} - {r.cliente?.nombre || 'Cliente'}</h3>
+                        <h3 style={op.textColor} className="font-bold m-0 text-[1rem] truncate max-w-[70%]">#{r.numeroDiario || r.id} - {r.cliente?.nombre || 'Cliente'}</h3>
                         <span className="text-xs font-black text-gray-400 bg-gray-50 px-2 py-1 rounded-md">{formatTime(r.createdAt)}</span>
                       </div>
                       <p className="text-sm text-gray-600 m-0 flex items-center gap-2 font-medium">
@@ -342,26 +372,30 @@ export const CharlieDashboard = () => {
                             </button>
                           )}
                         </div>
-                        {/* Nace TERMINADA; re-clasificás a mano. El estado actual queda resaltado. */}
-                        <div className="flex gap-1.5">
-                          <button
-                            onClick={() => completarMutation.mutate({ id: r.id })}
-                            className={`text-[10px] font-bold px-2 py-1 rounded transition-colors ${r.estado === 'completada' ? 'bg-green-500 text-white' : 'bg-green-100 text-green-700 hover:bg-green-500 hover:text-white'}`}
-                          >
-                            TERMINADA
-                          </button>
-                          <button
-                            onClick={() => cancelarMutation.mutate(r.id)}
-                            className={`text-[10px] font-bold px-2 py-1 rounded transition-colors ${r.estado === 'cancelada' ? 'bg-red-500 text-white' : 'bg-red-100 text-red-700 hover:bg-red-500 hover:text-white'}`}
-                          >
-                            CANCELADA
-                          </button>
-                          <button
-                            onClick={() => perderMutation.mutate(r.id)}
-                            className={`text-[10px] font-bold px-2 py-1 rounded transition-colors ${r.estado === 'perdida' ? 'bg-orange-500 text-white' : 'bg-orange-100 text-orange-700 hover:bg-orange-500 hover:text-white'}`}
-                          >
-                            PERDIDA
-                          </button>
+                        {/* Nace TERMINADA. El estado actual ya lo muestra el badge de arriba (EstadoCarreraBadge) —
+                            acá solo quedan las dos acciones de reclasificación; la que coincide con el estado
+                            actual se muestra como texto fijo (no es un botón). */}
+                        <div className="flex gap-1.5 items-center">
+                          {r.estado === 'cancelada' ? (
+                            <span className="text-[0.625rem] font-bold px-2 py-1 rounded bg-red-500 text-white">CANCELADA</span>
+                          ) : (
+                            <button
+                              onClick={() => cancelarMutation.mutate(r.id)}
+                              className="text-[0.625rem] font-bold px-2 py-1 rounded transition-colors bg-red-100 text-red-700 hover:bg-red-500 hover:text-white"
+                            >
+                              CANCELADA
+                            </button>
+                          )}
+                          {r.estado === 'perdida' ? (
+                            <span className="text-[0.625rem] font-bold px-2 py-1 rounded bg-orange-500 text-white">PERDIDA</span>
+                          ) : (
+                            <button
+                              onClick={() => perderMutation.mutate(r.id)}
+                              className="text-[0.625rem] font-bold px-2 py-1 rounded transition-colors bg-orange-100 text-orange-700 hover:bg-orange-500 hover:text-white"
+                            >
+                              PERDIDA
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>
