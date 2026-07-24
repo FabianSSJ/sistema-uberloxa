@@ -1,14 +1,8 @@
 import { useMemo } from 'react';
 import { useUnidades } from './useUnidades';
-import { useCarreras } from '../../carreras/hooks/useCarreras';
+import { usePanelCarreras } from '../../carreras/hooks/useCarreras';
+import { esHoy } from '../../../core/tiempo';
 import type { Unidad } from '../services/unidades.service';
-
-const esHoy = (iso?: string | null): boolean => {
-  if (!iso) return false;
-  const d = new Date(iso);
-  const n = new Date();
-  return d.getFullYear() === n.getFullYear() && d.getMonth() === n.getMonth() && d.getDate() === n.getDate();
-};
 
 /**
  * Cola de despacho: única fuente de verdad para el orden y el estado operativo de las unidades.
@@ -21,7 +15,7 @@ const esHoy = (iso?: string | null): boolean => {
  */
 export const useColaDespacho = () => {
   const { data: unidades = [], isLoading, isError } = useUnidades();
-  const { data: carreras = [] } = useCarreras();
+  const { data: carreras = [] } = usePanelCarreras();
 
   return useMemo(() => {
     const carrerasHoy = new Map<number, number>();

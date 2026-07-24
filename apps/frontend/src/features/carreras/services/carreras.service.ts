@@ -20,9 +20,28 @@ export interface CreateCarreraDto {
   notas?: string;
 }
 
+export interface HistorialParams {
+  desde?: string; // ISO — límite inferior inclusivo
+  hasta?: string; // ISO — límite superior exclusivo
+  cursor?: number; // id de la última carrera cargada (keyset pagination)
+  take?: number;
+}
+
+export interface HistorialPage {
+  data: Carrera[];
+  nextCursor: number | null;
+}
+
 export const carrerasService = {
-  getAll: async (): Promise<Carrera[]> => {
-    const response = await api.get('/carreras');
+  // Historial paginado (keyset) con filtros de fecha opcionales — usado en la página Carreras.
+  getHistorial: async (params: HistorialParams = {}): Promise<HistorialPage> => {
+    const response = await api.get('/carreras', { params });
+    return response.data;
+  },
+
+  // Panel de despacho: carreras de hoy + en proceso, ya resueltas por el server (sin paginar, es un set chico).
+  getPanel: async (): Promise<Carrera[]> => {
+    const response = await api.get('/carreras/panel');
     return response.data;
   },
 

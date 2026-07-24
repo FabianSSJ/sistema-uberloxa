@@ -1,13 +1,41 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { carrerasService, CreateCarreraDto } from '../services/carreras.service';
+import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { carrerasService, CreateCarreraDto, HistorialParams } from '../services/carreras.service';
 import { notify } from '../../../components/ui/toast';
 
+/**
+ * Panel de despacho (dashboard del Charlie + cola de unidades): el server ya resuelve
+ * "hoy + en proceso" con la ventana de gracia de 23:30-23:59 — acá solo se pollea (~1s)
+ * un set siempre chico (nunca más de ~1 día de carreras), no el historial completo.
+ */
+export const usePanelCarreras = () => {
+  return useQuery({
+    queryKey: ['carreras', 'panel'],
+    queryFn: carrerasService.getPanel,
+    refetchInterval: 1000,
+  });
+};
+
+/**
+ * Historial paginado (keyset) con filtros de fecha opcionales. Sin polling: es una vista
+ * de consulta, no un tablero en vivo — refrescar cada 1s acá sería re-traer páginas enteras
+ * sin necesidad.
+ */
+export const useCarrerasHistorial = (filters: HistorialParams = {}) => {
+  return useInfiniteQuery({
+    queryKey: ['carreras', 'historial', filters],
+    queryFn: ({ pageParam }) => carrerasService.getHistorial({ ...filters, cursor: pageParam as number | undefined }),
+    initialPageParam: undefined as number | undefined,
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+  });
+};
+
+// Alias legacy sin filtros/paginación real — no queda ningún consumidor activo en la app
+// (las páginas reales usan usePanelCarreras / useCarrerasHistorial). Se deja solo para no
+// romper imports de módulos huérfanos (AsignarUnidadModal/NuevaCarreraModal, no routeados).
 export const useCarreras = () => {
   return useQuery({
-    queryKey: ['carreras'],
-    queryFn: carrerasService.getAll,
-    // Polling: el tablero del Charlie se mantiene vivo (~1s) ante cambios de otros usuarios.
-    refetchInterval: 1000,
+    queryKey: ['carreras', 'legacy'],
+    queryFn: () => carrerasService.getHistorial({}),
   });
 };
 

@@ -32,6 +32,33 @@ export const fechaCorta = (valor: Date | string | number = new Date()): string =
 /** ¿El timestamp cae HOY (día de Ecuador, 00:00–23:59)? */
 export const esHoy = (valor: Date | string | number): boolean => fechaCorta(valor) === fechaCorta(new Date());
 
+// Ecuador es UTC-5 fijo (sin horario de verano) — permite calcular límites de día
+// local con aritmética simple, reutilizando fechaCorta (que ya resuelve el TZ).
+const OFFSET_ECUADOR_MS = 5 * 60 * 60 * 1000;
+
+/** Instante (UTC) de las 00:00 (medianoche) de esa fecha, en hora de Ecuador. */
+export const inicioDiaEcuador = (valor: Date | string | number = new Date()): Date => {
+  const [dd, mm, yyyy] = fechaCorta(valor).split('/').map(Number);
+  return new Date(Date.UTC(yyyy, mm - 1, dd, 0, 0, 0, 0) + OFFSET_ECUADOR_MS);
+};
+
+/** Instante (UTC) de las 00:00 del día SIGUIENTE, en hora de Ecuador (límite exclusivo). */
+export const finDiaEcuador = (valor: Date | string | number = new Date()): Date =>
+  new Date(inicioDiaEcuador(valor).getTime() + 24 * 60 * 60 * 1000);
+
+/**
+ * Igual que inicioDiaEcuador/finDiaEcuador, pero a partir de un string "YYYY-MM-DD" que YA
+ * es la fecha de Ecuador elegida (el valor crudo de un <input type="date">). No hay que
+ * convertir zona horaria acá — ese string no es un instante, es el día que el usuario tocó.
+ */
+export const inicioDiaEcuadorDesdeYMD = (ymd: string): Date => {
+  const [yyyy, mm, dd] = ymd.split('-').map(Number);
+  return new Date(Date.UTC(yyyy, mm - 1, dd, 0, 0, 0, 0) + OFFSET_ECUADOR_MS);
+};
+
+export const finDiaEcuadorDesdeYMD = (ymd: string): Date =>
+  new Date(inicioDiaEcuadorDesdeYMD(ymd).getTime() + 24 * 60 * 60 * 1000);
+
 /** "03:15" (o "03:15:42" con segundos) */
 export const hora = (valor: Date | string | number = new Date(), conSegundos = false): string =>
   d(valor).toLocaleTimeString('es-EC', {

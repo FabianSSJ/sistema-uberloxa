@@ -114,6 +114,7 @@ model Carrera {
   @@index([estado])
   @@index([createdAt])
   @@index([unidadId, createdAt])
+  @@index([creadoPorId, createdAt])
   @@map("carreras")
 }
 
