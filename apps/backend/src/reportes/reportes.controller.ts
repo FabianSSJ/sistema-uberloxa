@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Res, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Query, Res, UseGuards } from '@nestjs/common';
 import type { Response } from 'express';
 import { ReportesService } from './reportes.service';
 import { WhatsappService } from './whatsapp.service';
@@ -21,14 +21,17 @@ export class ReportesController {
     return { conectado: this.whatsapp.estaConectado() };
   }
 
-  /** Vista previa del PDF del día (para probar sin enviar). */
+  /**
+   * PDF de un día puntual ('YYYY-MM-DD', hora de Ecuador), de un rango [fecha, hasta] si se
+   * pasan ambos, o de hoy si no se pasa ninguno.
+   */
   @Get('pdf')
-  async pdf(@Res() res: Response) {
-    const datos = await this.reportes.datosDelDia();
+  async pdf(@Res() res: Response, @Query('fecha') fecha?: string, @Query('hasta') hasta?: string) {
+    const datos = await this.reportes.datosDelPeriodo(fecha, hasta);
     const pdf = await this.reportes.generarPDF(datos);
     res.set({
       'Content-Type': 'application/pdf',
-      'Content-Disposition': `inline; filename="informe-${datos.fecha.replace(/\//g, '-')}.pdf"`,
+      'Content-Disposition': `inline; filename="informe-${datos.fecha.replace(/[\/\s]+/g, '-')}.pdf"`,
     });
     res.send(pdf);
   }

@@ -8,3 +8,10 @@ export const useEstadisticas = () => {
     refetchInterval: 30000, // la analítica no necesita tiempo real estricto
   });
 };
+
+export const useRankingUnidades = (desde?: string, hasta?: string) => {
+  return useQuery({
+    queryKey: ['estadisticas', 'ranking-unidades', desde ?? '-', hasta ?? 'todo'],
+    queryFn: () => estadisticasService.getRankingUnidades(desde, hasta),
+  });
+};
