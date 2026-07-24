@@ -40,7 +40,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
           </div>
         )}
         
-        <p className="text-gray-600 mb-6 text-[15px] leading-relaxed">
+        <p className="text-gray-600 mb-6 text-[0.9375rem] leading-relaxed">
           {message}
         </p>
 

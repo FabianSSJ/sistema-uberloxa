@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useUsuarios, useCreateUsuario, useUpdateUsuario, useDeleteUsuario } from '../../../features/usuarios/hooks/useUsuarios';
 import { Button } from '../../../components/ui/Button';
+import { ConfirmDialog } from '../../../components/ui/ConfirmDialog';
 import { Edit2, Plus, UserX, UserCheck } from 'lucide-react';
 import { UsuarioFormModal } from './UsuarioFormModal';
 import { getPaleta } from '../../../core/operadores/colores';
@@ -23,10 +24,10 @@ export const UsuariosTab = () => {
   };
 
   // "Eliminar" = desactivar (soft-delete): bloquea el login, conserva el historial.
+  const [usuarioToDeactivate, setUsuarioToDeactivate] = useState<{ id: number; nombre: string } | null>(null);
+
   const handleDeactivate = (u: any) => {
-    if (window.confirm(`¿Desactivar a ${u.nombre}? No podrá iniciar sesión, pero se conserva su historial.`)) {
-      deleteMutation.mutate(u.id);
-    }
+    setUsuarioToDeactivate({ id: u.id, nombre: u.nombre });
   };
 
   const handleReactivate = (u: any) => {
@@ -37,9 +38,9 @@ export const UsuariosTab = () => {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-4">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">
         <h3 className="text-lg font-bold text-gray-800">Gestión de Usuarios</h3>
-        <Button onClick={() => setModalData({ isOpen: true, usuario: null })} className="flex items-center gap-2">
+        <Button onClick={() => setModalData({ isOpen: true, usuario: null })} className="flex items-center gap-2 self-start sm:self-auto">
           <Plus size={16} /> Nuevo Usuario
         </Button>
       </div>
@@ -68,7 +69,7 @@ export const UsuariosTab = () => {
                       <div className="text-sm font-medium text-gray-900 flex items-center gap-2">
                         {u.nombre}
                         {!u.activo && (
-                          <span className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-gray-200 text-gray-600 uppercase">Inactivo</span>
+                          <span className="px-1.5 py-0.5 text-[0.625rem] font-bold rounded bg-gray-200 text-gray-600 uppercase">Inactivo</span>
                         )}
                       </div>
                       <div className="text-sm text-gray-500">@{u.username}</div>
@@ -112,6 +113,22 @@ export const UsuariosTab = () => {
         onClose={() => setModalData({ isOpen: false, usuario: null })}
         onSubmit={handleCreateOrEdit}
         usuario={modalData.usuario}
+      />
+
+      <ConfirmDialog
+        isOpen={usuarioToDeactivate !== null}
+        onClose={() => setUsuarioToDeactivate(null)}
+        onConfirm={() => {
+          if (usuarioToDeactivate) deleteMutation.mutate(usuarioToDeactivate.id);
+          setUsuarioToDeactivate(null);
+        }}
+        title="Desactivar Usuario"
+        message={
+          <span>
+            ¿Desactivar a <span className="font-bold">"{usuarioToDeactivate?.nombre}"</span>? No podrá iniciar sesión, pero se conserva su historial.
+          </span>
+        }
+        confirmText="Sí, Desactivar"
       />
     </div>
   );

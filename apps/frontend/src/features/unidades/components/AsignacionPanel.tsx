@@ -55,11 +55,11 @@ export const AsignacionPanel = ({ searchTerm }: AsignacionPanelProps) => {
         <div className="w-9 h-9 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center font-black text-sm">
           {u.numeroUnidad || 'S/N'}
         </div>
-        <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wide mt-0.5">Unidad</span>
+        <span className="text-[0.5625rem] font-bold text-gray-400 uppercase tracking-wide mt-0.5">Unidad</span>
       </div>
       <div className="min-w-0 flex-1">
-        <p className="text-[13px] font-bold text-gray-800 truncate m-0">{u.choferNombre || 'Sin chofer'}</p>
-        <p className="text-[11px] text-gray-500 truncate m-0">{u.placa} · {u.vehiculo || 'N/A'}</p>
+        <p className="text-[0.8125rem] font-bold text-gray-800 truncate m-0">{u.choferNombre || 'Sin chofer'}</p>
+        <p className="text-[0.6875rem] text-gray-500 truncate m-0">{u.placa} · {u.vehiculo || 'N/A'}</p>
       </div>
     </div>
   );
@@ -83,18 +83,18 @@ export const AsignacionPanel = ({ searchTerm }: AsignacionPanelProps) => {
           <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black text-sm border ${s.avatar}`}>
             {u.numeroUnidad || 'S/N'}
           </div>
-          <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wide mt-1">Unidad</span>
+          <span className="text-[0.5625rem] font-bold text-gray-400 uppercase tracking-wide mt-1">Unidad</span>
         </div>
 
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <p className="text-[13px] font-bold text-gray-800 truncate m-0">{u.choferNombre || 'Sin chofer'}</p>
-            {esProxima && <span className="text-[9px] font-black uppercase bg-emerald-500 text-white px-1.5 py-0.5 rounded">Próxima</span>}
+            <p className="text-[0.8125rem] font-bold text-gray-800 truncate m-0">{u.choferNombre || 'Sin chofer'}</p>
+            {esProxima && <span className="text-[0.5625rem] font-black uppercase bg-emerald-500 text-white px-1.5 py-0.5 rounded">Próxima</span>}
           </div>
-          <p className="text-[11px] text-gray-500 truncate m-0">{u.placa} · {u.vehiculo || 'N/A'}</p>
+          <p className="text-[0.6875rem] text-gray-500 truncate m-0">{u.placa} · {u.vehiculo || 'N/A'}</p>
           <div className="flex items-center gap-2 mt-1">
             <EstadoUnidadBadge unidad={u} />
-            <span className="text-[10px] font-bold text-blue-700 bg-blue-50 border border-blue-100 px-1.5 py-0.5 rounded">
+            <span className="text-[0.625rem] font-bold text-blue-700 bg-blue-50 border border-blue-100 px-1.5 py-0.5 rounded">
               {hoy} {hoy === 1 ? 'carrera' : 'carreras'} hoy
             </span>
           </div>
@@ -104,17 +104,17 @@ export const AsignacionPanel = ({ searchTerm }: AsignacionPanelProps) => {
         <div className="flex flex-col gap-1.5 shrink-0">
           {estado === 'descanso' ? (
             <button onClick={() => set(u.id, 'disponible')} title="Volver a disponible"
-              className="flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-2 py-1 rounded transition">
+              className="flex items-center gap-1 text-[0.6875rem] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-2 py-1 rounded transition">
               <PlayCircle size={13} /> Volver
             </button>
           ) : (
             <button onClick={() => set(u.id, 'descanso')} disabled={estado === 'ocupado'} title={estado === 'ocupado' ? 'No se puede descansar en carrera' : 'Marcar en descanso'}
-              className="flex items-center gap-1 text-[11px] font-bold text-sky-700 bg-sky-50 hover:bg-sky-100 px-2 py-1 rounded transition disabled:opacity-40 disabled:cursor-not-allowed">
+              className="flex items-center gap-1 text-[0.6875rem] font-bold text-sky-700 bg-sky-50 hover:bg-sky-100 px-2 py-1 rounded transition disabled:opacity-40 disabled:cursor-not-allowed">
               <Coffee size={13} /> Descanso
             </button>
           )}
           <button onClick={() => set(u.id, 'inactivo')} title="Sacar de la cola"
-            className="flex items-center gap-1 text-[11px] font-bold text-red-700 bg-red-50 hover:bg-red-100 px-2 py-1 rounded transition">
+            className="flex items-center gap-1 text-[0.6875rem] font-bold text-red-700 bg-red-50 hover:bg-red-100 px-2 py-1 rounded transition">
             <LogOut size={13} /> Sacar
           </button>
         </div>

@@ -22,7 +22,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
         )}
         <input
           ref={ref}
-          className={`px-3 py-2.5 bg-white border rounded-md text-[15px] text-gray-800 transition-colors duration-200 outline-none focus:ring-2 focus:ring-opacity-50 disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed ${errorClass} ${className}`}
+          className={`px-3 py-2.5 bg-white border rounded-md text-[0.9375rem] text-gray-800 transition-colors duration-200 outline-none focus:ring-2 focus:ring-opacity-50 disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed ${errorClass} ${className}`}
           {...props}
         />
         {error && (

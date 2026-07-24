@@ -1,34 +1,44 @@
-import { useState, useMemo } from 'react';
-import { useCarreras } from '../../features/carreras/hooks/useCarreras';
+import { useState, useMemo, useEffect } from 'react';
+import { useCarrerasHistorial } from '../../features/carreras/hooks/useCarreras';
 import { useUnidades } from '../../features/unidades/hooks/useUnidades';
 import { rankBy, scoreUnidad, scoreUsuario } from '../../core/search/matchers';
 import { colorOperador, colorUnidad } from '../../core/operadores/colores';
-import { Car, CheckCircle2, XCircle, AlertTriangle, TrendingUp, Calendar, Users, Search, Clock } from 'lucide-react';
+import { fechaCorta, inicioDiaEcuadorDesdeYMD, finDiaEcuadorDesdeYMD } from '../../core/tiempo';
+import { Car, CheckCircle2, XCircle, AlertTriangle, TrendingUp, Calendar, Users, Search } from 'lucide-react';
 
 export const AdminDashboard = () => {
-  const { data: allRides = [], isLoading: loadingRides } = useCarreras();
-  const { data: unidades = [], isLoading: loadingUnidades } = useUnidades();
-
-  const getLocalYYYYMMDD = (d: Date) => {
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  };
-
-  const [selectedDate, setSelectedDate] = useState<string>(getLocalYYYYMMDD(new Date()));
+  const [selectedDate, setSelectedDate] = useState<string>(() => {
+    const [dd, mm, yyyy] = fechaCorta(new Date()).split('/');
+    return `${yyyy}-${mm}-${dd}`;
+  });
   const [searchUnidad, setSearchUnidad] = useState('');
   const [searchCharlie, setSearchCharlie] = useState('');
 
-  // Cálculos pesados memoizados: solo recalculan si cambian datos o fecha (no en cada poll de 1s).
+  // El día seleccionado se filtra en el SERVER (índice createdAt) — nunca se trae más
+  // que las carreras de ese único día, sin importar cuánto historial acumule el sistema.
+  const rangoDia = useMemo(
+    () => ({ desde: inicioDiaEcuadorDesdeYMD(selectedDate).toISOString(), hasta: finDiaEcuadorDesdeYMD(selectedDate).toISOString() }),
+    [selectedDate]
+  );
+  const { data, isLoading: loadingRides, fetchNextPage, hasNextPage, isFetchingNextPage } = useCarrerasHistorial({ ...rangoDia, take: 100 });
+
+  // El día puede tener más de una página (tope de 100 por página en el server, DoS-safe):
+  // drenamos automáticamente hasta traer el día completo, sin truncar ni pedir un take gigante.
+  useEffect(() => {
+    if (hasNextPage && !isFetchingNextPage) fetchNextPage();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  const allRides = useMemo(() => data?.pages.flatMap((p) => p.data) ?? [], [data]);
+  const { data: unidades = [], isLoading: loadingUnidades } = useUnidades();
+
+  // Cálculos pesados memoizados: solo recalculan si cambian datos (ya vienen filtrados del server).
   const { statsList, charlieStatsList, globalStats } = useMemo(() => {
-    const selectedDateString = new Date(selectedDate + 'T00:00:00').toDateString();
-    const dayRides = allRides.filter((r: any) => new Date(r.createdAt).toDateString() === selectedDateString);
+    const dayRides = allRides;
 
     // Agrupar por unidad
     const statsPorUnidad: Record<number, any> = {};
     unidades.forEach((u: any) => {
-      statsPorUnidad[u.id] = { unidad: u, enCurso: 0, completadas: 0, canceladas: 0, perdidas: 0, total: 0 };
+      statsPorUnidad[u.id] = { unidad: u, completadas: 0, canceladas: 0, perdidas: 0, total: 0 };
     });
     dayRides.forEach((ride: any) => {
       const uid = ride.unidadId || 0;
@@ -37,7 +47,6 @@ export const AdminDashboard = () => {
       if (ride.estado === 'completada') statsPorUnidad[uid].completadas += 1;
       else if (ride.estado === 'cancelada') statsPorUnidad[uid].canceladas += 1;
       else if (ride.estado === 'perdida') statsPorUnidad[uid].perdidas += 1;
-      else statsPorUnidad[uid].enCurso += 1; // pendiente / asignada = en curso
     });
     const statsList = Object.values(statsPorUnidad).sort((a: any, b: any) => b.total - a.total);
 
@@ -46,26 +55,24 @@ export const AdminDashboard = () => {
     dayRides.forEach((ride: any) => {
       const charlieId = ride.creadoPor?.id || 0;
       if (!statsPorCharlie[charlieId]) {
-        statsPorCharlie[charlieId] = { charlie: ride.creadoPor || { id: 0, nombre: 'Desconocido', rol: 'N/A' }, enCurso: 0, completadas: 0, canceladas: 0, perdidas: 0, total: 0 };
+        statsPorCharlie[charlieId] = { charlie: ride.creadoPor || { id: 0, nombre: 'Desconocido', rol: 'N/A' }, completadas: 0, canceladas: 0, perdidas: 0, total: 0 };
       }
       statsPorCharlie[charlieId].total += 1;
       if (ride.estado === 'completada') statsPorCharlie[charlieId].completadas += 1;
       else if (ride.estado === 'cancelada') statsPorCharlie[charlieId].canceladas += 1;
       else if (ride.estado === 'perdida') statsPorCharlie[charlieId].perdidas += 1;
-      else statsPorCharlie[charlieId].enCurso += 1; // pendiente / asignada = en curso
     });
     const charlieStatsList = Object.values(statsPorCharlie).sort((a: any, b: any) => b.total - a.total);
 
     const globalStats = {
       total: dayRides.length,
-      enCurso: dayRides.filter((r: any) => !['completada', 'cancelada', 'perdida'].includes(r.estado)).length,
       completadas: dayRides.filter((r: any) => r.estado === 'completada').length,
       canceladas: dayRides.filter((r: any) => r.estado === 'cancelada').length,
       perdidas: dayRides.filter((r: any) => r.estado === 'perdida').length,
     };
 
     return { statsList, charlieStatsList, globalStats };
-  }, [allRides, unidades, selectedDate]);
+  }, [allRides, unidades]);
 
   const statsListFiltrada = useMemo(
     () => rankBy(statsList, searchUnidad, (s: any, q) => scoreUnidad(s.unidad, q)),
@@ -83,7 +90,7 @@ export const AdminDashboard = () => {
     <div className="animate-[fadeIn_0.5s_ease-in]">
       <div className="mb-[30px] flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h2 className="text-[28px] text-gray-800 font-bold mb-2">Reporte Operativo</h2>
+          <h2 className="text-[1.75rem] text-gray-800 font-bold mb-2">Reporte Operativo</h2>
           <p className="text-gray-600">Resumen de carreras para la jornada seleccionada.</p>
         </div>
         <div className="flex items-center gap-3 bg-white p-2 rounded-lg border border-gray-200 shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)]">
@@ -106,15 +113,6 @@ export const AdminDashboard = () => {
           </div>
           <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
             <TrendingUp size={24} />
-          </div>
-        </div>
-        <div className="bg-white rounded-lg p-5 border border-gray-200 shadow-sm flex items-center justify-between">
-          <div>
-            <p className="text-sm text-gray-500 font-medium mb-1">En Curso</p>
-            <h3 className="text-3xl font-bold text-blue-600">{globalStats.enCurso}</h3>
-          </div>
-          <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
-            <Clock size={24} />
           </div>
         </div>
         <div className="bg-white rounded-lg p-5 border border-gray-200 shadow-sm flex items-center justify-between">
@@ -168,7 +166,6 @@ export const AdminDashboard = () => {
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Unidad / Chofer</th>
                 <th className="px-6 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Total Generadas</th>
-                <th className="px-6 py-3 text-center text-xs font-semibold text-blue-600 uppercase tracking-wider">En Curso</th>
                 <th className="px-6 py-3 text-center text-xs font-semibold text-green-600 uppercase tracking-wider">Completadas</th>
                 <th className="px-6 py-3 text-center text-xs font-semibold text-orange-600 uppercase tracking-wider">Perdidas</th>
                 <th className="px-6 py-3 text-center text-xs font-semibold text-red-600 uppercase tracking-wider">Canceladas</th>
@@ -194,11 +191,6 @@ export const AdminDashboard = () => {
                     <span className="text-lg font-bold text-gray-800">{stat.total}</span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-center">
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
-                      {stat.enCurso}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-center">
                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium bg-green-100 text-green-800">
                       {stat.completadas}
                     </span>
@@ -217,7 +209,7 @@ export const AdminDashboard = () => {
               ))}
               {statsListFiltrada.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
+                  <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
                     No se encontraron unidades para "{searchUnidad}".
                   </td>
                 </tr>
@@ -250,7 +242,6 @@ export const AdminDashboard = () => {
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Operador</th>
                 <th className="px-6 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Total Generadas</th>
-                <th className="px-6 py-3 text-center text-xs font-semibold text-blue-600 uppercase tracking-wider">En Curso</th>
                 <th className="px-6 py-3 text-center text-xs font-semibold text-green-600 uppercase tracking-wider">Completadas</th>
                 <th className="px-6 py-3 text-center text-xs font-semibold text-orange-600 uppercase tracking-wider">Perdidas</th>
                 <th className="px-6 py-3 text-center text-xs font-semibold text-red-600 uppercase tracking-wider">Canceladas</th>
@@ -276,11 +267,6 @@ export const AdminDashboard = () => {
                     <span className="text-lg font-bold text-gray-800">{stat.total}</span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-center">
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
-                      {stat.enCurso}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-center">
                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium bg-green-100 text-green-800">
                       {stat.completadas}
                     </span>
@@ -299,7 +285,7 @@ export const AdminDashboard = () => {
               ))}
               {charlieStatsListFiltrada.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
+                  <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
                     {searchCharlie
                       ? `No se encontraron operadores para "${searchCharlie}".`
                       : 'No hay actividad de operadores registrada en esta fecha.'}

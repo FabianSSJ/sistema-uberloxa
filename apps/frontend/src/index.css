@@ -100,3 +100,14 @@ code {
   padding: 4px 8px;
   background: var(--code-bg);
 }
+
+/* Feedback periférico para contadores en vivo: al remontar (key cambia), el número
+   "salta" un instante para atraer el ojo sin exigir lectura activa (glanceable UI). */
+@keyframes statPop {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.35); }
+  100% { transform: scale(1); }
+}
+.stat-pop {
+  animation: statPop 0.35s ease-out;
+}
