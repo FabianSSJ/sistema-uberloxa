@@ -47,6 +47,7 @@ export const CharlieDashboard = () => {
   const cambiarEstadoMutation = useCambiarEstadoUnidad();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedClienteId, setSelectedClienteId] = useState<number | undefined>(undefined);
   const [searchChofer, setSearchChofer] = useState('');
   const [searchCliente, setSearchCliente] = useState('');
   const [careerToDelete, setCareerToDelete] = useState<number | null>(null);
@@ -238,7 +239,7 @@ export const CharlieDashboard = () => {
                 {carrerasDelDia.length}
               </span>
               <button
-                onClick={() => setIsModalOpen(true)}
+                onClick={() => { setSelectedClienteId(undefined); setIsModalOpen(true); }}
                 className="bg-white text-green-600 p-1.5 rounded-lg hover:bg-green-50 hover:scale-105 transition-all shadow-sm cursor-pointer"
                 title="Nueva Carrera"
               >
@@ -260,7 +261,7 @@ export const CharlieDashboard = () => {
               />
             </div>
             {searchCliente.trim() && (
-              <p className="text-[0.6875rem] text-gray-500 mt-1.5 px-1">Arrastrá una unidad sobre el cliente para asignarle la carrera.</p>
+              <p className="text-[0.6875rem] text-gray-500 mt-1.5 px-1">Arrastrá una unidad sobre el cliente o usa los botones rápidos de abajo para registrar la carrera (con o sin unidad).</p>
             )}
           </div>
 
@@ -292,37 +293,57 @@ export const CharlieDashboard = () => {
                         }
                         setDraggedItem(null); setDragOverItem(null);
                       }}
-                      className={`border rounded-lg shadow-sm hover:-translate-y-0.5 hover:shadow transition-all duration-200 group cursor-grab active:cursor-grabbing ${esBusquedaCodigo ? 'p-5' : 'p-2.5 flex items-center justify-between gap-2'} ${isDragOver ? 'bg-green-50 ring-2 ring-green-400 border-green-300 scale-[1.02]' : 'bg-white border-gray-100'}`}
+                      className={`border rounded-lg shadow-sm hover:-translate-y-0.5 hover:shadow transition-all duration-200 group cursor-grab active:cursor-grabbing ${esBusquedaCodigo ? 'p-5 flex flex-col gap-4' : 'p-2.5 flex items-center justify-between gap-2'} ${isDragOver ? 'bg-green-50 ring-2 ring-green-400 border-green-300 scale-[1.02]' : 'bg-white border-gray-100'}`}
                     >
                       {esBusquedaCodigo ? (
-                        /* Vista GRANDE: búsqueda por código → un cliente, toda la info a la vista para despachar */
-                        <div className="pointer-events-none flex flex-col gap-4">
-                          <div className="flex items-start justify-between gap-4">
-                            <h3 className="font-black text-gray-900 m-0 text-3xl leading-tight break-words">{c.nombre}</h3>
-                            <span className="shrink-0 inline-flex flex-col items-center bg-blue-50 text-blue-700 border border-blue-200 rounded-2xl px-5 py-2 shadow-sm">
-                              <span className="text-[0.625rem] font-bold uppercase tracking-widest text-blue-400">Código</span>
-                              <span className="text-4xl font-black font-mono leading-none">{formatCodigo(c.codigo)}</span>
-                            </span>
-                          </div>
-                          {c.direccion ? (
-                            <div className="flex items-start gap-3 text-gray-800 bg-slate-100/80 rounded-xl px-4 py-3.5 border border-slate-200 shadow-sm">
-                              <MapPin size={26} className="shrink-0 text-blue-600 mt-0.5" />
-                              <span className="text-xl font-bold leading-snug break-words">{c.direccion}</span>
-                            </div>
-                          ) : (
-                            <p className="text-sm font-semibold text-gray-400 uppercase tracking-wide m-0">Sin dirección registrada</p>
-                          )}
-                          {(c.telefono || c.telefonoAlt) && (
-                            <div className="flex items-center gap-3 text-gray-800">
-                              <Phone size={22} className="shrink-0 text-green-600" />
-                              <span className="text-xl font-bold tracking-wide">
-                                {[c.telefono, c.telefonoAlt].filter(Boolean).join('   ·   ')}
+                        /* Vista GRANDE: búsqueda por código → un cliente, toda la info a la vista + botones rápidos */
+                        <>
+                          <div className="pointer-events-none flex flex-col gap-4">
+                            <div className="flex items-start justify-between gap-4">
+                              <h3 className="font-black text-gray-900 m-0 text-3xl leading-tight break-words">{c.nombre}</h3>
+                              <span className="shrink-0 inline-flex flex-col items-center bg-blue-50 text-blue-700 border border-blue-200 rounded-2xl px-5 py-2 shadow-sm">
+                                <span className="text-[0.625rem] font-bold uppercase tracking-widest text-blue-400">Código</span>
+                                <span className="text-4xl font-black font-mono leading-none">{formatCodigo(c.codigo)}</span>
                               </span>
                             </div>
-                          )}
-                        </div>
+                            {c.direccion ? (
+                              <div className="flex items-start gap-3 text-gray-800 bg-slate-100/80 rounded-xl px-4 py-3.5 border border-slate-200 shadow-sm">
+                                <MapPin size={26} className="shrink-0 text-blue-600 mt-0.5" />
+                                <span className="text-xl font-bold leading-snug break-words">{c.direccion}</span>
+                              </div>
+                            ) : (
+                              <p className="text-sm font-semibold text-gray-400 uppercase tracking-wide m-0">Sin dirección registrada</p>
+                            )}
+                            {(c.telefono || c.telefonoAlt) && (
+                              <div className="flex items-center gap-3 text-gray-800">
+                                <Phone size={22} className="shrink-0 text-green-600" />
+                                <span className="text-xl font-bold tracking-wide">
+                                  {[c.telefono, c.telefonoAlt].filter(Boolean).join('   ·   ')}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Botón de acción única para registrar carrera perdida sin unidad */}
+                          <div className="pt-2 border-t border-gray-100">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                createCarreraMutation.mutate(
+                                  { clienteId: c.id, estado: 'perdida', notas: 'Sin unidad disponible' },
+                                  { onSuccess: () => setSearchCliente('') }
+                                );
+                              }}
+                              className="w-full py-2.5 px-4 bg-orange-600 hover:bg-orange-700 text-white font-bold text-sm rounded-xl transition shadow flex items-center justify-center gap-2"
+                            >
+                              <AlertTriangle size={16} />
+                              <span>Carrera Perdida (Sin unidad)</span>
+                            </button>
+                          </div>
+                        </>
                       ) : (
-                        /* Vista compacta: búsqueda por nombre → lista de varios */
+                        /* Vista compacta: búsqueda por nombre → lista con botón de Carrera Perdida únicamente */
                         <>
                           <div className="flex-1 min-w-0 pointer-events-none">
                             <h3 className="font-bold text-gray-800 m-0 text-[0.875rem] leading-tight truncate">{c.nombre}</h3>
@@ -335,7 +356,25 @@ export const CharlieDashboard = () => {
                               <p className="text-[0.6875rem] font-semibold text-gray-400 uppercase tracking-wide m-0 mt-1">Sin dirección</p>
                             )}
                           </div>
-                          <CodigoBadge codigo={c.codigo} className="pointer-events-none shrink-0" />
+                          
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <CodigoBadge codigo={c.codigo} className="pointer-events-none shrink-0" />
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                createCarreraMutation.mutate(
+                                  { clienteId: c.id, estado: 'perdida', notas: 'Sin unidad disponible' },
+                                  { onSuccess: () => setSearchCliente('') }
+                                );
+                              }}
+                              title="Registrar como carrera perdida (sin unidad)"
+                              className="px-2.5 py-1 bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold rounded-md transition flex items-center gap-1 shadow-sm"
+                            >
+                              <AlertTriangle size={13} />
+                              <span>Perdida</span>
+                            </button>
+                          </div>
                         </>
                       )}
                     </div>
@@ -357,7 +396,7 @@ export const CharlieDashboard = () => {
                       </div>
                       <p className="text-sm text-gray-600 m-0 flex items-center gap-2 font-medium">
                         <Car size={16} style={op.textColor}/>
-                        {r.unidad ? `Unidad ${r.unidad.numeroUnidad} - ${r.unidad.choferNombre}` : 'Sin unidad asignada'}
+                        {r.unidad ? `Unidad ${r.unidad.numeroUnidad || 'S/N'} - ${r.unidad.choferNombre}` : 'Sin unidad asignada'}
                       </p>
                       <div className="mt-3 flex items-center justify-between">
                         <div className="flex items-center gap-2">
@@ -402,7 +441,7 @@ export const CharlieDashboard = () => {
                   );
                 })}
                 {carrerasDelDia.length === 0 && (
-                  <div className="text-center text-gray-400 mt-10 font-medium px-4">Todavía no hay carreras hoy. Buscá un cliente y asignale una unidad. 🚕</div>
+                  <div className="text-center text-gray-400 mt-10 font-medium px-4">Todavía no hay carreras registradas hoy. Buscá un cliente para asignarle una unidad o registrarla.</div>
                 )}
               </>
             )}

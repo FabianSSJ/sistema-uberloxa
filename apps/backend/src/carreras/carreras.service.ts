@@ -82,9 +82,8 @@ export class CarrerasService {
         clienteId: createCarreraDto.clienteId,
         unidadId: createCarreraDto.unidadId || null,
         notas: createCarreraDto.notas || null,
-        // Por defecto la carrera nace TERMINADA (se completa sola). Solo se marca cancelada/perdida a mano.
-        estado: createCarreraDto.unidadId ? 'completada' : 'pendiente',
-        fechaFin: createCarreraDto.unidadId ? new Date() : null,
+        estado: createCarreraDto.estado ?? (createCarreraDto.unidadId ? 'completada' : 'pendiente'),
+        fechaFin: (createCarreraDto.estado === 'completada' || createCarreraDto.estado === 'perdida' || createCarreraDto.estado === 'cancelada' || (!createCarreraDto.estado && createCarreraDto.unidadId)) ? new Date() : null,
         creadoPorId: userId || null,
         numeroDiario: count + 1,
       },

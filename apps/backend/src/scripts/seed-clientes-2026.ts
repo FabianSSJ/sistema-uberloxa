@@ -15,7 +15,10 @@ const prisma = new PrismaClient({ adapter });
 async function main() {
   console.log('Iniciando script de migración de clientes 2026...');
   
-  const filePath = path.join(process.cwd(), '../../CLIENTES UBER ACTUALIZADA 2026.xlsx');
+  const targetFileName = process.argv[2] || 'CLIENTES UBER ACTUALIZADA 2026 (2).xlsx';
+  const filePath = path.isAbsolute(targetFileName) 
+    ? targetFileName 
+    : path.join(process.cwd(), '../../', targetFileName);
   console.log(`Leyendo archivo: ${filePath}`);
   
   const workbook = xlsx.readFile(filePath);

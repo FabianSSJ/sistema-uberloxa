@@ -18,6 +18,7 @@ export interface CreateCarreraDto {
   clienteId: number;
   unidadId?: number;
   notas?: string;
+  estado?: string;
 }
 
 export interface HistorialParams {
