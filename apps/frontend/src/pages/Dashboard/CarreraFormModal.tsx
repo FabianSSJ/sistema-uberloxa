@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { CheckCircle2, Clock, AlertTriangle } from 'lucide-react';
 import { Modal } from '../../components/ui/Modal';
 import { Button } from '../../components/ui/Button';
 import { Select } from '../../components/ui/Select';
@@ -12,37 +13,53 @@ import { CreateCarreraDto } from '../../features/carreras/services/carreras.serv
 interface CarreraFormModalProps {
   isOpen: boolean;
   onClose: () => void;
+  initialClienteId?: number;
 }
 
 export const CarreraFormModal: React.FC<CarreraFormModalProps> = ({
   isOpen,
   onClose,
+  initialClienteId,
 }) => {
   const { data: clientes = [] } = useClientes();
   const { data: unidades = [] } = useUnidades();
   const createMutation = useCreateCarrera();
 
   const [formData, setFormData] = useState<CreateCarreraDto>({
-    clienteId: 0,
+    clienteId: initialClienteId || 0,
     unidadId: undefined,
+    estado: 'completada',
     notas: '',
   });
+
+  // Si cambia el cliente inicial al abrir
+  React.useEffect(() => {
+    if (isOpen && initialClienteId) {
+      setFormData(prev => ({ ...prev, clienteId: initialClienteId }));
+    }
+  }, [isOpen, initialClienteId]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!formData.clienteId) return;
 
+    // Si tiene unidad, el estado por defecto es completada salvo que elija perdida/pendiente
+    const finalEstado = formData.unidadId 
+      ? (formData.estado || 'completada')
+      : (formData.estado === 'perdida' ? 'perdida' : 'pendiente');
+
     const payload: CreateCarreraDto = {
       clienteId: Number(formData.clienteId),
       unidadId: formData.unidadId ? Number(formData.unidadId) : undefined,
+      estado: finalEstado,
       notas: formData.notas || undefined,
     };
 
     createMutation.mutate(payload, {
       onSuccess: () => {
         onClose();
-        setFormData({ clienteId: 0, unidadId: undefined, notas: '' });
+        setFormData({ clienteId: 0, unidadId: undefined, estado: 'completada', notas: '' });
       },
     });
   };
@@ -69,25 +86,58 @@ export const CarreraFormModal: React.FC<CarreraFormModalProps> = ({
         />
 
         <Select
-          label="Asignar Unidad (Opcional)"
-          options={unidades.map(u => ({
-            value: u.id,
-            label: `Nº ${u.numeroUnidad || 'S/N'} - ${u.choferNombre} (${u.placa})`,
-            searchText: unidadSearchText(u)
-          }))}
+          label="Asignar Unidad (Opcional - Dejar vacío para Sin Unidad)"
+          options={[
+            { value: '', label: 'Sin Unidad (Carrera Perdida)' },
+            ...unidades.map(u => ({
+              value: u.id,
+              label: `Nº ${u.numeroUnidad || 'S/N'} - ${u.choferNombre} (${u.placa})`,
+              searchText: unidadSearchText(u)
+            }))
+          ]}
           value={formData.unidadId || ''}
-          onChange={(val) => setFormData({ ...formData, unidadId: val ? Number(val) : undefined })}
-          placeholder="Seleccione una unidad..."
+          onChange={(val) => {
+            const uId = val ? Number(val) : undefined;
+            setFormData({ 
+              ...formData, 
+              unidadId: uId,
+              estado: uId ? 'completada' : 'perdida'
+            });
+          }}
+          placeholder="Seleccione una unidad o deje vacío..."
           searchable
         />
+
+        {/* Selección de Estado de la Carrera */}
+        <div className="flex flex-col gap-1.5 w-full">
+          <label className="text-sm font-semibold text-gray-700">Estado de la Carrera</label>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setFormData({ ...formData, estado: 'completada' })}
+              className={`py-2 px-3 rounded-lg border text-xs font-bold transition flex items-center justify-center gap-1.5 ${formData.estado === 'completada' ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm' : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'}`}
+            >
+              <CheckCircle2 size={14} />
+              <span>Completada</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setFormData({ ...formData, estado: 'perdida' })}
+              className={`py-2 px-3 rounded-lg border text-xs font-bold transition flex items-center justify-center gap-1.5 ${formData.estado === 'perdida' ? 'bg-amber-600 text-white border-amber-600 shadow-sm' : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'}`}
+            >
+              <AlertTriangle size={14} />
+              <span>Perdida (Sin unidad)</span>
+            </button>
+          </div>
+        </div>
 
         <div className="flex flex-col gap-1.5 w-full">
           <label className="text-sm font-semibold text-gray-700">Notas / Detalles de la Carrera</label>
           <textarea
             className="px-3 py-2.5 bg-white border border-gray-300 rounded-md text-[0.9375rem] text-gray-800 transition-colors duration-200 outline-none focus:ring-2 focus:ring-opacity-50 focus:ring-blue-500 focus:border-blue-500 hover:border-gray-400 w-full resize-none h-20"
-            value={formData.notas}
+            value={formData.notas || ''}
             onChange={(e) => setFormData({ ...formData, notas: e.target.value })}
-            placeholder="Detalles sobre el punto de recogida, indicaciones, etc."
+            placeholder="Detalles sobre el motivo, punto de recogida, indicaciones, etc."
           />
         </div>
 
