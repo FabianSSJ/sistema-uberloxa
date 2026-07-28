@@ -57,3 +57,15 @@ export const notify = {
   error: (message: string) => toast.error(message),
   info: (message: string) => toast(message),
 };
+
+/**
+ * Extrae un mensaje legible de un error de axios/NestJS. `message` puede venir como
+ * string (throw new XException('texto')) o como array (ValidationPipe de class-validator).
+ * Única fuente de verdad para esta extracción — la usa el handler global de mutaciones
+ * y cualquier lugar que necesite mostrar el error de forma más específica (ej. un campo).
+ */
+export const getErrorMessage = (error: any, fallback = 'Ocurrió un error inesperado. Intentá de nuevo.'): string => {
+  const msg = error?.response?.data?.message;
+  if (Array.isArray(msg)) return msg.join(', ');
+  return typeof msg === 'string' && msg ? msg : fallback;
+};

@@ -89,7 +89,9 @@ export const CarreraFormModal: React.FC<CarreraFormModalProps> = ({
           label="Asignar Unidad (Opcional - Dejar vacío para Sin Unidad)"
           options={[
             { value: '', label: 'Sin Unidad (Carrera Perdida)' },
-            ...unidades.map(u => ({
+            // Una unidad inactiva no puede tomar carreras: ni se ofrece como opción
+            // (mejor prevenir la elección inválida que dejarla elegir y recién avisarle).
+            ...unidades.filter(u => u.estado !== 'inactivo').map(u => ({
               value: u.id,
               label: `Nº ${u.numeroUnidad || 'S/N'} - ${u.choferNombre} (${u.placa})`,
               searchText: unidadSearchText(u)

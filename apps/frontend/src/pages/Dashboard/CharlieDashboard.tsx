@@ -1,16 +1,17 @@
-import { Car, Clock, Plus, Search, Trash2, MapPin, Phone, Moon, Play, Power, PowerOff, Unlock, TrendingUp, CheckCircle2, AlertTriangle, XCircle } from 'lucide-react';
-import { useState, useMemo, type ReactNode } from 'react';
+import { Car, Clock, Plus, Search, Trash2, MapPin, Phone, Moon, Play, Power, PowerOff, Unlock, TrendingUp, CheckCircle2, AlertTriangle, XCircle, UserPlus, X } from 'lucide-react';
+import { useState, useMemo, type ReactNode, type KeyboardEvent } from 'react';
 
-import { useClientes } from '../../features/clientes/hooks/useClientes';
+import { useClientes, useCreateCliente } from '../../features/clientes/hooks/useClientes';
 import { useColaDespacho } from '../../features/unidades/hooks/useColaDespacho';
 import { useCambiarEstadoUnidad } from '../../features/unidades/hooks/useUnidades';
 import { ESTADO_UNIDAD_STYLES } from '../../features/unidades/components/EstadoUnidadBadge';
 import { UnidadDetalleModal } from '../../features/unidades/components/UnidadDetalleModal';
-import { usePanelCarreras, useCreateCarrera, useCancelarCarrera, usePerderCarrera, useDeleteCarrera } from '../../features/carreras/hooks/useCarreras';
+import { usePanelCarreras, useCreateCarrera, useCompletarCarrera, useCancelarCarrera, usePerderCarrera, useDeleteCarrera } from '../../features/carreras/hooks/useCarreras';
 import { CarreraFormModal } from './CarreraFormModal';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { CodigoBadge, formatCodigo } from '../../components/ui/CodigoBadge';
-import { EstadoCarreraBadge } from '../../features/carreras/components/EstadoCarreraBadge';
+import { ESTADO_CARRERA_STYLES } from '../../features/carreras/components/EstadoCarreraBadge';
+import { notify } from '../../components/ui/toast';
 import { rankBy, scoreUnidad, scoreCliente } from '../../core/search/matchers';
 import { colorOperador, colorUnidad } from '../../core/operadores/colores';
 import { hora } from '../../core/tiempo';
@@ -24,10 +25,16 @@ export const CharlieDashboard = () => {
 
   // El server ya resuelve "hoy + en proceso con ventana de gracia" — acá solo se filtra
   // por dueño (el Charlie ve las suyas; las de creador null quedan visibles para todos).
-  const carrerasDelDia = useMemo(
-    () => allRidesData.filter((r: any) => !r.creadoPorId || r.creadoPorId === user?.id),
-    [allRidesData, user?.id]
-  );
+  // Orden de la cola: las PENDIENTES (sin resolver todavía) van SIEMPRE primero, sin importar
+  // cuándo se crearon — son las que necesitan acción ya. Las resueltas (completada/cancelada/
+  // perdida) van después, en su orden natural por hora de creación (la API ya devuelve id
+  // desc = más nueva primero, así que separar preservando el orden relativo alcanza).
+  const carrerasDelDia = useMemo(() => {
+    const propias = allRidesData.filter((r: any) => !r.creadoPorId || r.creadoPorId === user?.id);
+    const pendientes = propias.filter((r: any) => r.estado === 'pendiente');
+    const resueltas = propias.filter((r: any) => r.estado !== 'pendiente');
+    return [...pendientes, ...resueltas];
+  }, [allRidesData, user?.id]);
 
   // Resumen rápido del día por estado, sobre las mismas carreras que ya se ven en el panel.
   const resumenDia = useMemo(() => {
@@ -41,6 +48,8 @@ export const CharlieDashboard = () => {
   }, [carrerasDelDia]);
 
   const createCarreraMutation = useCreateCarrera();
+  const createClienteMutation = useCreateCliente();
+  const completarMutation = useCompletarCarrera();
   const cancelarMutation = useCancelarCarrera();
   const perderMutation = usePerderCarrera();
   const deleteCarreraMutation = useDeleteCarrera();
@@ -50,11 +59,14 @@ export const CharlieDashboard = () => {
   const [selectedClienteId, setSelectedClienteId] = useState<number | undefined>(undefined);
   const [searchChofer, setSearchChofer] = useState('');
   const [searchCliente, setSearchCliente] = useState('');
+  const [modoRapido, setModoRapido] = useState(false);
+  const [rapidoNombre, setRapidoNombre] = useState('');
+  const [rapidoTelefono, setRapidoTelefono] = useState('');
   const [careerToDelete, setCareerToDelete] = useState<number | null>(null);
   const [detalleUnidad, setDetalleUnidad] = useState<any>(null);
 
   const [draggedItem, setDraggedItem] = useState<{type: 'CHOFER' | 'CLIENTE', id: number} | null>(null);
-  const [dragOverItem, setDragOverItem] = useState<{type: 'CHOFER' | 'CLIENTE', id: number} | null>(null);
+  const [dragOverItem, setDragOverItem] = useState<{type: 'CHOFER' | 'CLIENTE' | 'CARRERA', id: number} | null>(null);
 
   // TODAS las unidades ordenadas: primero las ACTIVAS con MÁS carreras de hoy, después el resto.
   const unidadesOrdenadas = useMemo(() => {
@@ -84,6 +96,49 @@ export const CharlieDashboard = () => {
 
   const cambiarEstado = (id: number, estado: string) => cambiarEstadoMutation.mutate({ id, estado: estado as any });
 
+  // Registrar la carrera SIN unidad todavía: nace 'pendiente' (sin estado/unidadId en el DTO,
+  // el backend ya default-ea a eso) y queda esperando en el tope de la cola hasta que se le
+  // arrastre una unidad o se la marque cancelada/perdida.
+  const crearPendiente = (clienteId: number) => {
+    createCarreraMutation.mutate({ clienteId }, { onSuccess: () => setSearchCliente('') });
+  };
+
+  // Enter en el buscador = atajo de teclado para el resultado más relevante (mismo criterio
+  // que un buscador/command palette: no hace falta soltar el mouse para despachar rápido).
+  const handleSearchKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && filteredClientes.length > 0) {
+      crearPendiente(filteredClientes[0].id);
+    }
+  };
+
+  // Cliente que llama y NO está en la base (no hay tiempo de buscarlo/cargarlo entero):
+  // se crea con lo mínimo (nombre y/o teléfono, ninguno de los dos obligatorio por sí solo)
+  // y, como nace SIN código, cae directo en la bandeja de "Nuevos" para completarlo después.
+  // En el mismo paso se registra la carrera pendiente, igual que al elegir un cliente existente.
+  const crearClienteRapidoYCarrera = () => {
+    const nombre = rapidoNombre.trim();
+    const telefono = rapidoTelefono.trim();
+    if (!nombre && !telefono) return;
+
+    createClienteMutation.mutate(
+      // Si falta el nombre, el backend arma uno provisorio a partir del teléfono
+      // (misma regla que el alta desde la sección Clientes) — no la duplicamos acá.
+      { nombre: nombre || undefined, telefono: telefono || undefined },
+      {
+        onSuccess: (cliente) => {
+          createCarreraMutation.mutate({ clienteId: cliente.id });
+          setRapidoNombre('');
+          setRapidoTelefono('');
+          setModoRapido(false); // vuelve solo a buscar/agregar/eliminar: no se queda ocupando espacio
+        },
+      }
+    );
+  };
+
+  const handleRapidoKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') crearClienteRapidoYCarrera();
+  };
+
   // Botón de icono de estado dentro de la card (stopPropagation: no abre el modal ni arrastra).
   // El title da el nombre de la acción, ya que el icono va sin texto para ahorrar espacio.
   const btnEstado = (icon: ReactNode, title: string, cls: string, onClick: () => void) => (
@@ -102,7 +157,7 @@ export const CharlieDashboard = () => {
 
         {/* Panel 1: Choferes / Unidades (más ancho: es el foco del despacho) */}
         <div className="flex-[1.5] bg-white rounded-2xl shadow-md border border-gray-200/60 flex flex-col overflow-hidden transition-all duration-300 hover:shadow-xl">
-          <div className="bg-gradient-to-r from-amber-500 to-amber-600 p-4 text-white flex items-center gap-3 shadow-sm">
+          <div className="bg-gradient-to-r from-amber-500 to-amber-600 p-3 text-white flex items-center gap-3 shadow-sm">
             <div className="flex items-center gap-3 shrink-0">
               <div className="bg-white/20 p-2 rounded-xl backdrop-blur-sm shrink-0">
                 <Car size={24} className="text-white" />
@@ -142,7 +197,7 @@ export const CharlieDashboard = () => {
               {filteredUnidades.length}
             </span>
           </div>
-          <div className="px-5 pt-5 bg-slate-50/50">
+          <div className="px-4 pt-3 bg-slate-50/50">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
               <input
@@ -154,7 +209,7 @@ export const CharlieDashboard = () => {
               />
             </div>
             {/* Leyenda del punto de color: se explica el código una vez, no card por card. */}
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2 text-[0.625rem] font-semibold text-gray-500">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-[0.625rem] font-semibold text-gray-500">
               {(['disponible', 'ocupado', 'descanso', 'inactivo'] as const).map((e) => (
                 <span key={e} className="inline-flex items-center gap-1">
                   <span className={`w-2 h-2 rounded-full ${ESTADO_UNIDAD_STYLES[e].dot}`} />
@@ -163,7 +218,7 @@ export const CharlieDashboard = () => {
               ))}
             </div>
           </div>
-          <div className="flex-1 overflow-y-auto px-5 pb-5 pt-3 grid grid-cols-[repeat(auto-fill,minmax(7rem,1fr))] gap-2 content-start bg-slate-50/50">
+          <div className="flex-1 overflow-y-auto px-4 pb-4 pt-2 grid grid-cols-[repeat(auto-fill,minmax(7rem,1fr))] gap-2 content-start bg-slate-50/50">
             {filteredUnidades.map((u: any) => {
               const isDragOver = dragOverItem?.type === 'CHOFER' && dragOverItem.id === u.id;
               const estado = u.estado || 'disponible';
@@ -176,19 +231,32 @@ export const CharlieDashboard = () => {
                   onClick={() => setDetalleUnidad(u)}
                   title={`Unidad ${u.numeroUnidad || 'S/N'} · ${u.choferNombre || 'Sin chofer'} · ${ESTADO_UNIDAD_STYLES[estado as keyof typeof ESTADO_UNIDAD_STYLES]?.label ?? estado} · Click para ver detalle`}
                   onDragStart={(e) => {
+                    // Una unidad inactiva no puede tomar carreras (lo valida el backend también,
+                    // pero acá se lo decimos al toque: ni siquiera dejamos que empiece a arrastrarla).
+                    if (estado === 'inactivo') {
+                      e.preventDefault();
+                      notify.error(`La unidad Nº ${u.numeroUnidad || 'S/N'} está inactiva — activala antes de asignarle una carrera.`);
+                      return;
+                    }
                     setDraggedItem({ type: 'CHOFER', id: u.id });
                     e.dataTransfer.setData('text/plain', JSON.stringify({ type: 'CHOFER', id: u.id }));
                   }}
                   onDragEnd={() => { setDraggedItem(null); setDragOverItem(null); }}
                   onDragOver={(e) => {
                     e.preventDefault();
-                    if (draggedItem && draggedItem.type === 'CLIENTE') setDragOverItem({ type: 'CHOFER', id: u.id });
+                    if (draggedItem && draggedItem.type === 'CLIENTE' && estado !== 'inactivo') setDragOverItem({ type: 'CHOFER', id: u.id });
                   }}
                   onDragLeave={() => setDragOverItem(null)}
                   onDrop={(e) => {
                     e.preventDefault();
                     if (draggedItem && draggedItem.type === 'CLIENTE') {
-                      createCarreraMutation.mutate({ clienteId: draggedItem.id, unidadId: u.id, notas: 'Asignación Rápida' });
+                      // Simétrico al bloqueo de arriba: acá el drop target es la unidad (cliente
+                      // arrastrado sobre la card), así que la misma regla aplica del otro lado.
+                      if (estado === 'inactivo') {
+                        notify.error(`La unidad Nº ${u.numeroUnidad || 'S/N'} está inactiva — activala antes de asignarle una carrera.`);
+                      } else {
+                        createCarreraMutation.mutate({ clienteId: draggedItem.id, unidadId: u.id, notas: 'Asignación Rápida' });
+                      }
                     }
                     setDraggedItem(null); setDragOverItem(null);
                   }}
@@ -227,7 +295,7 @@ export const CharlieDashboard = () => {
 
         {/* Panel 2: Gestión de Carreras y Clientes — buscar cliente + registrar carreras del día */}
         <div className="flex-1 bg-white rounded-2xl shadow-md border border-gray-200/60 flex flex-col overflow-hidden transition-all duration-300 hover:shadow-xl">
-          <div className="bg-gradient-to-r from-emerald-500 to-green-600 p-4 text-white flex justify-between items-center shadow-sm">
+          <div className="bg-gradient-to-r from-emerald-500 to-green-600 p-3 text-white flex justify-between items-center shadow-sm">
             <div className="flex items-center gap-3">
               <div className="bg-white/20 p-2 rounded-xl backdrop-blur-sm">
                 <Clock size={24} className="text-white" />
@@ -248,25 +316,76 @@ export const CharlieDashboard = () => {
             </div>
           </div>
 
-          {/* Buscador de clientes (para despachar) */}
-          <div className="px-5 pt-4 bg-slate-50/50">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-              <input
-                type="text"
-                placeholder="Buscar cliente por código, nombre, teléfono, dirección..."
-                className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-200 focus:border-green-500 focus:ring-2 focus:ring-green-200 outline-none transition-all shadow-sm"
-                value={searchCliente}
-                onChange={e => setSearchCliente(e.target.value)}
-              />
-            </div>
-            {searchCliente.trim() && (
-              <p className="text-[0.6875rem] text-gray-500 mt-1.5 px-1">Arrastrá una unidad sobre el cliente o usa los botones rápidos de abajo para registrar la carrera (con o sin unidad).</p>
+          {/* Buscador de clientes (para despachar) | modo Crear rápido para el que llama y no está en la base */}
+          <div className="px-4 pt-3 bg-slate-50/50">
+            {!modoRapido ? (
+              <div className="flex items-center gap-2">
+                <div className="relative flex-1 min-w-0">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                  <input
+                    type="text"
+                    placeholder="Buscar cliente por código, nombre, teléfono, dirección..."
+                    className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-200 focus:border-green-500 focus:ring-2 focus:ring-green-200 outline-none transition-all shadow-sm"
+                    value={searchCliente}
+                    onChange={e => setSearchCliente(e.target.value)}
+                    onKeyDown={handleSearchKeyDown}
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setModoRapido(true)}
+                  title="Cliente nuevo que llama y no está registrado: crearlo con lo mínimo"
+                  className="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-green-200 bg-white text-green-700 text-sm font-bold hover:bg-green-50 transition-colors shadow-sm"
+                >
+                  <UserPlus size={16} />
+                  <span className="hidden sm:inline">Crear rápido</span>
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  autoFocus
+                  placeholder="Nombre (opcional)"
+                  className="flex-1 min-w-0 px-3 py-2 rounded-lg border border-gray-200 focus:border-green-500 focus:ring-2 focus:ring-green-200 outline-none transition-all shadow-sm"
+                  value={rapidoNombre}
+                  onChange={e => setRapidoNombre(e.target.value)}
+                  onKeyDown={handleRapidoKeyDown}
+                />
+                <input
+                  type="tel"
+                  placeholder="Teléfono (opcional)"
+                  className="flex-1 min-w-0 px-3 py-2 rounded-lg border border-gray-200 focus:border-green-500 focus:ring-2 focus:ring-green-200 outline-none transition-all shadow-sm"
+                  value={rapidoTelefono}
+                  onChange={e => setRapidoTelefono(e.target.value)}
+                  onKeyDown={handleRapidoKeyDown}
+                />
+                <button
+                  type="button"
+                  onClick={crearClienteRapidoYCarrera}
+                  disabled={!rapidoNombre.trim() && !rapidoTelefono.trim()}
+                  title="Registrar carrera pendiente con este cliente nuevo"
+                  className="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-green-600 text-white text-sm font-bold hover:bg-green-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-sm"
+                >
+                  <UserPlus size={16} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setModoRapido(false); setRapidoNombre(''); setRapidoTelefono(''); }}
+                  title="Volver a buscar"
+                  className="shrink-0 inline-flex items-center justify-center w-9 h-9 rounded-lg border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 transition-colors shadow-sm"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            )}
+            {!modoRapido && searchCliente.trim() && (
+              <p className="text-[0.6875rem] text-gray-500 mt-1 px-1">Enter o click registra la carrera pendiente (sin unidad); arrastrá una unidad encima para asignarla directo.</p>
             )}
           </div>
 
           {/* Contenido: buscando → clientes para despachar | sin buscar → carreras del día */}
-          <div className="flex-1 overflow-y-auto px-5 pb-5 pt-3 flex flex-col gap-2.5 bg-slate-50/50">
+          <div className="flex-1 overflow-y-auto px-4 pb-4 pt-2 flex flex-col gap-2 bg-slate-50/50">
             {searchCliente.trim() ? (
               <>
                 {filteredClientes.map((c: any) => {
@@ -275,6 +394,7 @@ export const CharlieDashboard = () => {
                     <div
                       key={c.id}
                       draggable
+                      onClick={() => crearPendiente(c.id)}
                       onDragStart={(e) => {
                         setDraggedItem({ type: 'CLIENTE', id: c.id });
                         e.dataTransfer.setData('text/plain', JSON.stringify({ type: 'CLIENTE', id: c.id }));
@@ -293,7 +413,8 @@ export const CharlieDashboard = () => {
                         }
                         setDraggedItem(null); setDragOverItem(null);
                       }}
-                      className={`border rounded-lg shadow-sm hover:-translate-y-0.5 hover:shadow transition-all duration-200 group cursor-grab active:cursor-grabbing ${esBusquedaCodigo ? 'p-5 flex flex-col gap-4' : 'p-2.5 flex items-center justify-between gap-2'} ${isDragOver ? 'bg-green-50 ring-2 ring-green-400 border-green-300 scale-[1.02]' : 'bg-white border-gray-100'}`}
+                      title="Click para registrar la carrera pendiente (sin unidad) · arrastrá una unidad encima para asignarla directo"
+                      className={`border rounded-lg shadow-sm hover:-translate-y-0.5 hover:shadow transition-all duration-200 group cursor-pointer active:cursor-grabbing ${esBusquedaCodigo ? 'p-5 flex flex-col gap-4' : 'p-2.5 flex items-center justify-between gap-2'} ${isDragOver ? 'bg-green-50 ring-2 ring-green-400 border-green-300 scale-[1.02]' : 'bg-white border-gray-100'}`}
                     >
                       {esBusquedaCodigo ? (
                         /* Vista GRANDE: búsqueda por código → un cliente, toda la info a la vista + botones rápidos */
@@ -388,54 +509,75 @@ export const CharlieDashboard = () => {
               <>
                 {carrerasDelDia.map((r: any) => {
                   const op = colorOperador(r.creadoPor);
+                  const esPendiente = r.estado === 'pendiente';
+                  const estadoCls = ESTADO_CARRERA_STYLES[r.estado as keyof typeof ESTADO_CARRERA_STYLES] || 'bg-gray-200 text-gray-800 border-gray-300';
+                  // Solo las PENDIENTES son drop-target: arrastrar una unidad encima las asigna
+                  // y las completa en el mismo gesto (completar() ya hace ambas cosas server-side).
+                  const isDragOverCarrera = esPendiente && dragOverItem?.type === 'CARRERA' && dragOverItem.id === r.id;
                   return (
-                    <div key={r.id} style={op.borderLeft} className="bg-white border-l-4 border border-y-gray-100 border-r-gray-100 p-4 rounded-xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] hover:-translate-x-1 hover:shadow-[0_8px_15px_-3px_rgba(6,81,237,0.15)] transition-all duration-300">
-                      <div className="flex justify-between items-start mb-2">
-                        <h3 style={op.textColor} className="font-bold m-0 text-[1rem] truncate max-w-[70%]">#{r.numeroDiario || r.id} - {r.cliente?.nombre || 'Cliente'}</h3>
-                        <span className="text-xs font-black text-gray-400 bg-gray-50 px-2 py-1 rounded-md">{formatTime(r.createdAt)}</span>
+                    // Fila tipo "ticket de cola": una sola línea por carrera (punto de estado +
+                    // cliente/unidad + chip + hora + acciones icon-only) en vez de card expandida —
+                    // con decenas de carreras por turno, la cola tiene que poder escanearse de un
+                    // vistazo (Miller: chunking) sin scrollear cada 100px por una sola fila.
+                    <div
+                      key={r.id}
+                      style={op.borderLeft}
+                      onDragOver={esPendiente ? (e) => {
+                        e.preventDefault();
+                        if (draggedItem?.type === 'CHOFER') setDragOverItem({ type: 'CARRERA', id: r.id });
+                      } : undefined}
+                      onDragLeave={esPendiente ? () => setDragOverItem(null) : undefined}
+                      onDrop={esPendiente ? (e) => {
+                        e.preventDefault();
+                        if (draggedItem?.type === 'CHOFER') {
+                          completarMutation.mutate({ id: r.id, unidadId: draggedItem.id });
+                        }
+                        setDraggedItem(null); setDragOverItem(null);
+                      } : undefined}
+                      className={`bg-white border-l-4 border rounded-lg pl-3 pr-2.5 py-2.5 flex items-center gap-2.5 shadow-sm hover:shadow-md transition-shadow duration-200 ${
+                        isDragOverCarrera
+                          ? 'bg-amber-50 ring-2 ring-amber-400 border-amber-300 scale-[1.01]'
+                          : esPendiente
+                            ? 'border-y-amber-200 border-r-amber-200'
+                            : 'border-y-gray-100 border-r-gray-100'
+                      }`}
+                    >
+                      {/* Punto de estado: pulsa en ámbar mientras está sin resolver, gris apagado
+                          una vez resuelta — refuerzo periférico redundante con el chip de texto
+                          (heurística #6, reconocer sin tener que leer cada fila). */}
+                      <span className={`shrink-0 w-2 h-2 rounded-full ${esPendiente ? 'bg-amber-500 animate-pulse' : 'bg-gray-300'}`} />
+
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <CodigoBadge codigo={r.cliente?.codigo} className="shrink-0" />
+                          <p style={op.textColor} className="font-bold text-sm leading-tight truncate m-0">
+                            {r.cliente?.nombre || 'Cliente'}
+                          </p>
+                        </div>
+                        <p className="text-xs text-gray-500 leading-tight truncate m-0 flex items-center gap-1 mt-1">
+                          <Car size={11} className="shrink-0" />
+                          {r.unidad
+                            ? `${r.unidad.numeroUnidad || 'S/N'} · ${r.unidad.choferNombre}`
+                            : esPendiente ? 'Esperando unidad — arrastrá una acá' : 'Sin unidad'}
+                        </p>
                       </div>
-                      <p className="text-sm text-gray-600 m-0 flex items-center gap-2 font-medium">
-                        <Car size={16} style={op.textColor}/>
-                        {r.unidad ? `Unidad ${r.unidad.numeroUnidad || 'S/N'} - ${r.unidad.choferNombre}` : 'Sin unidad asignada'}
-                      </p>
-                      <div className="mt-3 flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <EstadoCarreraBadge estado={r.estado} />
-                          {user?.rol === 'SUPERADMIN' && (
-                            <button
-                              onClick={() => setCareerToDelete(r.id)}
-                              className="text-red-500 hover:text-red-700 hover:bg-red-50 p-1 rounded transition-colors"
-                              title="Eliminar Carrera Permanentemente"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          )}
-                        </div>
-                        {/* Nace TERMINADA. El estado actual ya lo muestra el badge de arriba (EstadoCarreraBadge) —
-                            acá solo quedan las dos acciones de reclasificación; la que coincide con el estado
-                            actual se muestra como texto fijo (no es un botón). */}
-                        <div className="flex gap-1.5 items-center">
-                          {r.estado === 'cancelada' ? (
-                            <span className="text-[0.625rem] font-bold px-2 py-1 rounded bg-red-500 text-white">CANCELADA</span>
-                          ) : (
-                            <button
-                              onClick={() => cancelarMutation.mutate(r.id)}
-                              className="text-[0.625rem] font-bold px-2 py-1 rounded transition-colors bg-red-100 text-red-700 hover:bg-red-500 hover:text-white"
-                            >
-                              CANCELADA
-                            </button>
-                          )}
-                          {r.estado === 'perdida' ? (
-                            <span className="text-[0.625rem] font-bold px-2 py-1 rounded bg-orange-500 text-white">PERDIDA</span>
-                          ) : (
-                            <button
-                              onClick={() => perderMutation.mutate(r.id)}
-                              className="text-[0.625rem] font-bold px-2 py-1 rounded transition-colors bg-orange-100 text-orange-700 hover:bg-orange-500 hover:text-white"
-                            >
-                              PERDIDA
-                            </button>
-                          )}
-                        </div>
+
+                      <span className={`shrink-0 text-[0.6875rem] font-bold px-2 py-0.5 rounded border whitespace-nowrap ${estadoCls}`}>
+                        {String(r.estado || '').toUpperCase()}
+                      </span>
+
+                      <span className="shrink-0 text-xs font-black text-gray-400 tabular-nums">{formatTime(r.createdAt)}</span>
+
+                      {/* Reclasificar es válida en cualquier estado (incluida pendiente); se oculta
+                          solo la acción que sería un no-op (ya está en ese estado — el chip de arriba
+                          ya lo comunica, no hace falta un segundo indicador estático). */}
+                      <div className="flex items-center gap-1 shrink-0">
+                        {r.estado !== 'cancelada' && btnEstado(<XCircle size={12} />, 'Marcar cancelada', 'bg-red-500', () => cancelarMutation.mutate(r.id))}
+                        {r.estado !== 'perdida' && btnEstado(<AlertTriangle size={12} />, 'Marcar perdida', 'bg-orange-500', () => perderMutation.mutate(r.id))}
+                        {/* SUPERADMIN borra cualquiera; el resto solo la suya y mientras sigue
+                            pendiente (típico "la puse 2 veces por error", recién creada). */}
+                        {(user?.rol === 'SUPERADMIN' || (esPendiente && r.creadoPorId === user?.id)) &&
+                          btnEstado(<Trash2 size={12} />, 'Eliminar carrera', 'bg-gray-400', () => setCareerToDelete(r.id))}
                       </div>
                     </div>
                   );

@@ -47,8 +47,13 @@ export const useCreateCliente = () => {
 
   return useMutation({
     mutationFn: (data: CreateClienteDto) => clientesService.create(data),
-    onSuccess: () => {
+    onSuccess: (cliente) => {
       queryClient.invalidateQueries({ queryKey: ['clientes'] });
+      // Si nace sin código, cae directo en la bandeja de "Nuevos" — refrescamos esa
+      // query también para que aparezca al toque, sin esperar su propio polling.
+      if (cliente.codigo == null) {
+        queryClient.invalidateQueries({ queryKey: ['clientes', 'pendientes'] });
+      }
       notify.success('Cliente creado con éxito');
     },
   });

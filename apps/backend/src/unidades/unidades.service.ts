@@ -1,4 +1,5 @@
-import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
+import { Injectable, ConflictException, NotFoundException, Logger } from '@nestjs/common';
+import { Interval } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUnidadDto } from './dto/create-unidad.dto';
 import { UpdateUnidadDto } from './dto/update-unidad.dto';
@@ -6,6 +7,8 @@ import { EstadoUnidad } from '../../generated/prisma/client';
 
 @Injectable()
 export class UnidadesService {
+  private readonly logger = new Logger(UnidadesService.name);
+
   constructor(private prisma: PrismaService) {}
 
   private toTitleCase(str: string): string {
@@ -51,17 +54,21 @@ export class UnidadesService {
     });
   }
 
-  // Libera las unidades cuyo tiempo de ocupación (15 min) ya venció. Se llama en cada lectura
-  // (el front pollea cada 1s), así se auto-liberan sin necesidad de un cron.
+  // Libera las unidades cuyo tiempo de ocupación (15 min) ya venció. Antes se llamaba en
+  // CADA lectura de findAll() — con el dashboard polleando cada 1s por cada Charlie conectada,
+  // eso era un UPDATE contra la tabla por segundo por pestaña abierta, casi siempre sin nada
+  // que actualizar. Como job cada 10s, la escritura queda desacoplada del camino de lectura
+  // (10s de margen es irrelevante para el usuario: nadie nota una unidad liberada 10s tarde).
+  @Interval(10_000)
   private async _liberarOcupadasVencidas() {
-    await this.prisma.unidad.updateMany({
+    const { count } = await this.prisma.unidad.updateMany({
       where: { estado: 'ocupado', ocupadoHasta: { not: null, lt: new Date() } },
       data: { estado: 'disponible', ocupadoHasta: null },
     });
+    if (count > 0) this.logger.log(`Liberadas ${count} unidad(es) por tiempo de ocupación vencido`);
   }
 
   async findAll() {
-    await this._liberarOcupadasVencidas();
     return this.prisma.unidad.findMany({
       orderBy: { id: 'desc' },
     });

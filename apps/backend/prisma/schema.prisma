@@ -17,6 +17,8 @@ model Usuario {
   modulosPermitidos String[]   @default([]) @map("modulos_permitidos")
   rol               RolUsuario @default(CHARLIE)
   color             String?
+  intentosFallidos  Int        @default(0) @map("intentos_fallidos")
+  bloqueadoHasta    DateTime?  @map("bloqueado_hasta")
   carrerasCreadas   Carrera[]  @relation("CarrerasCreadas")
 
   @@map("usuarios")

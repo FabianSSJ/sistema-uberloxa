@@ -36,8 +36,13 @@ export class ClientesService {
       await this._validarCodigoUnico(createClienteDto.codigo);
     }
 
+    // El nombre no es obligatorio (ej. alta rápida desde el despacho, solo con teléfono):
+    // si no viene, armamos algo identificable en vez de guardar la columna vacía —
+    // igual va a la bandeja de "Nuevos" (sin código) para que lo completen después.
+    const nombre = createClienteDto.nombre?.trim() || (createClienteDto.telefono ? `Cliente ${createClienteDto.telefono}` : 'Cliente sin nombre');
+
     return this.prisma.cliente.create({
-      data: createClienteDto,
+      data: { ...createClienteDto, nombre },
     });
   }
 

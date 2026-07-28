@@ -1,5 +1,5 @@
-import { IsString, IsNotEmpty, IsOptional, IsInt, MaxLength, Min } from 'class-validator';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsString, IsOptional, IsInt, MaxLength, Min } from 'class-validator';
+import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateClienteDto {
   @ApiPropertyOptional({ description: 'Código del cliente (único)' })
@@ -8,11 +8,11 @@ export class CreateClienteDto {
   @IsOptional()
   codigo?: number;
 
-  @ApiProperty({ description: 'Nombre completo del cliente' })
+  @ApiPropertyOptional({ description: 'Nombre completo del cliente (si no viene, el service arma uno provisorio a partir del teléfono)' })
   @IsString()
-  @IsNotEmpty({ message: 'El nombre es obligatorio' })
+  @IsOptional()
   @MaxLength(150, { message: 'El nombre no puede exceder los 150 caracteres' })
-  nombre: string;
+  nombre?: string;
 
   @ApiPropertyOptional({ description: 'Teléfono principal' })
   @IsString()

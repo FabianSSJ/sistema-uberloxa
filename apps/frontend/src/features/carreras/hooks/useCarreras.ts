@@ -39,13 +39,6 @@ export const useCarreras = () => {
   });
 };
 
-export const useRecentCarreras = () => {
-  return useQuery({
-    queryKey: ['carreras', 'recent'],
-    queryFn: carrerasService.getRecent,
-    refetchInterval: 1000,
-  });
-};
 
 const invalidarCarreras = (queryClient: ReturnType<typeof useQueryClient>) => {
   queryClient.invalidateQueries({ queryKey: ['carreras'] });

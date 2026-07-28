@@ -6,7 +6,6 @@ import { Select } from '../../components/ui/Select';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { useModelos, useCreateModelo, useUpdateModelo, useDeleteModelo } from '../../features/modelos/hooks/useModelos';
 import { useMarcas } from '../../features/marcas/hooks/useMarcas';
-import { notify } from '../../components/ui/toast';
 import { Edit2, Trash2, Plus } from 'lucide-react';
 
 interface ModeloManagerModalProps {
@@ -38,8 +37,8 @@ export const ModeloManagerModal: React.FC<ModeloManagerModalProps> = ({ isOpen, 
       }
       setNombre('');
       setEditingId(null);
-    } catch (error: any) {
-      notify.error(error.response?.data?.message || 'Error al guardar el modelo');
+    } catch {
+      // El toast ya lo muestra el handler global de mutaciones (main.tsx).
     }
   };
 
@@ -59,8 +58,8 @@ export const ModeloManagerModal: React.FC<ModeloManagerModalProps> = ({ isOpen, 
     if (!modeloToDelete) return;
     try {
       await deleteMutation.mutateAsync(modeloToDelete.id);
-    } catch (error: any) {
-      notify.error(error.response?.data?.message || 'Error al eliminar el modelo (puede estar en uso)');
+    } catch {
+      // El toast ya lo muestra el handler global de mutaciones (main.tsx).
     }
     setModeloToDelete(null);
   };
