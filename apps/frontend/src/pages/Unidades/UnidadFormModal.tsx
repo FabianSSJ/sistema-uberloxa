@@ -79,8 +79,8 @@ export const UnidadFormModal: React.FC<UnidadFormModalProps> = ({ isOpen, onClos
         await createMutation.mutateAsync(payload);
       }
       onClose();
-    } catch (error: any) {
-      notify.error(error.response?.data?.message || 'Error al guardar la unidad');
+    } catch {
+      // El toast ya lo muestra el handler global de mutaciones (main.tsx).
     }
   };
 

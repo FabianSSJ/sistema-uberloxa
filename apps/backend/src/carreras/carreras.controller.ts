@@ -63,9 +63,19 @@ export class CarrerasController {
   }
 
   @Delete(':id')
-  remove(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
+  async remove(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
+    // SUPERADMIN borra cualquier carrera, en cualquier estado. Cualquier otro rol solo
+    // puede borrar una carrera PROPIA y mientras sigue PENDIENTE (sin resolver) — cubre
+    // el "me equivoqué, la puse 2 veces" sin abrir la puerta a borrar registros ya
+    // resueltos, que son los que alimentan reportes y estadísticas históricas.
     if (req.user?.rol !== 'SUPERADMIN') {
-      throw new ForbiddenException('Solo el superadministrador puede eliminar carreras permanentemente.');
+      const carrera = await this.carrerasService.findOne(id, req.user); // ya valida ownership para CHARLIE (404 si es de otra)
+      if (carrera.creadoPorId !== req.user?.sub) {
+        throw new ForbiddenException('Solo podés eliminar carreras que vos mismo creaste.');
+      }
+      if (carrera.estado !== 'pendiente') {
+        throw new ForbiddenException('Solo se puede eliminar una carrera mientras está pendiente (sin resolver).');
+      }
     }
     return this.carrerasService.remove(id);
   }

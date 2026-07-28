@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCarreraDto } from './dto/create-carrera.dto';
 import { EstadoCarrera, Prisma } from '../../generated/prisma/client';
@@ -47,6 +47,16 @@ const INCLUDE_CARRERA = {
   creadoPor: { select: { id: true, nombre: true, rol: true, color: true } },
 } as const;
 
+// Versión liviana para el HOT PATH (findPanel/findRecent): el dashboard del Charlie pollea
+// esto cada 1 segundo por cada Charlie/admin conectado, y no usa sector ni modelo/marca —
+// solo lo mínimo para mostrar la cola (nombre+código del cliente, número+chofer de la
+// unidad). Traer el resto en cada poll es peso de red repetido sin ningún consumidor real.
+const INCLUDE_CARRERA_LIVIANO = {
+  cliente: { select: { id: true, nombre: true, codigo: true } },
+  unidad: { select: { id: true, numeroUnidad: true, choferNombre: true } },
+  creadoPor: { select: { id: true, nombre: true, rol: true, color: true } },
+} as const;
+
 @Injectable()
 export class CarrerasService {
   constructor(private prisma: PrismaService) {}
@@ -65,6 +75,12 @@ export class CarrerasService {
       });
       if (!unidad) {
         throw new NotFoundException(`Unidad #${createCarreraDto.unidadId} no existe.`);
+      }
+      // Una unidad inactiva no está operando: no puede recibir carreras. Se valida acá
+      // (fuente de verdad) aunque el frontend ya filtre/bloquee esto en el selector y el
+      // drag-and-drop, porque nunca hay que confiar solo en el cliente.
+      if (unidad.estado === 'inactivo') {
+        throw new BadRequestException(`La unidad Nº ${unidad.numeroUnidad ?? unidad.id} está inactiva y no puede recibir carreras.`);
       }
     }
 
@@ -168,13 +184,20 @@ export class CarrerasService {
 
     const candidatas = await this.prisma.carrera.findMany({
       where,
-      include: INCLUDE_CARRERA,
+      include: INCLUDE_CARRERA_LIVIANO,
       orderBy: { id: 'desc' },
+      // Techo de seguridad: en operación normal esto nunca se acerca (un día activo son
+      // decenas/pocos cientos de carreras), pero sin límite el query escala sin techo si
+      // algún día queda un lote de pendientes sin resolver acumulándose indefinidamente.
+      take: 500,
     });
 
     return candidatas.filter((c) => esVisibleEnPanel(c, ahora));
   }
 
+  // NOTA: sin consumidores en el frontend hoy (usePanelCarreras cubre el panel en vivo).
+  // Se deja porque expone algo potencialmente útil (últimas 5 sin importar antigüedad),
+  // pero si nadie lo llama en unos meses, se puede borrar junto con el hook del frontend.
   async findRecent(user?: any) {
     const where: Prisma.CarreraWhereInput = {};
     if (user?.rol === 'CHARLIE') where.creadoPorId = user.sub;
@@ -182,7 +205,7 @@ export class CarrerasService {
     return this.prisma.carrera.findMany({
       where,
       take: 5,
-      include: INCLUDE_CARRERA,
+      include: INCLUDE_CARRERA_LIVIANO,
       orderBy: { id: 'desc' },
     });
   }
@@ -220,6 +243,9 @@ export class CarrerasService {
       });
       if (!unidad) {
         throw new NotFoundException(`Unidad #${unidadId} no existe.`);
+      }
+      if (unidad.estado === 'inactivo') {
+        throw new BadRequestException(`La unidad Nº ${unidad.numeroUnidad ?? unidad.id} está inactiva y no puede recibir carreras.`);
       }
     }
 

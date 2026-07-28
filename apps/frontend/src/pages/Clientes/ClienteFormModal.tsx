@@ -91,10 +91,12 @@ export const ClienteFormModal: React.FC<ClienteFormModalProps> = ({
     setCodigoError(null);
     if (codigoOcupadoPor) return; // ya avisado en el form; no enviamos
 
-    // Preparar payload, limpiando strings vacíos
+    // Preparar payload, limpiando strings vacíos. Nombre no es obligatorio: si queda vacío,
+    // el backend arma uno provisorio a partir del teléfono (mismo criterio que el alta rápida
+    // del despacho) — acá solo evitamos mandar un string vacío en vez de omitir el campo.
     const payload: CreateClienteDto = {
       codigo: formData.codigo ?? undefined,
-      nombre: formData.nombre,
+      nombre: formData.nombre?.trim() || undefined,
       telefono: formData.telefono || undefined,
       telefonoAlt: formData.telefonoAlt || undefined,
       direccion: formData.direccion || undefined,
@@ -150,7 +152,8 @@ export const ClienteFormModal: React.FC<ClienteFormModalProps> = ({
           </div>
           <div className="sm:col-span-2">
             <Input
-              label="Nombre Completo *"
+              label="Nombre Completo"
+              placeholder="Opcional — si lo dejás vacío, se arma con el teléfono"
               value={formData.nombre || ''}
               onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
               autoFocus
@@ -230,7 +233,7 @@ export const ClienteFormModal: React.FC<ClienteFormModalProps> = ({
             variant="primary" 
             fullWidth
             isLoading={createMutation.isPending || updateMutation.isPending}
-            disabled={!formData.nombre.trim() || !!codigoOcupadoPor}
+            disabled={!!codigoOcupadoPor}
           >
             {isEditing ? 'Guardar Cambios' : 'Crear Cliente'}
           </Button>

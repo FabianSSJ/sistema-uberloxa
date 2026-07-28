@@ -12,8 +12,10 @@ export const useEstadoWhatsapp = () =>
 export const useEnviarReporte = () =>
   useMutation({
     mutationFn: reportesService.enviarAhora,
+    // Si la promesa rechaza (network/backend down), el handler global de mutaciones
+    // (main.tsx) ya avisa — acá solo cubrimos el caso "200 OK pero r.ok = false"
+    // (ej. WhatsApp no conectado), que no es un error de mutación, es de negocio.
     onSuccess: (r) => (r.ok ? notify.success('Informe enviado por WhatsApp ✅') : notify.error(r.detalle)),
-    onError: () => notify.error('No se pudo enviar el informe.'),
   });
 
 /**

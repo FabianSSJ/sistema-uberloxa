@@ -1,4 +1,5 @@
 import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
+import { Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateMarcaDto } from './dto/create-marca.dto';
 import { UpdateMarcaDto } from './dto/update-marca.dto';
@@ -74,9 +75,18 @@ export class MarcasService {
   }
 
   async remove(id: number) {
-    await this.findOne(id);
-    return this.prisma.marca.delete({
-      where: { id },
-    });
+    const marca = await this.findOne(id);
+    try {
+      return await this.prisma.marca.delete({
+        where: { id },
+      });
+    } catch (error) {
+      // P2003 = violación de FK: hay modelos que todavía apuntan a esta marca.
+      // Sin este catch, Nest devuelve un 500 genérico y el usuario no entiende qué pasó.
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2003') {
+        throw new ConflictException(`No se puede eliminar la marca '${marca.nombre}': tiene modelos asociados.`);
+      }
+      throw error;
+    }
   }
 }

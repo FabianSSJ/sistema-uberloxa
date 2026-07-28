@@ -4,7 +4,6 @@ import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { useMarcas, useCreateMarca, useUpdateMarca, useDeleteMarca } from '../../features/marcas/hooks/useMarcas';
-import { notify } from '../../components/ui/toast';
 import { Edit2, Trash2, Plus } from 'lucide-react';
 
 interface MarcaManagerModalProps {
@@ -33,8 +32,8 @@ export const MarcaManagerModal: React.FC<MarcaManagerModalProps> = ({ isOpen, on
       }
       setNombre('');
       setEditingId(null);
-    } catch (error: any) {
-      notify.error(error.response?.data?.message || 'Error al guardar la marca');
+    } catch {
+      // El toast ya lo muestra el handler global de mutaciones (main.tsx).
     }
   };
 
@@ -53,8 +52,8 @@ export const MarcaManagerModal: React.FC<MarcaManagerModalProps> = ({ isOpen, on
     if (!marcaToDelete) return;
     try {
       await deleteMutation.mutateAsync(marcaToDelete.id);
-    } catch (error: any) {
-      notify.error(error.response?.data?.message || 'Error al eliminar la marca (puede estar en uso)');
+    } catch {
+      // El toast ya lo muestra el handler global de mutaciones (main.tsx).
     }
     setMarcaToDelete(null);
   };
