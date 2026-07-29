@@ -55,10 +55,16 @@ export const CompletarCarreraModal: React.FC<CompletarCarreraModalProps> = ({
 
         <Select
           label="Unidad que realizó la carrera *"
-          options={unidades.map(u => ({
-            value: u.id,
-            label: `Placa: ${u.placa} - Chofer: ${u.choferNombre} (${u.color || 'Sin color'})`
-          }))}
+          options={unidades.map(u => {
+            const isOcupado = u.estado === 'ocupado';
+            const isInactivo = u.estado === 'inactivo';
+            const extra = isOcupado ? ' (OCUPADO)' : isInactivo ? ' (INACTIVO)' : '';
+            return {
+              value: u.id,
+              label: `Nº ${u.numeroUnidad || 'S/N'} · Placa: ${u.placa} · Chofer: ${u.choferNombre}${extra}`,
+              disabled: isOcupado || isInactivo,
+            };
+          })}
           value={unidadId || ''}
           onChange={(val) => setUnidadId(val ? Number(val) : undefined)}
           placeholder="Seleccione la unidad..."

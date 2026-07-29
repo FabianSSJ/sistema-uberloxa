@@ -6,6 +6,7 @@ export interface SelectOption {
   label: string;
   /** Texto extra para la búsqueda (no se muestra). Permite buscar por campos que no están en el label. */
   searchText?: string;
+  disabled?: boolean;
 }
 
 interface SelectProps {
@@ -132,12 +133,15 @@ export const Select: React.FC<SelectProps> = ({
                 {filteredOptions.map((option) => (
                   <li
                     key={option.value}
-                    className={`px-4 py-2.5 text-[0.9375rem] cursor-pointer flex items-center justify-between transition-colors
-                      ${option.value === value 
-                        ? 'bg-blue-50 text-blue-700 font-medium' 
-                        : 'text-gray-700 hover:bg-gray-100'
+                    className={`px-4 py-2.5 text-[0.9375rem] flex items-center justify-between transition-colors
+                      ${option.disabled
+                        ? 'opacity-50 cursor-not-allowed bg-gray-50 text-gray-400'
+                        : option.value === value 
+                          ? 'bg-blue-50 text-blue-700 font-medium cursor-pointer' 
+                          : 'text-gray-700 hover:bg-gray-100 cursor-pointer'
                       }`}
                     onClick={() => {
+                      if (option.disabled) return;
                       onChange(option.value);
                       setIsOpen(false);
                       setSearchTerm('');

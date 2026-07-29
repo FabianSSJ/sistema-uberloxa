@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Modal } from '../../components/ui/Modal';
 import { Button } from '../../components/ui/Button';
 import { Select } from '../../components/ui/Select';
-import { useCarreras } from '../../features/carreras/hooks/useCarreras';
+import { useCompletarCarrera } from '../../features/carreras/hooks/useCarreras';
 import { useUnidades } from '../../features/unidades/hooks/useUnidades';
 import { Carrera } from '../../features/carreras/services/carreras.service';
 import { unidadSearchText } from '../../core/search/matchers';
@@ -14,7 +14,7 @@ interface AsignarUnidadModalProps {
 }
 
 export const AsignarUnidadModal: React.FC<AsignarUnidadModalProps> = ({ isOpen, onClose, carrera }) => {
-  const { assignUnidadMutation } = useCarreras();
+  const completarMutation = useCompletarCarrera();
   const unidadesQuery = useUnidades();
   const [unidadId, setUnidadId] = useState<number | ''>('');
 
@@ -24,8 +24,8 @@ export const AsignarUnidadModal: React.FC<AsignarUnidadModalProps> = ({ isOpen, 
     e.preventDefault();
     if (!unidadId || !carrera) return;
 
-    assignUnidadMutation.mutate(
-      { id: carrera.id, data: { unidadId: Number(unidadId) } },
+    completarMutation.mutate(
+      { id: carrera.id, unidadId: Number(unidadId) },
       {
         onSuccess: () => {
           setUnidadId('');
@@ -48,11 +48,17 @@ export const AsignarUnidadModal: React.FC<AsignarUnidadModalProps> = ({ isOpen, 
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <Select
           label="Unidad a despachar *"
-          options={unidades.map(u => ({
-            value: u.id,
-            label: `[${u.placa}] ${u.modelo?.marca?.nombre || ''} ${u.modelo?.nombre || ''} - Chofer: ${u.choferNombre}`,
-            searchText: unidadSearchText(u)
-          }))}
+          options={unidades.map(u => {
+            const isOcupado = u.estado === 'ocupado';
+            const isInactivo = u.estado === 'inactivo';
+            const extra = isOcupado ? ' (OCUPADO)' : isInactivo ? ' (INACTIVO)' : '';
+            return {
+              value: u.id,
+              label: `[${u.placa}] ${u.modelo?.marca?.nombre || ''} ${u.modelo?.nombre || ''} - Chofer: ${u.choferNombre}${extra}`,
+              searchText: unidadSearchText(u),
+              disabled: isOcupado || isInactivo,
+            };
+          })}
           value={unidadId}
           onChange={(val) => setUnidadId(Number(val))}
           placeholder="Buscar por nº, placa, chofer, teléfono, modelo..."
@@ -63,7 +69,7 @@ export const AsignarUnidadModal: React.FC<AsignarUnidadModalProps> = ({ isOpen, 
           <Button type="button" variant="secondary" onClick={onClose}>
             Cancelar
           </Button>
-          <Button type="submit" isLoading={assignUnidadMutation.isPending} disabled={!unidadId}>
+          <Button type="submit" isLoading={completarMutation.isPending} disabled={!unidadId}>
             Asignar Unidad
           </Button>
         </div>
