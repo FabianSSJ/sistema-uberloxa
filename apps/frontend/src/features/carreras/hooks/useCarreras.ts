@@ -67,6 +67,7 @@ export const useCompletarCarrera = () => {
       carrerasService.completar(id, unidadId),
     onSuccess: () => {
       invalidarCarreras(queryClient);
+      queryClient.invalidateQueries({ queryKey: ['unidades'] });
       notify.success('Carrera completada');
     },
   });

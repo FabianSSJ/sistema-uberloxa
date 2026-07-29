@@ -3,7 +3,7 @@ import { Modal } from '../../components/ui/Modal';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { Select } from '../../components/ui/Select';
-import { useCarreras } from '../../features/carreras/hooks/useCarreras';
+import { useCreateCarrera } from '../../features/carreras/hooks/useCarreras';
 import { useClientes } from '../../features/clientes/hooks/useClientes';
 import { useUnidades } from '../../features/unidades/hooks/useUnidades';
 import { clienteSearchText, unidadSearchText } from '../../core/search/matchers';
@@ -14,7 +14,7 @@ interface NuevaCarreraModalProps {
 }
 
 export const NuevaCarreraModal: React.FC<NuevaCarreraModalProps> = ({ isOpen, onClose }) => {
-  const { createMutation } = useCarreras();
+  const createCarreraMutation = useCreateCarrera();
   const clientesQuery = useClientes();
   const unidadesQuery = useUnidades();
   
@@ -29,7 +29,7 @@ export const NuevaCarreraModal: React.FC<NuevaCarreraModalProps> = ({ isOpen, on
     e.preventDefault();
     if (!clienteId) return;
 
-    createMutation.mutate(
+    createCarreraMutation.mutate(
       { 
         clienteId: Number(clienteId), 
         unidadId: unidadId ? Number(unidadId) : undefined,
@@ -73,11 +73,17 @@ export const NuevaCarreraModal: React.FC<NuevaCarreraModalProps> = ({ isOpen, on
           label="Unidad a despachar (Opcional)"
           options={[
             { value: '', label: 'Ninguna (Dejar Sin Asignar)' },
-            ...unidades.map(u => ({
-              value: u.id,
-              label: `[${u.placa}] ${u.modelo?.marca?.nombre || ''} ${u.modelo?.nombre || ''} - Chofer: ${u.choferNombre}`,
-              searchText: unidadSearchText(u)
-            }))
+            ...unidades.map(u => {
+              const isOcupado = u.estado === 'ocupado';
+              const isInactivo = u.estado === 'inactivo';
+              const extra = isOcupado ? ' (OCUPADO)' : isInactivo ? ' (INACTIVO)' : '';
+              return {
+                value: u.id,
+                label: `[${u.placa}] ${u.modelo?.marca?.nombre || ''} ${u.modelo?.nombre || ''} - Chofer: ${u.choferNombre}${extra}`,
+                searchText: unidadSearchText(u),
+                disabled: isOcupado || isInactivo,
+              };
+            })
           ]}
           value={unidadId}
           onChange={(val) => setUnidadId(val === '' ? '' : Number(val))}
@@ -96,7 +102,7 @@ export const NuevaCarreraModal: React.FC<NuevaCarreraModalProps> = ({ isOpen, on
           <Button type="button" variant="secondary" onClick={onClose}>
             Cancelar
           </Button>
-          <Button type="submit" isLoading={createMutation.isPending} disabled={!clienteId}>
+          <Button type="submit" isLoading={createCarreraMutation.isPending} disabled={!clienteId}>
             Crear Carrera
           </Button>
         </div>

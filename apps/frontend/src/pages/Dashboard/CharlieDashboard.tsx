@@ -1,5 +1,5 @@
-import { Car, Clock, Plus, Search, Trash2, MapPin, Phone, Moon, Play, Power, PowerOff, Unlock, TrendingUp, CheckCircle2, AlertTriangle, XCircle, UserPlus, X } from 'lucide-react';
-import { useState, useMemo, type ReactNode, type KeyboardEvent } from 'react';
+import { Car, Clock, Plus, Search, Trash2, MapPin, Phone, Moon, Play, Power, PowerOff, Unlock, TrendingUp, CheckCircle2, AlertTriangle, XCircle, UserPlus, X, Send } from 'lucide-react';
+import { useState, useMemo, useRef, type ReactNode, type KeyboardEvent } from 'react';
 
 import { useClientes, useCreateCliente } from '../../features/clientes/hooks/useClientes';
 import { useColaDespacho } from '../../features/unidades/hooks/useColaDespacho';
@@ -30,11 +30,10 @@ export const CharlieDashboard = () => {
   // perdida) van después, en su orden natural por hora de creación (la API ya devuelve id
   // desc = más nueva primero, así que separar preservando el orden relativo alcanza).
   const carrerasDelDia = useMemo(() => {
-    const propias = allRidesData.filter((r: any) => !r.creadoPorId || r.creadoPorId === user?.id);
-    const pendientes = propias.filter((r: any) => r.estado === 'pendiente');
-    const resueltas = propias.filter((r: any) => r.estado !== 'pendiente');
+    const pendientes = allRidesData.filter((r: any) => r.estado === 'pendiente');
+    const resueltas = allRidesData.filter((r: any) => r.estado !== 'pendiente');
     return [...pendientes, ...resueltas];
-  }, [allRidesData, user?.id]);
+  }, [allRidesData]);
 
   // Resumen rápido del día por estado, sobre las mismas carreras que ya se ven en el panel.
   const resumenDia = useMemo(() => {
@@ -64,6 +63,48 @@ export const CharlieDashboard = () => {
   const [rapidoTelefono, setRapidoTelefono] = useState('');
   const [careerToDelete, setCareerToDelete] = useState<number | null>(null);
   const [detalleUnidad, setDetalleUnidad] = useState<any>(null);
+  const [numUnidadRapido, setNumUnidadRapido] = useState('');
+
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const unitInputRef = useRef<HTMLInputElement>(null);
+
+  const despacharConUnidad = (clienteId: number, numUnidadStr: string) => {
+    const numClean = numUnidadStr.trim();
+    if (!numClean) {
+      notify.error('Ingresá el número de unidad (ej. 70, 05, 28)');
+      return;
+    }
+    const unidadTarget = todasUnidades.find((u: any) => {
+      const num = (u.numeroUnidad || '').toString().trim();
+      return num === numClean || parseInt(num, 10) === parseInt(numClean, 10);
+    });
+
+    if (!unidadTarget) {
+      notify.error(`No se encontró la Unidad Nº "${numClean}". Verificá el número.`);
+      return;
+    }
+
+    if (unidadTarget.estado === 'inactivo') {
+      notify.error(`La unidad Nº ${unidadTarget.numeroUnidad || 'S/N'} está inactiva — activala antes de asignarle una carrera.`);
+      return;
+    }
+
+    if (unidadTarget.estado === 'ocupado') {
+      notify.error(`La unidad Nº ${unidadTarget.numeroUnidad || 'S/N'} ya está ocupada en otra carrera.`);
+      return;
+    }
+
+    createCarreraMutation.mutate(
+      { clienteId, unidadId: unidadTarget.id, notas: 'Despacho Rápido' },
+      {
+        onSuccess: () => {
+          setSearchCliente('');
+          setNumUnidadRapido('');
+          setTimeout(() => searchInputRef.current?.focus(), 50);
+        }
+      }
+    );
+  };
 
   const [draggedItem, setDraggedItem] = useState<{type: 'CHOFER' | 'CLIENTE', id: number} | null>(null);
   const [dragOverItem, setDragOverItem] = useState<{type: 'CHOFER' | 'CLIENTE' | 'CARRERA', id: number} | null>(null);
@@ -107,7 +148,12 @@ export const CharlieDashboard = () => {
   // que un buscador/command palette: no hace falta soltar el mouse para despachar rápido).
   const handleSearchKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && filteredClientes.length > 0) {
-      crearPendiente(filteredClientes[0].id);
+      e.preventDefault();
+      if (esBusquedaCodigo && unitInputRef.current) {
+        unitInputRef.current.focus();
+      } else {
+        crearPendiente(filteredClientes[0].id);
+      }
     }
   };
 
@@ -231,11 +277,15 @@ export const CharlieDashboard = () => {
                   onClick={() => setDetalleUnidad(u)}
                   title={`Unidad ${u.numeroUnidad || 'S/N'} · ${u.choferNombre || 'Sin chofer'} · ${ESTADO_UNIDAD_STYLES[estado as keyof typeof ESTADO_UNIDAD_STYLES]?.label ?? estado} · Click para ver detalle`}
                   onDragStart={(e) => {
-                    // Una unidad inactiva no puede tomar carreras (lo valida el backend también,
-                    // pero acá se lo decimos al toque: ni siquiera dejamos que empiece a arrastrarla).
+                    // Una unidad inactiva u ocupada no puede tomar carreras
                     if (estado === 'inactivo') {
                       e.preventDefault();
                       notify.error(`La unidad Nº ${u.numeroUnidad || 'S/N'} está inactiva — activala antes de asignarle una carrera.`);
+                      return;
+                    }
+                    if (estado === 'ocupado') {
+                      e.preventDefault();
+                      notify.error(`La unidad Nº ${u.numeroUnidad || 'S/N'} ya está ocupada en otra carrera.`);
                       return;
                     }
                     setDraggedItem({ type: 'CHOFER', id: u.id });
@@ -244,16 +294,16 @@ export const CharlieDashboard = () => {
                   onDragEnd={() => { setDraggedItem(null); setDragOverItem(null); }}
                   onDragOver={(e) => {
                     e.preventDefault();
-                    if (draggedItem && draggedItem.type === 'CLIENTE' && estado !== 'inactivo') setDragOverItem({ type: 'CHOFER', id: u.id });
+                    if (draggedItem && draggedItem.type === 'CLIENTE' && estado !== 'inactivo' && estado !== 'ocupado') setDragOverItem({ type: 'CHOFER', id: u.id });
                   }}
                   onDragLeave={() => setDragOverItem(null)}
                   onDrop={(e) => {
                     e.preventDefault();
                     if (draggedItem && draggedItem.type === 'CLIENTE') {
-                      // Simétrico al bloqueo de arriba: acá el drop target es la unidad (cliente
-                      // arrastrado sobre la card), así que la misma regla aplica del otro lado.
                       if (estado === 'inactivo') {
                         notify.error(`La unidad Nº ${u.numeroUnidad || 'S/N'} está inactiva — activala antes de asignarle una carrera.`);
+                      } else if (estado === 'ocupado') {
+                        notify.error(`La unidad Nº ${u.numeroUnidad || 'S/N'} ya está ocupada en otra carrera.`);
                       } else {
                         createCarreraMutation.mutate({ clienteId: draggedItem.id, unidadId: u.id, notas: 'Asignación Rápida' });
                       }
@@ -323,6 +373,7 @@ export const CharlieDashboard = () => {
                 <div className="relative flex-1 min-w-0">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                   <input
+                    ref={searchInputRef}
                     type="text"
                     placeholder="Buscar cliente por código, nombre, teléfono, dirección..."
                     className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-200 focus:border-green-500 focus:ring-2 focus:ring-green-200 outline-none transition-all shadow-sm"
@@ -408,8 +459,15 @@ export const CharlieDashboard = () => {
                       onDrop={(e) => {
                         e.preventDefault();
                         if (draggedItem && draggedItem.type === 'CHOFER') {
-                          createCarreraMutation.mutate({ clienteId: c.id, unidadId: draggedItem.id, notas: 'Asignación Rápida' });
-                          setSearchCliente(''); // tras asignar, limpiamos la búsqueda para ver la carrera registrada
+                          const unidadDrag = todasUnidades.find((u: any) => u.id === draggedItem.id);
+                          if (unidadDrag?.estado === 'inactivo') {
+                            notify.error(`La unidad Nº ${unidadDrag.numeroUnidad || 'S/N'} está inactiva — activala antes de asignarle una carrera.`);
+                          } else if (unidadDrag?.estado === 'ocupado') {
+                            notify.error(`La unidad Nº ${unidadDrag.numeroUnidad || 'S/N'} ya está ocupada en otra carrera.`);
+                          } else {
+                            createCarreraMutation.mutate({ clienteId: c.id, unidadId: draggedItem.id, notas: 'Asignación Rápida' });
+                            setSearchCliente(''); // tras asignar, limpiamos la búsqueda para ver la carrera registrada
+                          }
                         }
                         setDraggedItem(null); setDragOverItem(null);
                       }}
@@ -445,22 +503,46 @@ export const CharlieDashboard = () => {
                             )}
                           </div>
 
-                          {/* Botón de acción única para registrar carrera perdida sin unidad */}
-                          <div className="pt-2 border-t border-gray-100">
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                createCarreraMutation.mutate(
-                                  { clienteId: c.id, estado: 'perdida', notas: 'Sin unidad disponible' },
-                                  { onSuccess: () => setSearchCliente('') }
-                                );
+                          {/* Campo de entrada rápida para número de unidad + despacho con ENTER */}
+                          <div className="pt-3 border-t border-gray-100 flex flex-col gap-2" onClick={(e) => e.stopPropagation()}>
+                            <label className="text-xs font-bold uppercase tracking-wider text-gray-500">
+                              Despachar a Unidad
+                            </label>
+                            <form
+                              onSubmit={(e) => {
+                                e.preventDefault();
+                                despacharConUnidad(c.id, numUnidadRapido);
                               }}
-                              className="w-full py-2.5 px-4 bg-orange-600 hover:bg-orange-700 text-white font-bold text-sm rounded-xl transition shadow flex items-center justify-center gap-2"
+                              className="w-full"
                             >
-                              <AlertTriangle size={16} />
-                              <span>Carrera Perdida (Sin unidad)</span>
-                            </button>
+                              <div className="relative w-full">
+                                <Car className="absolute left-3 top-1/2 -translate-y-1/2 text-amber-500" size={20} />
+                                <input
+                                  ref={unitInputRef}
+                                  type="text"
+                                  placeholder="Escribí el Nº de Unidad y presioná Enter..."
+                                  value={numUnidadRapido}
+                                  onChange={(e) => setNumUnidadRapido(e.target.value)}
+                                  className="w-full pl-10 pr-4 py-2.5 bg-amber-50/60 border-2 border-amber-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 text-lg font-black text-gray-900 rounded-xl outline-none transition shadow-sm placeholder:text-gray-400 placeholder:font-normal"
+                                />
+                              </div>
+                            </form>
+                            <div className="flex items-center justify-between text-xs text-gray-400 font-medium px-1">
+                              <span>Presioná <strong className="text-gray-600">Enter</strong> para despachar directo</span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  createCarreraMutation.mutate(
+                                    { clienteId: c.id, estado: 'perdida', notas: 'Sin unidad disponible' },
+                                    { onSuccess: () => setSearchCliente('') }
+                                  );
+                                }}
+                                className="text-orange-600 hover:text-orange-700 hover:underline font-semibold flex items-center gap-1 cursor-pointer"
+                              >
+                                <AlertTriangle size={12} />
+                                <span>Carrera Perdida (Sin unidad)</span>
+                              </button>
+                            </div>
                           </div>
                         </>
                       ) : (
@@ -530,7 +612,14 @@ export const CharlieDashboard = () => {
                       onDrop={esPendiente ? (e) => {
                         e.preventDefault();
                         if (draggedItem?.type === 'CHOFER') {
-                          completarMutation.mutate({ id: r.id, unidadId: draggedItem.id });
+                          const unidadDrag = todasUnidades.find((u: any) => u.id === draggedItem.id);
+                          if (unidadDrag?.estado === 'inactivo') {
+                            notify.error(`La unidad Nº ${unidadDrag.numeroUnidad || 'S/N'} está inactiva — activala antes de asignarle una carrera.`);
+                          } else if (unidadDrag?.estado === 'ocupado') {
+                            notify.error(`La unidad Nº ${unidadDrag.numeroUnidad || 'S/N'} ya está ocupada en otra carrera.`);
+                          } else {
+                            completarMutation.mutate({ id: r.id, unidadId: draggedItem.id });
+                          }
                         }
                         setDraggedItem(null); setDragOverItem(null);
                       } : undefined}

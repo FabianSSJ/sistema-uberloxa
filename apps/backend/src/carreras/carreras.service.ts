@@ -4,7 +4,7 @@ import { CreateCarreraDto } from './dto/create-carrera.dto';
 import { EstadoCarrera, Prisma } from '../../generated/prisma/client';
 
 // Al asignar una carrera, la unidad queda ocupada este tiempo y luego se auto-libera.
-const MINUTOS_OCUPADO = 15;
+const MINUTOS_OCUPADO = 10;
 
 // Ecuador (America/Guayaquil) es UTC-5 fijo, sin horario de verano — permite hacer
 // la matemática de "día local" con un offset constante, sin librerías de timezone.
@@ -82,6 +82,9 @@ export class CarrerasService {
       if (unidad.estado === 'inactivo') {
         throw new BadRequestException(`La unidad Nº ${unidad.numeroUnidad ?? unidad.id} está inactiva y no puede recibir carreras.`);
       }
+      if (unidad.estado === 'ocupado') {
+        throw new BadRequestException(`La unidad Nº ${unidad.numeroUnidad ?? unidad.id} está ocupada en otra carrera.`);
+      }
     }
 
     const startOfDay = new Date();
@@ -138,7 +141,6 @@ export class CarrerasService {
     const take = params.take ?? 30;
 
     const where: Prisma.CarreraWhereInput = {};
-    if (user?.rol === 'CHARLIE') where.creadoPorId = user.sub;
     if (params.desde || params.hasta) {
       where.createdAt = {
         ...(params.desde ? { gte: params.desde } : {}),
@@ -180,7 +182,6 @@ export class CarrerasService {
         { estado: { in: EN_PROCESO } },
       ],
     };
-    if (user?.rol === 'CHARLIE') where.creadoPorId = user.sub;
 
     const candidatas = await this.prisma.carrera.findMany({
       where,
@@ -200,7 +201,6 @@ export class CarrerasService {
   // pero si nadie lo llama en unos meses, se puede borrar junto con el hook del frontend.
   async findRecent(user?: any) {
     const where: Prisma.CarreraWhereInput = {};
-    if (user?.rol === 'CHARLIE') where.creadoPorId = user.sub;
 
     return this.prisma.carrera.findMany({
       where,
@@ -216,9 +216,7 @@ export class CarrerasService {
    * carrera existe pero es de otro, evitando enumeración de recursos ajenos.
    */
   private assertAcceso(carrera: { id: number; creadoPorId: number | null }, user?: any) {
-    if (user?.rol === 'CHARLIE' && carrera.creadoPorId !== user.sub) {
-      throw new NotFoundException(`Carrera #${carrera.id} no encontrada`);
-    }
+    // Todos los operadores del sistema pueden consultar cualquier carrera.
   }
 
   async findOne(id: number, user?: any) {
@@ -247,6 +245,9 @@ export class CarrerasService {
       if (unidad.estado === 'inactivo') {
         throw new BadRequestException(`La unidad Nº ${unidad.numeroUnidad ?? unidad.id} está inactiva y no puede recibir carreras.`);
       }
+      if (unidad.estado === 'ocupado' && carrera.unidadId !== unidad.id) {
+        throw new BadRequestException(`La unidad Nº ${unidad.numeroUnidad ?? unidad.id} está ocupada en otra carrera.`);
+      }
     }
 
     const updated = await this.prisma.carrera.update({
@@ -267,8 +268,14 @@ export class CarrerasService {
       }
     });
 
-    // Terminar NO libera la unidad: sigue ocupada sus 15 min (solo cancelar/perder la liberan al instante).
-    void uId;
+    // Terminar o asignar la unidad pone su estado en 'ocupado' por MINUTOS_OCUPADO (10 min).
+    if (uId) {
+      const ocupadoHasta = new Date(Date.now() + MINUTOS_OCUPADO * 60 * 1000);
+      await this.prisma.unidad.update({
+        where: { id: uId },
+        data: { estado: 'ocupado', ocupadoHasta },
+      });
+    }
     return updated;
   }
 
@@ -293,7 +300,7 @@ export class CarrerasService {
       }
     });
 
-    // Cancelar/Perder liberan la unidad al instante (+ limpian el timer). 'completada' no la toca (sigue sus 15 min).
+    // Cancelar/Perder liberan la unidad al instante (+ limpian el timer). 'completada' no la toca (sigue sus 10 min).
     if ((nuevoEstado === 'cancelada' || nuevoEstado === 'perdida') && carrera.unidadId) {
       await this.prisma.unidad.update({
         where: { id: carrera.unidadId },

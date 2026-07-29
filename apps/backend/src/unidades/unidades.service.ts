@@ -54,7 +54,7 @@ export class UnidadesService {
     });
   }
 
-  // Libera las unidades cuyo tiempo de ocupación (15 min) ya venció. Antes se llamaba en
+  // Libera las unidades cuyo tiempo de ocupación (10 min) ya venció. Antes se llamaba en
   // CADA lectura de findAll() — con el dashboard polleando cada 1s por cada Charlie conectada,
   // eso era un UPDATE contra la tabla por segundo por pestaña abierta, casi siempre sin nada
   // que actualizar. Como job cada 10s, la escritura queda desacoplada del camino de lectura
