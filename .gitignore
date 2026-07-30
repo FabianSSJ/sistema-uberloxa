@@ -101,3 +101,13 @@ wa-auth/
 wa-qr.png
 **/wa-qr.png
 Ejemplo_Informe_UberLoxa.pdf
+
+# Datos reales de clientes (nombre, telefono, direccion) — NUNCA commitear
+/*.xlsx
+/CLIENTES*
+/preview_*.csv
+/preview_*.md
+/extract-*.js
+/read-excel.js
+/stash_diff.txt
+/out.txt
