@@ -94,6 +94,7 @@ Thumbs.db
 
 # Backups de BD (custom format)
 *.backup
+*.dump
 
 # Sesión de WhatsApp (Baileys) — credenciales, NO commitear
 wa-auth/
