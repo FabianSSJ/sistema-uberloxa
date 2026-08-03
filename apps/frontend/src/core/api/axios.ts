@@ -22,4 +22,24 @@ api.interceptors.request.use(
   }
 );
 
+// Sesión vencida o inválida: sin esto, un token expirado (8h) dejaba a los paneles con
+// polling (cada 1s) reintentando en silencio para siempre — nunca mandaba al login, nunca
+// mostraba error, solo seguía fallando cada segundo. Excluye /auth/login: ahí un 401 es
+// "contraseña incorrecta", lo maneja el propio formulario, no una sesión vencida.
+let sesionExpirando = false;
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const esLogin = error.config?.url?.includes('/auth/login');
+    if (error.response?.status === 401 && !esLogin && !sesionExpirando) {
+      sesionExpirando = true;
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      delete api.defaults.headers.common['Authorization'];
+      window.location.href = '/login';
+    }
+    return Promise.reject(error);
+  }
+);
+
 export default api;
