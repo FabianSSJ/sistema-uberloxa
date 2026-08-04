@@ -4,6 +4,9 @@ import { ChevronDown, Check, Search } from 'lucide-react';
 export interface SelectOption {
   value: string | number;
   label: string;
+  /** Texto extra para la búsqueda (no se muestra). Permite buscar por campos que no están en el label. */
+  searchText?: string;
+  disabled?: boolean;
 }
 
 interface SelectProps {
@@ -58,9 +61,10 @@ export const Select: React.FC<SelectProps> = ({
   const filteredOptions = useMemo(() => {
     if (!searchable || !searchTerm) return options;
     const term = searchTerm.toLowerCase();
-    return options.filter(opt => 
-      opt.label.toLowerCase().includes(term) || 
-      String(opt.value).toLowerCase().includes(term)
+    return options.filter(opt =>
+      opt.label.toLowerCase().includes(term) ||
+      String(opt.value).toLowerCase().includes(term) ||
+      (opt.searchText?.toLowerCase().includes(term) ?? false)
     );
   }, [options, searchable, searchTerm]);
 
@@ -79,7 +83,7 @@ export const Select: React.FC<SelectProps> = ({
       
       {/* Trigger Button */}
       <div
-        className={`flex items-center justify-between px-3 py-2.5 bg-white border rounded-md text-[15px] cursor-pointer transition-colors duration-200 outline-none ${errorClass} ${isOpen ? 'ring-2 ring-blue-500 border-blue-500 ring-opacity-50' : ''}`}
+        className={`flex items-center justify-between px-3 py-2.5 bg-white border rounded-md text-[0.9375rem] cursor-pointer transition-colors duration-200 outline-none ${errorClass} ${isOpen ? 'ring-2 ring-blue-500 border-blue-500 ring-opacity-50' : ''}`}
         onClick={() => setIsOpen(!isOpen)}
         tabIndex={0}
         onKeyDown={(e) => {
@@ -129,12 +133,15 @@ export const Select: React.FC<SelectProps> = ({
                 {filteredOptions.map((option) => (
                   <li
                     key={option.value}
-                    className={`px-4 py-2.5 text-[15px] cursor-pointer flex items-center justify-between transition-colors
-                      ${option.value === value 
-                        ? 'bg-blue-50 text-blue-700 font-medium' 
-                        : 'text-gray-700 hover:bg-gray-100'
+                    className={`px-4 py-2.5 text-[0.9375rem] flex items-center justify-between transition-colors
+                      ${option.disabled
+                        ? 'opacity-50 cursor-not-allowed bg-gray-50 text-gray-400'
+                        : option.value === value 
+                          ? 'bg-blue-50 text-blue-700 font-medium cursor-pointer' 
+                          : 'text-gray-700 hover:bg-gray-100 cursor-pointer'
                       }`}
                     onClick={() => {
+                      if (option.disabled) return;
                       onChange(option.value);
                       setIsOpen(false);
                       setSearchTerm('');

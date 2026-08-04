@@ -1,8 +1,14 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, ParseIntPipe, UseGuards } from '@nestjs/common';
 import { ModelosService } from './modelos.service';
 import { CreateModeloDto } from './dto/create-modelo.dto';
 import { UpdateModeloDto } from './dto/update-modelo.dto';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { ModulesGuard } from '../auth/guards/modules.guard';
+import { RequireModule } from '../auth/decorators/modules.decorator';
 
+// Catálogo de vehículos (marca/modelo): mismo módulo que unidades, nadie de Charlie lo necesita.
+@UseGuards(JwtAuthGuard, ModulesGuard)
+@RequireModule('unidades')
 @Controller('modelos')
 export class ModelosController {
   constructor(private readonly modelosService: ModelosService) {}

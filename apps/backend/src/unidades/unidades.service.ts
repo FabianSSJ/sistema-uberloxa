@@ -1,10 +1,14 @@
-import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
+import { Injectable, ConflictException, NotFoundException, Logger } from '@nestjs/common';
+import { Interval } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUnidadDto } from './dto/create-unidad.dto';
 import { UpdateUnidadDto } from './dto/update-unidad.dto';
+import { EstadoUnidad } from '../../generated/prisma/client';
 
 @Injectable()
 export class UnidadesService {
+  private readonly logger = new Logger(UnidadesService.name);
+
   constructor(private prisma: PrismaService) {}
 
   private toTitleCase(str: string): string {
@@ -45,8 +49,23 @@ export class UnidadesService {
         vehiculo: this.toTitleCase(createUnidadDto.vehiculo),
         choferNombre: this.toTitleCase(createUnidadDto.choferNombre),
         choferTelefono: createUnidadDto.choferTelefono || null,
+        colorIdentidad: createUnidadDto.colorIdentidad ?? null,
       }
     });
+  }
+
+  // Libera las unidades cuyo tiempo de ocupación (10 min) ya venció. Antes se llamaba en
+  // CADA lectura de findAll() — con el dashboard polleando cada 1s por cada Charlie conectada,
+  // eso era un UPDATE contra la tabla por segundo por pestaña abierta, casi siempre sin nada
+  // que actualizar. Como job cada 10s, la escritura queda desacoplada del camino de lectura
+  // (10s de margen es irrelevante para el usuario: nadie nota una unidad liberada 10s tarde).
+  @Interval(10_000)
+  private async _liberarOcupadasVencidas() {
+    const { count } = await this.prisma.unidad.updateMany({
+      where: { estado: 'ocupado', ocupadoHasta: { not: null, lt: new Date() } },
+      data: { estado: 'disponible', ocupadoHasta: null },
+    });
+    if (count > 0) this.logger.log(`Liberadas ${count} unidad(es) por tiempo de ocupación vencido`);
   }
 
   async findAll() {
@@ -104,6 +123,26 @@ export class UnidadesService {
     return this.prisma.unidad.update({
       where: { id },
       data: dataToUpdate
+    });
+  }
+
+  async cambiarEstado(id: number, estado: EstadoUnidad) {
+    const unidad = await this.findOne(id); // verifica existencia + me da el activadoEn actual
+
+    // Regla única de la cola de despacho (FIFO con posición fija):
+    //  - inactivo            -> sale de la cola (activadoEn = null), pierde su turno.
+    //  - entra a la cola      -> primera activación (activadoEn era null) toma now() y va al final.
+    //  - ya estaba en la cola -> disponible/ocupado/descanso NO tocan activadoEn => conserva su lugar.
+    const data: any = { estado };
+    if (estado === 'inactivo') {
+      data.activadoEn = null;
+    } else if (!unidad.activadoEn) {
+      data.activadoEn = new Date();
+    }
+
+    return this.prisma.unidad.update({
+      where: { id },
+      data,
     });
   }
 

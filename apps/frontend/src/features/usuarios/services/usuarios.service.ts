@@ -7,6 +7,7 @@ export interface Usuario {
   rol: string;
   modulosPermitidos: string[];
   activo: boolean;
+  color?: string | null;
   createdAt: string;
 }
 

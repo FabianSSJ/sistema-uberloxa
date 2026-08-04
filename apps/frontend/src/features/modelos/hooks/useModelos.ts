@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { modelosService, CreateModeloDto } from '../services/modelos.service';
+import { notify } from '../../../components/ui/toast';
 
 export const useModelos = () => {
   return useQuery({
@@ -14,6 +15,7 @@ export const useCreateModelo = () => {
     mutationFn: modelosService.create,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['modelos'] });
+      notify.success('Modelo creado con éxito');
     },
   });
 };
@@ -21,10 +23,11 @@ export const useCreateModelo = () => {
 export const useUpdateModelo = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, data }: { id: number; data: Partial<CreateModeloDto> }) => 
+    mutationFn: ({ id, data }: { id: number; data: Partial<CreateModeloDto> }) =>
       modelosService.update(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['modelos'] });
+      notify.success('Modelo actualizado');
     },
   });
 };
@@ -35,6 +38,7 @@ export const useDeleteModelo = () => {
     mutationFn: modelosService.delete,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['modelos'] });
+      notify.success('Modelo eliminado');
     },
   });
 };

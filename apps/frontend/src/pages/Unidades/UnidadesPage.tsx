@@ -1,25 +1,39 @@
 import React, { useState } from 'react';
 import { useUnidades, useDeleteUnidad } from '../../features/unidades/hooks/useUnidades';
+import { useAuth } from '../../features/auth/context/AuthContext';
+import { useColaDespacho } from '../../features/unidades/hooks/useColaDespacho';
 import { UnidadFormModal } from './UnidadFormModal';
 import { Button } from '../../components/ui/Button';
 import { Pagination } from '../../components/ui/Pagination';
-import { Car, Search, Edit2, Trash2, Plus } from 'lucide-react';
+import { EstadoUnidadBadge } from '../../features/unidades/components/EstadoUnidadBadge';
+import { AsignacionPanel } from '../../features/unidades/components/AsignacionPanel';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
+import { rankBy, scoreUnidad } from '../../core/search/matchers';
+import { colorUnidad } from '../../core/operadores/colores';
+import { Car, Search, Edit2, Trash2, Plus, ListOrdered, LayoutGrid } from 'lucide-react';
+
+type Tab = 'asignacion' | 'lista';
 
 export const UnidadesPage = () => {
+  const { user } = useAuth();
   const { data: unidades = [], isLoading, isError } = useUnidades();
+  const { carrerasHoy } = useColaDespacho();
   const deleteMutation = useDeleteUnidad();
 
   const [isUnidadModalOpen, setIsUnidadModalOpen] = useState(false);
   const [editingUnidadId, setEditingUnidadId] = useState<number | null>(null);
 
+  // Default "Lista de unidades" para quien la puede ver; CHARLIE no tiene ese botón (más abajo),
+  // así que para ese rol el default sigue siendo su única pestaña real: "Asignación".
+  const [tab, setTab] = useState<Tab>(() => (user?.rol === 'CHARLIE' ? 'asignacion' : 'lista'));
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 12;
 
-  const handleDelete = async (id: number, numero: string) => {
-    if (window.confirm(`¿Estás seguro de eliminar la unidad ${numero}?`)) {
-      deleteMutation.mutate(id);
-    }
+  const [unidadToDelete, setUnidadToDelete] = useState<{ id: number; numero: string } | null>(null);
+
+  const handleDelete = (id: number, numero: string) => {
+    setUnidadToDelete({ id, numero });
   };
 
   const handleOpenEdit = (id: number) => {
@@ -32,12 +46,7 @@ export const UnidadesPage = () => {
     setIsUnidadModalOpen(true);
   };
 
-  const filteredUnidades = unidades.filter(u => 
-    u.placa.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (u.numeroUnidad && u.numeroUnidad.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    u.choferNombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (u.vehiculo && u.vehiculo.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  const filteredUnidades = rankBy(unidades, searchTerm, scoreUnidad);
 
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
@@ -48,36 +57,55 @@ export const UnidadesPage = () => {
     setCurrentPage(1);
   };
 
+  const tabBtn = (value: Tab, label: string, icon: React.ReactNode) => (
+    <button
+      onClick={() => setTab(value)}
+      className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition ${
+        tab === value ? 'bg-white text-blue-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+      }`}
+    >
+      {icon}
+      {label}
+    </button>
+  );
+
   return (
     <div className="animate-[fadeIn_0.5s_ease-in]">
       {/* Header & Actions */}
-      <div className="flex flex-col xl:flex-row xl:justify-between xl:items-center mb-8 gap-4">
-        <h2 className="text-2xl md:text-[28px] text-gray-800 m-0 font-bold flex items-center gap-3">
+      <div className="flex flex-col xl:flex-row xl:justify-between xl:items-center mb-6 gap-4">
+        <h2 className="text-2xl md:text-[1.75rem] text-gray-800 m-0 font-bold flex items-center gap-3">
           <Car className="text-blue-600" size={32} />
           Gestión de Unidades
         </h2>
-        
+
         <div className="flex flex-col sm:flex-row flex-wrap gap-3">
           <div className="relative flex-grow">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-            <input 
-              type="text" 
-              placeholder="Buscar por número, placa, chofer o vehículo..." 
+            <input
+              type="text"
+              placeholder="Buscar por número, placa, chofer, teléfono, vehículo, modelo..."
               value={searchTerm}
               onChange={handleSearch}
               className="pl-10 pr-4 py-2.5 w-full sm:w-64 bg-white border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
             />
           </div>
-          
-          <div className="flex gap-2">
-            <Button onClick={handleOpenCreate} icon={<Plus size={20} />}>
-              Nueva Unidad
-            </Button>
-          </div>
+
+          {user?.rol !== 'CHARLIE' && (
+            <div className="flex gap-2">
+              <Button onClick={handleOpenCreate} icon={<Plus size={18} />}>
+                Nueva Unidad
+              </Button>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Content State */}
+      {/* Tabs (segmentado) */}
+      <div className="inline-flex items-center gap-1 bg-gray-100 p-1 rounded-xl mb-6">
+        {tabBtn('asignacion', 'Asignación', <ListOrdered size={16} />)}
+        {user?.rol !== 'CHARLIE' && tabBtn('lista', 'Lista de unidades', <LayoutGrid size={16} />)}
+      </div>
+
       {isLoading ? (
         <div className="flex justify-center items-center py-20">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
@@ -86,52 +114,59 @@ export const UnidadesPage = () => {
         <div className="bg-red-50 text-red-600 p-4 rounded-md text-center">
           Ocurrió un error al cargar las unidades. Por favor, intenta nuevamente.
         </div>
+      ) : tab === 'asignacion' ? (
+        <AsignacionPanel searchTerm={searchTerm} />
       ) : filteredUnidades.length === 0 ? (
         <div className="text-center py-[60px] px-5 text-gray-500 bg-white rounded-lg border border-gray-200 border-dashed">
           <Car size={64} className="mx-auto mb-5 opacity-50 text-blue-400" />
           <h3 className="text-xl font-medium text-gray-700 mb-2">Aún no hay unidades registradas</h3>
-          <p className="text-[16px] text-gray-500 max-w-md mx-auto">
-            {searchTerm 
-              ? "No encontramos ninguna unidad que coincida con tu búsqueda." 
-              : "Comienza a gestionar tu flota agregando la primera unidad al sistema."}
+          <p className="text-[1rem] text-gray-500 max-w-md mx-auto">
+            {searchTerm
+              ? 'No encontramos ninguna unidad que coincida con tu búsqueda.'
+              : 'Comienza a gestionar tu flota agregando la primera unidad al sistema.'}
           </p>
         </div>
       ) : (
         <>
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <div className="grid gap-4 grid-cols-[repeat(auto-fill,minmax(280px,1fr))]">
             {currentItems.map((unidad) => (
-              <div 
-                key={unidad.id} 
-                className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm hover:shadow-md hover:border-blue-200 transition-all duration-200 group flex flex-col justify-between"
+              <div
+                key={unidad.id}
+                style={colorUnidad(unidad).borderLeft}
+                className="bg-white rounded-xl p-5 border border-gray-200 border-l-4 shadow-sm hover:shadow-md hover:border-blue-200 transition-all duration-200 group flex flex-col justify-between"
               >
                 <div>
-                  <div className="flex justify-between items-start gap-4 mb-3">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="px-3 py-1 bg-green-100 text-green-800 border border-green-300 font-mono text-sm font-bold rounded-md tracking-wider">
+                  <div className="flex justify-between items-start gap-3 mb-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center flex-wrap gap-2 mb-2">
+                        <span className="px-2.5 py-1 bg-blue-100 text-blue-800 border border-blue-300 font-mono text-xs font-bold rounded-md tracking-wider">
                           Nº {unidad.numeroUnidad || 'S/N'}
                         </span>
-                        <span className="px-3 py-1 bg-yellow-100 text-yellow-800 border border-yellow-300 font-mono text-sm font-bold rounded-md tracking-wider">
+                        <span className="px-2.5 py-1 bg-yellow-100 text-yellow-800 border border-yellow-300 font-mono text-xs font-bold rounded-md tracking-wider">
                           {unidad.placa}
                         </span>
+                        <EstadoUnidadBadge unidad={unidad} />
+                        {(() => { const n = carrerasHoy.get(unidad.id) || 0; return (
+                        <span className="text-[0.625rem] font-bold text-blue-700 bg-blue-50 border border-blue-100 px-1.5 py-0.5 rounded">
+                          {n} {n === 1 ? 'carrera' : 'carreras'} hoy
+                        </span>
+                        ); })()}
                       </div>
-                      
-                      <div className="text-sm font-medium mb-1">
-                        <span className="text-gray-500">Vehículo: </span>
-                        <span className="text-gray-800 font-medium">{unidad.vehiculo || 'Sin detalle'}</span>
-                      </div>
+
+                      <p className="text-[0.625rem] font-semibold text-gray-400 uppercase tracking-wide m-0">Vehículo</p>
+                      <p className="text-[0.8125rem] font-bold text-gray-800 m-0 truncate">{unidad.vehiculo || 'Sin detalle'}</p>
                     </div>
-                    
+
                     {/* Actions */}
-                    <div className="flex gap-2 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button 
+                    <div className="flex gap-2 shrink-0 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
                         onClick={() => handleOpenEdit(unidad.id)}
                         className="p-1.5 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-md transition-colors"
                         title="Editar"
                       >
                         <Edit2 size={16} />
                       </button>
-                      <button 
+                      <button
                         onClick={() => handleDelete(unidad.id, unidad.numeroUnidad || unidad.placa)}
                         className="p-1.5 text-red-600 bg-red-50 hover:bg-red-100 rounded-md transition-colors"
                         title="Eliminar"
@@ -144,15 +179,15 @@ export const UnidadesPage = () => {
 
                 {/* Footer info (Chofer) */}
                 <div className="mt-4 pt-3 border-t border-gray-100">
-                  <div className="text-sm font-semibold text-gray-700 mb-1">Conductor Asignado</div>
+                  <p className="text-[0.625rem] font-semibold text-gray-400 uppercase tracking-wide m-0 mb-1">Conductor Asignado</p>
                   <div className="flex justify-between items-center gap-2">
-                    <span className="text-gray-800 text-[15px]">{unidad.choferNombre}</span>
+                    <span className="text-[0.8125rem] font-bold text-gray-800 truncate">{unidad.choferNombre}</span>
                     {unidad.choferTelefono ? (
-                      <span className="text-blue-600 font-mono text-sm bg-blue-50 px-2 py-0.5 rounded">
+                      <span className="shrink-0 text-blue-700 font-mono text-[0.6875rem] font-bold bg-blue-50 border border-blue-100 px-2 py-0.5 rounded">
                         {unidad.choferTelefono}
                       </span>
                     ) : (
-                      <span className="text-gray-400 italic text-xs">Sin teléfono</span>
+                      <span className="shrink-0 text-gray-400 italic text-[0.6875rem]">Sin teléfono</span>
                     )}
                   </div>
                 </div>
@@ -160,7 +195,7 @@ export const UnidadesPage = () => {
             ))}
           </div>
 
-          <Pagination 
+          <Pagination
             currentPage={currentPage}
             totalItems={filteredUnidades.length}
             itemsPerPage={itemsPerPage}
@@ -171,12 +206,31 @@ export const UnidadesPage = () => {
 
       {/* Modals */}
       {isUnidadModalOpen && (
-        <UnidadFormModal 
-          isOpen={isUnidadModalOpen} 
-          onClose={() => setIsUnidadModalOpen(false)} 
+        <UnidadFormModal
+          isOpen={isUnidadModalOpen}
+          onClose={() => {
+            setIsUnidadModalOpen(false);
+            setEditingUnidadId(null);
+          }}
           editingId={editingUnidadId}
         />
       )}
+
+      <ConfirmDialog
+        isOpen={unidadToDelete !== null}
+        onClose={() => setUnidadToDelete(null)}
+        onConfirm={() => {
+          if (unidadToDelete) deleteMutation.mutate(unidadToDelete.id);
+          setUnidadToDelete(null);
+        }}
+        title="Eliminar Unidad"
+        message={
+          <span>
+            ¿Estás seguro de eliminar la unidad <span className="font-bold">"{unidadToDelete?.numero}"</span>? Esta acción no se puede deshacer.
+          </span>
+        }
+        confirmText="Sí, Eliminar"
+      />
     </div>
   );
 };

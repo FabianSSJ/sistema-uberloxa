@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { ScheduleModule } from '@nestjs/schedule';
 import { AuthModule } from './auth/auth.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { SectoresModule } from './sectores/sectores.module';
@@ -8,8 +9,10 @@ import { MarcasModule } from './marcas/marcas.module';
 import { ModelosModule } from './modelos/modelos.module';
 import { UnidadesModule } from './unidades/unidades.module';
 import { CarrerasModule } from './carreras/carreras.module';
-import { ChoferesModule } from './choferes/choferes.module';
 import { UsuariosModule } from './usuarios/usuarios.module';
+import { EstadisticasModule } from './estadisticas/estadisticas.module';
+import { ReportesModule } from './reportes/reportes.module';
+import { HealthModule } from './health/health.module';
 
 @Module({
   imports: [
@@ -17,6 +20,7 @@ import { UsuariosModule } from './usuarios/usuarios.module';
       isGlobal: true,   // disponible en toda la app sin re-importar
       envFilePath: '.env',
     }),
+    ScheduleModule.forRoot(),
     PrismaModule,
     AuthModule,
     SectoresModule,
@@ -25,8 +29,10 @@ import { UsuariosModule } from './usuarios/usuarios.module';
     ModelosModule,
     UnidadesModule,
     CarrerasModule,
-    ChoferesModule,
     UsuariosModule,
+    EstadisticasModule,
+    ReportesModule,
+    HealthModule,
   ],
 })
 export class AppModule {}
