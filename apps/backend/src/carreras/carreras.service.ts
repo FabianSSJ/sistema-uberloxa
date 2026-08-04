@@ -141,6 +141,9 @@ export class CarrerasService {
     const take = params.take ?? 30;
 
     const where: Prisma.CarreraWhereInput = {};
+    if (user?.rol === 'CHARLIE' && user?.sub) {
+      where.creadoPorId = user.sub;
+    }
     if (params.desde || params.hasta) {
       where.createdAt = {
         ...(params.desde ? { gte: params.desde } : {}),
@@ -182,6 +185,9 @@ export class CarrerasService {
         { estado: { in: EN_PROCESO } },
       ],
     };
+    if (user?.rol === 'CHARLIE' && user?.sub) {
+      where.creadoPorId = user.sub;
+    }
 
     const candidatas = await this.prisma.carrera.findMany({
       where,
@@ -201,6 +207,9 @@ export class CarrerasService {
   // pero si nadie lo llama en unos meses, se puede borrar junto con el hook del frontend.
   async findRecent(user?: any) {
     const where: Prisma.CarreraWhereInput = {};
+    if (user?.rol === 'CHARLIE' && user?.sub) {
+      where.creadoPorId = user.sub;
+    }
 
     return this.prisma.carrera.findMany({
       where,
@@ -216,7 +225,9 @@ export class CarrerasService {
    * carrera existe pero es de otro, evitando enumeración de recursos ajenos.
    */
   private assertAcceso(carrera: { id: number; creadoPorId: number | null }, user?: any) {
-    // Todos los operadores del sistema pueden consultar cualquier carrera.
+    if (user?.rol === 'CHARLIE' && user?.sub && carrera.creadoPorId !== user.sub) {
+      throw new NotFoundException(`Carrera #${carrera.id} no encontrada`);
+    }
   }
 
   async findOne(id: number, user?: any) {

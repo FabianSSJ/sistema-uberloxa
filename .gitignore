@@ -88,12 +88,24 @@ Thumbs.db
 /REVISION_*.md
 /BARRIOS_MAESTRO.md
 
-# Dumps y backups de base de datos
-/backup_*.sql
-*.local.sql
-
-# Backups de BD (custom format)
+# Dumps, backups y volcados de base de datos
+backups/
+*.dump
+*.sql
+!apps/backend/prisma/migrations/**/*.sql
 *.backup
+*.sqlite
+*.sqlite3
+*.db
+
+# Archivos de Excel, CSV y volcados de datos
+*.xlsx
+*.xls
+*.csv
+*_parsed*.json
+_parsed*.json
+out.txt
+stash_diff.txt
 
 # Sesión de WhatsApp (Baileys) — credenciales, NO commitear
 wa-auth/
