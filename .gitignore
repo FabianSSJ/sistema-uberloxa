@@ -90,6 +90,8 @@ Thumbs.db
 
 # Dumps, backups y volcados de base de datos
 backups/
+/backup_*.sql
+*.local.sql
 *.dump
 *.sql
 !apps/backend/prisma/migrations/**/*.sql
@@ -99,6 +101,12 @@ backups/
 *.db
 
 # Archivos de Excel, CSV y volcados de datos
+/*.xlsx
+/CLIENTES*
+/preview_*.csv
+/preview_*.md
+/extract-*.js
+/read-excel.js
 *.xlsx
 *.xls
 *.csv
