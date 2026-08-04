@@ -71,7 +71,7 @@ export const CharlieDashboard = () => {
   const despacharConUnidad = (clienteId: number, numUnidadStr: string) => {
     const numClean = numUnidadStr.trim();
     if (!numClean) {
-      notify.error('Ingresá el número de unidad (ej. 70, 05, 28)');
+      crearPendiente(clienteId);
       return;
     }
     const unidadTarget = todasUnidades.find((u: any) => {
@@ -144,16 +144,11 @@ export const CharlieDashboard = () => {
     createCarreraMutation.mutate({ clienteId }, { onSuccess: () => setSearchCliente('') });
   };
 
-  // Enter en el buscador = atajo de teclado para el resultado más relevante (mismo criterio
-  // que un buscador/command palette: no hace falta soltar el mouse para despachar rápido).
+  // Enter en el buscador = registrar la carrera inmediatamente con UN SOLO ENTER (sin requerir un segundo Enter).
   const handleSearchKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && filteredClientes.length > 0) {
       e.preventDefault();
-      if (esBusquedaCodigo && unitInputRef.current) {
-        unitInputRef.current.focus();
-      } else {
-        crearPendiente(filteredClientes[0].id);
-      }
+      crearPendiente(filteredClientes[0].id);
     }
   };
 
@@ -520,7 +515,7 @@ export const CharlieDashboard = () => {
                                 <input
                                   ref={unitInputRef}
                                   type="text"
-                                  placeholder="Escribí el Nº de Unidad y presioná Enter..."
+                                  placeholder="Escribí el Nº de Unidad (opcional) y presioná Enter..."
                                   value={numUnidadRapido}
                                   onChange={(e) => setNumUnidadRapido(e.target.value)}
                                   className="w-full pl-10 pr-4 py-2.5 bg-amber-50/60 border-2 border-amber-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 text-lg font-black text-gray-900 rounded-xl outline-none transition shadow-sm placeholder:text-gray-400 placeholder:font-normal"
@@ -528,13 +523,13 @@ export const CharlieDashboard = () => {
                               </div>
                             </form>
                             <div className="flex items-center justify-between text-xs text-gray-400 font-medium px-1">
-                              <span>Presioná <strong className="text-gray-600">Enter</strong> para despachar directo</span>
+                              <span>Presioná <strong className="text-gray-600">Enter</strong> para despachar (con o sin unidad)</span>
                               <button
                                 type="button"
                                 onClick={() => {
                                   createCarreraMutation.mutate(
                                     { clienteId: c.id, estado: 'perdida', notas: 'Sin unidad disponible' },
-                                    { onSuccess: () => setSearchCliente('') }
+                                    { onSuccess: () => { setSearchCliente(''); setNumUnidadRapido(''); } }
                                   );
                                 }}
                                 className="text-orange-600 hover:text-orange-700 hover:underline font-semibold flex items-center gap-1 cursor-pointer"
