@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Modal } from '../../components/ui/Modal';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { useMarcas, useCreateMarca, useUpdateMarca, useDeleteMarca } from '../../features/marcas/hooks/useMarcas';
 import { Edit2, Trash2, Plus } from 'lucide-react';
 
@@ -31,8 +32,8 @@ export const MarcaManagerModal: React.FC<MarcaManagerModalProps> = ({ isOpen, on
       }
       setNombre('');
       setEditingId(null);
-    } catch (error: any) {
-      alert(error.response?.data?.message || 'Error al guardar la marca');
+    } catch {
+      // El toast ya lo muestra el handler global de mutaciones (main.tsx).
     }
   };
 
@@ -41,21 +42,27 @@ export const MarcaManagerModal: React.FC<MarcaManagerModalProps> = ({ isOpen, on
     setNombre(currentNombre);
   };
 
-  const handleDelete = async (id: number, nombre: string) => {
-    if (window.confirm(`¿Eliminar marca ${nombre}?`)) {
-      try {
-        await deleteMutation.mutateAsync(id);
-      } catch (error: any) {
-        alert(error.response?.data?.message || 'Error al eliminar la marca (puede estar en uso)');
-      }
+  const [marcaToDelete, setMarcaToDelete] = useState<{ id: number; nombre: string } | null>(null);
+
+  const handleDelete = (id: number, nombre: string) => {
+    setMarcaToDelete({ id, nombre });
+  };
+
+  const confirmDelete = async () => {
+    if (!marcaToDelete) return;
+    try {
+      await deleteMutation.mutateAsync(marcaToDelete.id);
+    } catch {
+      // El toast ya lo muestra el handler global de mutaciones (main.tsx).
     }
+    setMarcaToDelete(null);
   };
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Gestión de Marcas">
       <div className="flex flex-col gap-6">
-        <form onSubmit={handleSubmit} className="flex gap-2 items-end">
-          <div className="flex-1">
+        <form onSubmit={handleSubmit} className="flex flex-wrap gap-2 items-end">
+          <div className="flex-1 min-w-35">
             <Input 
               label={editingId ? 'Editar Marca' : 'Nueva Marca'}
               value={nombre}
@@ -112,6 +119,19 @@ export const MarcaManagerModal: React.FC<MarcaManagerModalProps> = ({ isOpen, on
           )}
         </div>
       </div>
+
+      <ConfirmDialog
+        isOpen={marcaToDelete !== null}
+        onClose={() => setMarcaToDelete(null)}
+        onConfirm={confirmDelete}
+        title="Eliminar Marca"
+        message={
+          <span>
+            ¿Eliminar la marca <span className="font-bold">"{marcaToDelete?.nombre}"</span>?
+          </span>
+        }
+        confirmText="Sí, Eliminar"
+      />
     </Modal>
   );
 };

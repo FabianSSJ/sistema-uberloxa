@@ -1,4 +1,5 @@
 import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
+import { Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateModeloDto } from './dto/create-modelo.dto';
 import { UpdateModeloDto } from './dto/update-modelo.dto';
@@ -102,9 +103,17 @@ export class ModelosService {
   }
 
   async remove(id: number) {
-    await this.findOne(id);
-    return this.prisma.modelo.delete({
-      where: { id },
-    });
+    const modelo = await this.findOne(id);
+    try {
+      return await this.prisma.modelo.delete({
+        where: { id },
+      });
+    } catch (error) {
+      // P2003 = violación de FK: hay unidades que todavía apuntan a este modelo.
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2003') {
+        throw new ConflictException(`No se puede eliminar el modelo '${modelo.nombre}': tiene unidades asociadas.`);
+      }
+      throw error;
+    }
   }
 }

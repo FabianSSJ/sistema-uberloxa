@@ -28,6 +28,18 @@ export const Modal: React.FC<ModalProps> = ({
     };
   }, [isOpen]);
 
+  // Vía de escape siempre disponible (Nielsen #3, control y libertad del usuario): Esc cierra
+  // igual que ya lo hacían los modales de "detalle" (hand-rolled, sin este componente) — antes
+  // los de formulario/confirmación (todos los que usan Modal.tsx) no tenían ninguna de las dos.
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const maxWidthClasses = {
@@ -39,7 +51,10 @@ export const Modal: React.FC<ModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm animate-[fadeIn_0.2s_ease-out]">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm animate-[fadeIn_0.2s_ease-out]"
+      onClick={onClose}
+    >
       <div 
         className={`bg-white rounded-xl shadow-xl w-full ${maxWidthClasses[maxWidth]} max-h-[90vh] flex flex-col animate-[slideIn_0.3s_ease-out]`}
         onClick={(e) => e.stopPropagation()}

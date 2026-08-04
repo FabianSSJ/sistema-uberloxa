@@ -75,8 +75,7 @@ Desde la raíz del proyecto, en terminales separadas:
 ```bash
 # Frontend → http://localhost:5174
 pnpm dev:frontend
-
-# Backend → http://localhost:3000
+#  Backend → http://localhost:3000
 pnpm dev:backend
 ```
 

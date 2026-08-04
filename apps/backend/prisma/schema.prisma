@@ -1,7 +1,6 @@
 generator client {
-  provider = "prisma-client"
+  provider = "prisma-client-js"
   output   = "../generated/prisma"
-  moduleFormat    = "commonjs"
 }
 
 datasource db {
@@ -9,16 +8,18 @@ datasource db {
 }
 
 model Usuario {
-  id                Int      @id @default(autoincrement())
+  id                Int        @id @default(autoincrement())
   nombre            String
-  username          String   @unique
-  passwordHash      String   @map("password_hash")
-  rol               String   @default("CHARLIE")
-  modulosPermitidos String[] @map("modulos_permitidos") @default([])
-  activo            Boolean  @default(true)
-  createdAt         DateTime @default(now()) @map("created_at")
-
-  carrerasCreadas   Carrera[] @relation("CarrerasCreadas")
+  username          String     @unique
+  passwordHash      String     @map("password_hash")
+  activo            Boolean    @default(true)
+  createdAt         DateTime   @default(now()) @map("created_at")
+  modulosPermitidos String[]   @default([]) @map("modulos_permitidos")
+  rol               RolUsuario @default(CHARLIE)
+  color             String?
+  intentosFallidos  Int        @default(0) @map("intentos_fallidos")
+  bloqueadoHasta    DateTime?  @map("bloqueado_hasta")
+  carrerasCreadas   Carrera[]  @relation("CarrerasCreadas")
 
   @@map("usuarios")
 }
@@ -38,13 +39,14 @@ model Cliente {
   telefono       String?
   telefonoAlt    String?   @map("telefono_alt")
   sectorId       Int?      @map("sector_id")
-  sector         Sector?   @relation(fields: [sectorId], references: [id])
   direccion      String?
   descripcion    String?
   linkGoogleMaps String?   @map("link_google_maps")
   activo         Boolean   @default(true)
   createdAt      DateTime  @default(now()) @map("created_at")
+  codigo         Int?      @unique
   carreras       Carrera[]
+  sector         Sector?   @relation(fields: [sectorId], references: [id])
 
   @@index([sectorId])
   @@index([telefono])
@@ -62,78 +64,91 @@ model Marca {
 model Modelo {
   id       Int      @id @default(autoincrement())
   marcaId  Int      @map("marca_id")
-  marca    Marca    @relation(fields: [marcaId], references: [id])
   nombre   String
   tipo     String?
+  marca    Marca    @relation(fields: [marcaId], references: [id])
   unidades Unidad[]
 
   @@index([marcaId])
   @@map("modelos")
 }
 
-model Chofer {
-  id        Int      @id @default(autoincrement())
-  nombre    String
-  telefono  String?
-  activo    Boolean  @default(true)
-  createdAt DateTime @default(now()) @map("created_at")
-  unidades  Unidad[]
-
-  @@map("choferes")
-}
-
 model Unidad {
-  id             Int       @id @default(autoincrement())
-  numeroUnidad   String?   @unique @map("numero_unidad")
-  placa          String    @unique
-  vehiculo       String?
-  modeloId       Int?      @map("modelo_id")
-  modelo         Modelo?   @relation(fields: [modeloId], references: [id])
-  choferId       Int?      @map("chofer_id")
-  chofer         Chofer?   @relation(fields: [choferId], references: [id])
-  choferNombre   String?   @map("chofer_nombre")
-  choferTelefono String?   @map("chofer_telefono")
+  id             Int          @id @default(autoincrement())
+  placa          String       @unique
+  modeloId       Int?         @map("modelo_id")
+  choferNombre   String?      @map("chofer_nombre")
+  choferTelefono String?      @map("chofer_telefono")
   color          String?
   anio           Int?
-  createdAt      DateTime  @default(now()) @map("created_at")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  numeroUnidad   String?      @unique @map("numero_unidad")
+  vehiculo       String?
+  estado         EstadoUnidad @default(inactivo)
+  colorIdentidad String?      @map("color_identidad")
+  activadoEn     DateTime?    @map("activado_en")
+  ocupadoHasta   DateTime?    @map("ocupado_hasta") // ocupada por carrera hasta este momento; pasado esto se auto-libera
   carreras       Carrera[]
+  modelo         Modelo?      @relation(fields: [modeloId], references: [id])
 
   @@index([modeloId])
-  @@index([choferId])
   @@map("unidades")
 }
 
 model Carrera {
-  id          Int                      @id @default(autoincrement())
-  clienteId   Int                      @map("cliente_id")
-  cliente     Cliente                  @relation(fields: [clienteId], references: [id])
-  unidadId    Int?                     @map("unidad_id")
-  unidad      Unidad?                  @relation(fields: [unidadId], references: [id])
-  creadoPorId Int?                     @map("creado_por")
-  creadoPor   Usuario?                 @relation("CarrerasCreadas", fields: [creadoPorId], references: [id])
-  estado      String                   @default("pendiente")
-  notas       String?
-  createdAt   DateTime                 @default(now()) @map("created_at")
-  fechaFin    DateTime?                @map("fecha_fin")
-  historial   HistorialEstadoCarrera[]
+  id           Int                      @id @default(autoincrement())
+  clienteId    Int                      @map("cliente_id")
+  unidadId     Int?                     @map("unidad_id")
+  creadoPorId  Int?                     @map("creado_por")
+  estado       EstadoCarrera            @default(pendiente)
+  notas        String?
+  createdAt    DateTime                 @default(now()) @map("created_at")
+  fechaFin     DateTime?                @map("fecha_fin")
+  numeroDiario Int?                     @map("numero_diario")
+  cliente      Cliente                  @relation(fields: [clienteId], references: [id])
+  creadoPor    Usuario?                 @relation("CarrerasCreadas", fields: [creadoPorId], references: [id])
+  unidad       Unidad?                  @relation(fields: [unidadId], references: [id])
+  historial    HistorialEstadoCarrera[]
 
   @@index([clienteId])
   @@index([unidadId])
   @@index([estado])
   @@index([createdAt])
   @@index([unidadId, createdAt])
+  @@index([creadoPorId, createdAt])
   @@map("carreras")
 }
 
 model HistorialEstadoCarrera {
-  id             Int      @id @default(autoincrement())
-  carreraId      Int      @map("carrera_id")
-  carrera        Carrera  @relation(fields: [carreraId], references: [id])
-  estadoAnterior String?  @map("estado_anterior")
-  estadoNuevo    String   @map("estado_nuevo")
-  fechaHora      DateTime @default(now()) @map("fecha_hora")
+  id             Int            @id @default(autoincrement())
+  carreraId      Int            @map("carrera_id")
+  estadoAnterior EstadoCarrera? @map("estado_anterior")
+  estadoNuevo    EstadoCarrera  @map("estado_nuevo")
+  fechaHora      DateTime       @default(now()) @map("fecha_hora")
+  carrera        Carrera        @relation(fields: [carreraId], references: [id])
 
   @@index([carreraId])
   @@index([fechaHora])
   @@map("historial_estados_carrera")
+}
+
+enum RolUsuario {
+  SUPERADMIN
+  ADMIN
+  CHARLIE
+}
+
+enum EstadoUnidad {
+  disponible
+  ocupado
+  inactivo
+  descanso
+}
+
+enum EstadoCarrera {
+  pendiente
+  asignada
+  completada
+  cancelada
+  perdida
 }

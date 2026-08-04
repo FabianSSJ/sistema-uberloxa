@@ -7,6 +7,7 @@ export interface Sector {
 
 export interface Cliente {
   id: number;
+  codigo?: number;
   nombre: string;
   telefono?: string;
   telefonoAlt?: string;
@@ -19,7 +20,8 @@ export interface Cliente {
 }
 
 export interface CreateClienteDto {
-  nombre: string;
+  codigo?: number;
+  nombre?: string;
   telefono?: string;
   telefonoAlt?: string;
   direccion?: string;
@@ -30,9 +32,33 @@ export interface CreateClienteDto {
 
 export type UpdateClienteDto = Partial<CreateClienteDto>;
 
+export interface PaginatedClientes {
+  data: Cliente[];
+  total: number;
+  page: number;
+  totalPages: number;
+}
+
 export const clientesService = {
   getAll: async (): Promise<Cliente[]> => {
     const response = await api.get('/clientes');
+    return response.data;
+  },
+
+  getPendientes: async (): Promise<Cliente[]> => {
+    const response = await api.get('/clientes/pendientes');
+    return response.data;
+  },
+
+  getPendientesCount: async (): Promise<number> => {
+    const response = await api.get('/clientes/pendientes/count');
+    return response.data.count;
+  },
+
+  getPaginated: async (page: number, limit: number, search?: string): Promise<PaginatedClientes> => {
+    const response = await api.get('/clientes/paginado', {
+      params: { page, limit, search: search?.trim() || undefined },
+    });
     return response.data;
   },
 
