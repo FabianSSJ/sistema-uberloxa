@@ -2,7 +2,11 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { unidadesService, CreateUnidadDto, EstadoUnidad } from '../services/unidades.service';
 import { notify } from '../../../components/ui/toast';
 
-export const useUnidades = () => {
+// poll=false para consumidores de solo consulta (ej. AdminDashboard, un reporte histórico
+// de un día elegido, no un tablero en vivo) — sin esto, esas pantallas heredaban el poll de
+// 1s pensado para el despacho activo (UnidadesPage, los modales de carrera) sin necesitarlo,
+// quemando requests de sobra todo el turno que un admin la deje abierta.
+export const useUnidades = ({ poll = true }: { poll?: boolean } = {}) => {
   return useQuery({
     queryKey: ['unidades'],
     queryFn: async () => {
@@ -14,7 +18,7 @@ export const useUnidades = () => {
       });
     },
     // Polling: refresca el estado de las unidades en ~1s aunque lo cambie otro usuario (Charlie/admin).
-    refetchInterval: 1000,
+    refetchInterval: poll ? 1000 : false,
   });
 };
 

@@ -29,7 +29,8 @@ export const AdminDashboard = () => {
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   const allRides = useMemo(() => data?.pages.flatMap((p) => p.data) ?? [], [data]);
-  const { data: unidades = [], isLoading: loadingUnidades } = useUnidades();
+  // Reporte histórico de un día elegido, no un tablero en vivo — sin poll de 1s.
+  const { data: unidades = [], isLoading: loadingUnidades } = useUnidades({ poll: false });
 
   // Cálculos pesados memoizados: solo recalculan si cambian datos (ya vienen filtrados del server).
   const { statsList, charlieStatsList, globalStats } = useMemo(() => {
