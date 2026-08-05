@@ -109,13 +109,21 @@ export const CharlieDashboard = () => {
   const [draggedItem, setDraggedItem] = useState<{type: 'CHOFER' | 'CLIENTE', id: number} | null>(null);
   const [dragOverItem, setDragOverItem] = useState<{type: 'CHOFER' | 'CLIENTE' | 'CARRERA', id: number} | null>(null);
 
-  // TODAS las unidades ordenadas: primero las ACTIVAS con MÁS carreras de hoy, después el resto.
+  // TODAS las unidades ordenadas: primero las ACTIVAS, despues por MAS carreras de hoy y,
+  // en caso de empate, por quien se activo primero (activadoEn) — no por numero de unidad.
+  // activadoEn sobrevive los ciclos de descanso (ver unidades.service.ts#cambiarEstado):
+  // solo se resetea cuando la unidad pasa por 'inactivo' y vuelve a activarse.
   const unidadesOrdenadas = useMemo(() => {
     return [...todasUnidades].sort((a: any, b: any) => {
       const activaA = a.estado !== 'inactivo' ? 1 : 0;
       const activaB = b.estado !== 'inactivo' ? 1 : 0;
       if (activaA !== activaB) return activaB - activaA;
-      return (carrerasHoy.get(b.id) || 0) - (carrerasHoy.get(a.id) || 0);
+      const carrerasA = carrerasHoy.get(a.id) || 0;
+      const carrerasB = carrerasHoy.get(b.id) || 0;
+      if (carrerasA !== carrerasB) return carrerasB - carrerasA;
+      const activadoA = a.activadoEn ? new Date(a.activadoEn).getTime() : Infinity;
+      const activadoB = b.activadoEn ? new Date(b.activadoEn).getTime() : Infinity;
+      return activadoA - activadoB;
     });
   }, [todasUnidades, carrerasHoy]);
 
