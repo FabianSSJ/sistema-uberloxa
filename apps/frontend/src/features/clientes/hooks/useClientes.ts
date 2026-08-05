@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { clientesService, CreateClienteDto, UpdateClienteDto } from '../services/clientes.service';
+import { clientesService, Cliente, CreateClienteDto, UpdateClienteDto } from '../services/clientes.service';
 import { notify } from '../../../components/ui/toast';
 
 export const useClientes = () => {
@@ -47,10 +47,33 @@ export const useCreateCliente = () => {
 
   return useMutation({
     mutationFn: (data: CreateClienteDto) => clientesService.create(data),
-    onSuccess: (cliente) => {
-      queryClient.invalidateQueries({ queryKey: ['clientes'] });
-      // Si nace sin código, cae directo en la bandeja de "Nuevos" — refrescamos esa
-      // query también para que aparezca al toque, sin esperar su propio polling.
+    onSuccess: async (cliente) => {
+      // Append optimista en vez de invalidar+refetch la lista completa: en un turno se
+      // crean muchos clientes nuevos ("Crear rápido" desde el despacho) y esa lista solo
+      // crece — refetchear los ~4mil clientes enteros en CADA alta iba empeorando la
+      // carga de red cuanto más avanzaba el turno, justo el patrón de degradación que ya
+      // matamos en WhatsApp y en el polling duplicado. El backend ahora devuelve el
+      // cliente creado con su sector incluido (mismo shape que findAll), así que insertarlo
+      // directo en la cache ya ordenada queda 100% consistente con lo que traería un refetch.
+      //
+      // cancelQueries ANTES de escribir: sin esto, un refetch de ['clientes'] que ya estaba
+      // en vuelo (disparado por un update/delete de OTRO cliente segundos antes) puede
+      // resolver DESPUÉS de este append con una foto vieja de la DB y pisarlo — el cliente
+      // recién creado desaparecería de la pantalla sin aviso hasta el próximo refetch real.
+      await queryClient.cancelQueries({ queryKey: ['clientes'], exact: true });
+      queryClient.setQueryData<Cliente[]>(['clientes'], (prev) => {
+        if (!prev) return prev;
+        const next = [...prev, cliente];
+        next.sort((a, b) => (a.codigo ?? Infinity) - (b.codigo ?? Infinity));
+        return next;
+      });
+      // La tabla paginada de "Directorio de Clientes" (ClientesPage) usa una query aparte
+      // (['clientes','paginado',...]) que el append de arriba no toca — sin esto, un alta
+      // hecha desde ahí no aparecía en la tabla hasta cambiar de página o de búsqueda. Es
+      // invalidar solo la página actual (barata), no el listado completo de ~4mil.
+      queryClient.invalidateQueries({ queryKey: ['clientes', 'paginado'] });
+      // Si nace sin código, cae directo en la bandeja de "Nuevos" — esa query sí se
+      // invalida (es chica, acotada, y necesita reflejar el conteo/orden del server).
       if (cliente.codigo == null) {
         queryClient.invalidateQueries({ queryKey: ['clientes', 'pendientes'] });
       }

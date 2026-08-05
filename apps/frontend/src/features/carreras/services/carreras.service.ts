@@ -40,12 +40,6 @@ export const carrerasService = {
     return response.data;
   },
 
-  // Panel de despacho: carreras de hoy + en proceso, ya resueltas por el server (sin paginar, es un set chico).
-  getPanel: async (): Promise<Carrera[]> => {
-    const response = await api.get('/carreras/panel');
-    return response.data;
-  },
-
   // Panel + unidades en un solo request — evita dos polls de 1s independientes (ver useColaDespacho).
   getPanelCompleto: async (): Promise<{ carreras: Carrera[]; unidades: Unidad[] }> => {
     const response = await api.get('/carreras/panel-completo');
