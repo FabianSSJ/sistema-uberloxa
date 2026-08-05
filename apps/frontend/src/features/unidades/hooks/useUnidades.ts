@@ -2,7 +2,11 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { unidadesService, CreateUnidadDto, EstadoUnidad } from '../services/unidades.service';
 import { notify } from '../../../components/ui/toast';
 
-export const useUnidades = () => {
+// poll=false para consumidores de solo consulta (ej. AdminDashboard, un reporte histórico
+// de un día elegido, no un tablero en vivo) — sin esto, esas pantallas heredaban el poll de
+// 1s pensado para el despacho activo (UnidadesPage, los modales de carrera) sin necesitarlo,
+// quemando requests de sobra todo el turno que un admin la deje abierta.
+export const useUnidades = ({ poll = true }: { poll?: boolean } = {}) => {
   return useQuery({
     queryKey: ['unidades'],
     queryFn: async () => {
@@ -14,8 +18,17 @@ export const useUnidades = () => {
       });
     },
     // Polling: refresca el estado de las unidades en ~1s aunque lo cambie otro usuario (Charlie/admin).
-    refetchInterval: 1000,
+    refetchInterval: poll ? 1000 : false,
   });
+};
+
+// 'unidades' para los consumidores directos (selects de modales, UnidadesPage) y
+// ['carreras','panelCompleto'] porque useColaDespacho (dashboard del Charlie) ya no lee
+// 'unidades' directamente — sin esto, un cambio de estado tardaría hasta 1s (el poll) en
+// verse ahí en vez de reflejarse al toque.
+const invalidarUnidades = (queryClient: ReturnType<typeof useQueryClient>) => {
+  queryClient.invalidateQueries({ queryKey: ['unidades'] });
+  queryClient.invalidateQueries({ queryKey: ['carreras', 'panelCompleto'] });
 };
 
 export const useCreateUnidad = () => {
@@ -23,7 +36,7 @@ export const useCreateUnidad = () => {
   return useMutation({
     mutationFn: unidadesService.create,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['unidades'] });
+      invalidarUnidades(queryClient);
       notify.success('Unidad creada con éxito');
     },
   });
@@ -35,7 +48,7 @@ export const useUpdateUnidad = () => {
     mutationFn: ({ id, data }: { id: number; data: Partial<CreateUnidadDto> }) =>
       unidadesService.update(id, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['unidades'] });
+      invalidarUnidades(queryClient);
       notify.success('Unidad actualizada');
     },
   });
@@ -46,7 +59,7 @@ export const useDeleteUnidad = () => {
   return useMutation({
     mutationFn: unidadesService.delete,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['unidades'] });
+      invalidarUnidades(queryClient);
       notify.success('Unidad eliminada');
     },
   });
@@ -65,7 +78,7 @@ export const useCambiarEstadoUnidad = () => {
     mutationFn: ({ id, estado }: { id: number; estado: EstadoUnidad }) =>
       unidadesService.cambiarEstado(id, estado),
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['unidades'] });
+      invalidarUnidades(queryClient);
       notify.success(ESTADO_LABEL[variables.estado]);
     },
   });

@@ -22,6 +22,14 @@ process.on('uncaughtException', (err) => {
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
+  // En producción Node corre detrás de nginx (mismo host, solo localhost) y NUNCA se expone
+  // directo a internet (ufw solo abre 80/443, no el puerto de la app). Sin este trust proxy,
+  // Express ignora X-Forwarded-For y ve TODO tráfico como 127.0.0.1 — el rate limit por IP
+  // (login + el global) terminaría compartiendo un solo balde entre TODOS los usuarios reales
+  // en vez de uno por cliente. El '1' es a propósito: confía solo en el primer hop (nginx),
+  // no en cualquier proxy que alguien intente colar más arriba.
+  app.set('trust proxy', 1);
+
   // Prefijo global de la API
   app.setGlobalPrefix('api');
 
