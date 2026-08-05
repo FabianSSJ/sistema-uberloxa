@@ -3,23 +3,10 @@ import { carrerasService, CreateCarreraDto, HistorialParams } from '../services/
 import { notify } from '../../../components/ui/toast';
 
 /**
- * Panel de despacho (dashboard del Charlie + cola de unidades): el server ya resuelve
- * "hoy + en proceso" con la ventana de gracia de 23:30-23:59 — acá solo se pollea (~1s)
- * un set siempre chico (nunca más de ~1 día de carreras), no el historial completo.
- */
-export const usePanelCarreras = () => {
-  return useQuery({
-    queryKey: ['carreras', 'panel'],
-    queryFn: carrerasService.getPanel,
-    refetchInterval: 1000,
-  });
-};
-
-/**
  * Panel + unidades combinados en un solo poll de 1s (ver useColaDespacho, que es su único
- * consumidor). Antes existían dos hooks polleando cada 1s por separado (usePanelCarreras +
- * useUnidades) — esto los reemplaza para ESE caso puntual sin tocar useUnidades ni
- * usePanelCarreras, que otros componentes siguen usando tal cual (selects de unidad en
+ * consumidor). Antes existían dos hooks polleando cada 1s por separado (un usePanelCarreras
+ * ya eliminado + useUnidades) — este endpoint combinado los reemplazó. useUnidades sigue
+ * vivo aparte porque otros componentes lo siguen usando tal cual (selects de unidad en
  * modales, etc. no necesitan polling de 1s en primer lugar).
  */
 export const usePanelCompleto = () => {
@@ -45,7 +32,7 @@ export const useCarrerasHistorial = (filters: HistorialParams = {}) => {
 };
 
 // Alias legacy sin filtros/paginación real — no queda ningún consumidor activo en la app
-// (las páginas reales usan usePanelCarreras / useCarrerasHistorial). Se deja solo para no
+// (las páginas reales usan usePanelCompleto / useCarrerasHistorial). Se deja solo para no
 // romper imports de módulos huérfanos (AsignarUnidadModal/NuevaCarreraModal, no routeados).
 export const useCarreras = () => {
   return useQuery({
