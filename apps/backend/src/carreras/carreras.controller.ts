@@ -38,6 +38,11 @@ export class CarrerasController {
     return this.carrerasService.findPanel(req.user);
   }
 
+  @Get('panel-completo')
+  findPanelCompleto(@Req() req: any) {
+    return this.carrerasService.findPanelCompleto(req.user);
+  }
+
   @Patch(':id/completar')
   completar(
     @Param('id', ParseIntPipe) id: number,

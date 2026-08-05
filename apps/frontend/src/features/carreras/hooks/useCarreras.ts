@@ -16,6 +16,21 @@ export const usePanelCarreras = () => {
 };
 
 /**
+ * Panel + unidades combinados en un solo poll de 1s (ver useColaDespacho, que es su único
+ * consumidor). Antes existían dos hooks polleando cada 1s por separado (usePanelCarreras +
+ * useUnidades) — esto los reemplaza para ESE caso puntual sin tocar useUnidades ni
+ * usePanelCarreras, que otros componentes siguen usando tal cual (selects de unidad en
+ * modales, etc. no necesitan polling de 1s en primer lugar).
+ */
+export const usePanelCompleto = () => {
+  return useQuery({
+    queryKey: ['carreras', 'panelCompleto'],
+    queryFn: carrerasService.getPanelCompleto,
+    refetchInterval: 1000,
+  });
+};
+
+/**
  * Historial paginado (keyset) con filtros de fecha opcionales. Sin polling: es una vista
  * de consulta, no un tablero en vivo — refrescar cada 1s acá sería re-traer páginas enteras
  * sin necesidad.

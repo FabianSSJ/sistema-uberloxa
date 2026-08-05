@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { UnidadesService } from '../unidades/unidades.service';
 import { CreateCarreraDto } from './dto/create-carrera.dto';
 import { EstadoCarrera, Prisma } from '../../generated/prisma/client';
 
@@ -59,7 +60,10 @@ const INCLUDE_CARRERA_LIVIANO = {
 
 @Injectable()
 export class CarrerasService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private unidadesService: UnidadesService,
+  ) {}
 
   async create(createCarreraDto: CreateCarreraDto, userId?: number) {
     const cliente = await this.prisma.cliente.findUnique({
@@ -200,6 +204,20 @@ export class CarrerasService {
     });
 
     return candidatas.filter((c) => esVisibleEnPanel(c, ahora));
+  }
+
+  /**
+   * Panel + unidades en un solo viaje. El dashboard del Charlie necesitaba ambos datasets
+   * en simultaneo y los pedia con dos polls de 1s independientes (2 requests/seg por
+   * pestaña abierta, todo el dia) — acá se combinan en un solo request para que el
+   * frontend pollee esto UNA vez por segundo en lugar de dos.
+   */
+  async findPanelCompleto(user?: any) {
+    const [carreras, unidades] = await Promise.all([
+      this.findPanel(user),
+      this.unidadesService.findAll(),
+    ]);
+    return { carreras, unidades };
   }
 
   // NOTA: sin consumidores en el frontend hoy (usePanelCarreras cubre el panel en vivo).

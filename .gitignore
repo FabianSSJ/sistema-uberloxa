@@ -121,3 +121,10 @@ wa-auth/
 wa-qr.png
 **/wa-qr.png
 Ejemplo_Informe_UberLoxa.pdf
+
+# Videos de reportes de bugs (WhatsApp, capturas, etc.) — NUNCA commitear
+*.mp4
+*.mov
+*.avi
+*.webm
+*.mkv
