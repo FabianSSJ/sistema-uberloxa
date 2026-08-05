@@ -43,6 +43,11 @@ export class ClientesService {
 
     return this.prisma.cliente.create({
       data: { ...createClienteDto, nombre },
+      // Mismo shape que findAll(): el frontend appendea esta respuesta directo a la cache
+      // de la lista completa (evita refetchear ~4mil clientes por cada alta) — sin el
+      // include acá, ese append dejaría el cliente nuevo con sector "undefined" hasta el
+      // próximo refetch real.
+      include: { sector: true },
     });
   }
 
@@ -51,6 +56,13 @@ export class ClientesService {
       where: { activo: true },
       include: { sector: true },
       orderBy: { codigo: { sort: 'asc', nulls: 'last' } },
+      // Guardarraíl, no límite funcional: el Dashboard de Charlie y CarreraFormModal
+      // buscan sobre esta lista completa en memoria (fuzzy search instantáneo, sin ida
+      // y vuelta al server por cada tecla) — a la escala actual (~4mil clientes activos)
+      // es la opción correcta. Si el negocio crece un orden de magnitud, esa búsqueda
+      // tiene que migrar a /clientes/paginado (ya existe, mismo scoring en SQL). Este
+      // take solo evita que un bug futuro mande un payload sin techo.
+      take: 10_000,
     });
   }
 
@@ -60,6 +72,9 @@ export class ClientesService {
       where: { activo: true, codigo: null },
       include: { sector: true },
       orderBy: { id: 'desc' }, // los más recientes primero
+      // Guardarraíl: esta bandeja se drena activamente (se completa cada cliente y sale
+      // de la lista) — nunca debería crecer sin límite. Igual que arriba, defensivo.
+      take: 2_000,
     });
   }
 
