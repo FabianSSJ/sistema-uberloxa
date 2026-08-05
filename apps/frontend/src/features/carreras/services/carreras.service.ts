@@ -46,6 +46,12 @@ export const carrerasService = {
     return response.data;
   },
 
+  // Panel + unidades en un solo request — evita dos polls de 1s independientes (ver useColaDespacho).
+  getPanelCompleto: async (): Promise<{ carreras: Carrera[]; unidades: Unidad[] }> => {
+    const response = await api.get('/carreras/panel-completo');
+    return response.data;
+  },
+
   getRecent: async (): Promise<Carrera[]> => {
     const response = await api.get('/carreras/recent');
     return response.data;

@@ -18,12 +18,21 @@ export const useUnidades = () => {
   });
 };
 
+// 'unidades' para los consumidores directos (selects de modales, UnidadesPage) y
+// ['carreras','panelCompleto'] porque useColaDespacho (dashboard del Charlie) ya no lee
+// 'unidades' directamente — sin esto, un cambio de estado tardaría hasta 1s (el poll) en
+// verse ahí en vez de reflejarse al toque.
+const invalidarUnidades = (queryClient: ReturnType<typeof useQueryClient>) => {
+  queryClient.invalidateQueries({ queryKey: ['unidades'] });
+  queryClient.invalidateQueries({ queryKey: ['carreras', 'panelCompleto'] });
+};
+
 export const useCreateUnidad = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: unidadesService.create,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['unidades'] });
+      invalidarUnidades(queryClient);
       notify.success('Unidad creada con éxito');
     },
   });
@@ -35,7 +44,7 @@ export const useUpdateUnidad = () => {
     mutationFn: ({ id, data }: { id: number; data: Partial<CreateUnidadDto> }) =>
       unidadesService.update(id, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['unidades'] });
+      invalidarUnidades(queryClient);
       notify.success('Unidad actualizada');
     },
   });
@@ -46,7 +55,7 @@ export const useDeleteUnidad = () => {
   return useMutation({
     mutationFn: unidadesService.delete,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['unidades'] });
+      invalidarUnidades(queryClient);
       notify.success('Unidad eliminada');
     },
   });
@@ -65,7 +74,7 @@ export const useCambiarEstadoUnidad = () => {
     mutationFn: ({ id, estado }: { id: number; estado: EstadoUnidad }) =>
       unidadesService.cambiarEstado(id, estado),
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['unidades'] });
+      invalidarUnidades(queryClient);
       notify.success(ESTADO_LABEL[variables.estado]);
     },
   });

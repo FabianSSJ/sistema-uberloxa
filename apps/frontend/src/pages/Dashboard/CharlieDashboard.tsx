@@ -6,7 +6,7 @@ import { useColaDespacho } from '../../features/unidades/hooks/useColaDespacho';
 import { useCambiarEstadoUnidad } from '../../features/unidades/hooks/useUnidades';
 import { ESTADO_UNIDAD_STYLES } from '../../features/unidades/components/EstadoUnidadBadge';
 import { UnidadDetalleModal } from '../../features/unidades/components/UnidadDetalleModal';
-import { usePanelCarreras, useCreateCarrera, useCompletarCarrera, useCancelarCarrera, usePerderCarrera, useDeleteCarrera } from '../../features/carreras/hooks/useCarreras';
+import { useCreateCarrera, useCompletarCarrera, useCancelarCarrera, usePerderCarrera, useDeleteCarrera } from '../../features/carreras/hooks/useCarreras';
 import { CarreraFormModal } from './CarreraFormModal';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { CodigoBadge, formatCodigo } from '../../components/ui/CodigoBadge';
@@ -20,8 +20,10 @@ import { useAuth } from '../../features/auth/context/AuthContext';
 export const CharlieDashboard = () => {
   const { user } = useAuth();
   const { data: clientes = [] } = useClientes();
-  const { unidades: todasUnidades, carrerasHoy } = useColaDespacho();
-  const { data: allRidesData = [] } = usePanelCarreras();
+  // carreras viene del mismo poll combinado que unidades (ver useColaDespacho) — antes esta
+  // pantalla pedía /carreras/panel y /unidades cada una por su cuenta cada 1s, el doble de
+  // requests por pestaña abierta de los necesarios.
+  const { unidades: todasUnidades, carreras: allRidesData, carrerasHoy } = useColaDespacho();
 
   // El server ya resuelve "hoy + en proceso con ventana de gracia" — acá solo se filtra
   // por dueño (el Charlie ve las suyas; las de creador null quedan visibles para todos).
