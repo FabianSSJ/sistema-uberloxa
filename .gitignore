@@ -30,6 +30,16 @@ apps/backend/dist/
 # ──────────────────────────────────────────────
 apps/backend/generated/
 
+# Artefactos COMPILADOS de prisma.config.ts (los genera tsc/ts-node localmente, quedan
+# tirados al lado del .ts real). Se ignoran a propósito para que nunca aparezcan en
+# `git status` como "archivo de más" — el .ts real (apps/backend/prisma.config.ts) NO
+# está acá, es código fuente y va commiteado siempre. Confundir uno con el otro y borrar
+# los dos con un `rm prisma.config.*` ya rompió el deploy dos veces (Prisma necesita el
+# .ts para resolver DATABASE_URL en `migrate deploy`).
+apps/backend/prisma.config.js
+apps/backend/prisma.config.d.ts
+apps/backend/prisma.config.js.map
+
 # ──────────────────────────────────────────────
 #  Variables de entorno  —  NUNCA commitear secretos
 #  Ignora .env, .env.test, .env.local, etc. pero deja los .example
