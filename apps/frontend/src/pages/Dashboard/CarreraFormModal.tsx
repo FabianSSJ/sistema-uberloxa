@@ -3,6 +3,7 @@ import { CheckCircle2, Clock, AlertTriangle } from 'lucide-react';
 import { Modal } from '../../components/ui/Modal';
 import { Button } from '../../components/ui/Button';
 import { Select } from '../../components/ui/Select';
+import { Switch } from '../../components/ui/Switch';
 import { formatCodigo } from '../../components/ui/CodigoBadge';
 import { clienteSearchText, unidadSearchText } from '../../core/search/matchers';
 import { useClientes } from '../../features/clientes/hooks/useClientes';
@@ -115,25 +116,12 @@ export const CarreraFormModal: React.FC<CarreraFormModalProps> = ({
           searchable
         />
 
-        {/* Switch Encomienda */}
-        <div 
-          className="flex items-center justify-between px-3 py-2.5 bg-gray-50 rounded-lg border border-gray-200 cursor-pointer select-none"
-          onMouseDown={(e) => e.preventDefault()}
-          onClick={() => setFormData(prev => ({ ...prev, esEncomienda: !prev.esEncomienda }))}
-        >
-          <span className="text-sm font-semibold text-gray-700">Encomienda</span>
-          <span
-            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
-              formData.esEncomienda ? 'bg-amber-500' : 'bg-gray-300'
-            }`}
-          >
-            <span
-              className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                formData.esEncomienda ? 'translate-x-5' : 'translate-x-0'
-              }`}
-            />
-          </span>
-        </div>
+        <Switch
+          checked={!!formData.esEncomienda}
+          onChange={(checked) => setFormData(prev => ({ ...prev, esEncomienda: checked }))}
+          label="Encomienda"
+          className="justify-between w-full px-3 py-2.5 bg-gray-50 rounded-lg border border-gray-200"
+        />
 
         {/* Selección de Estado de la Carrera */}
         <div className="flex flex-col gap-1.5 w-full">

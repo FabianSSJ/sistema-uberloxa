@@ -138,17 +138,46 @@ export class ReportesService {
       if (d.porUnidad.length === 0) {
         doc.font('Helvetica').fontSize(10).fillColor('#6b7280').text(`No hubo carreras asignadas a unidades ${esRango ? `en el período ${d.fecha}` : `el ${d.fecha}`}.`);
       } else {
-        const NUM_COLS = 3;
-        const COL_WIDTH = 155;
+        // 2 columnas (en vez de la única columna a todo el ancho de antes): entran más
+        // unidades por página sin tener que sacrificar la columna de chofer/conductor
+        // (issue detectado en code review: la versión de 3 columnas la dejaba afuera).
+        const NUM_COLS = 2;
+        const COL_WIDTH = 245;
         const COL_GAP = 25;
         const MARGIN_LEFT = 40;
         const ROW_HEIGHT = 16;
         const HEADER_HEIGHT = 20;
         const MAX_PAGE_Y = 750;
 
+        // Única fuente de verdad para la posición/ancho de cada columna: la cabecera y las
+        // filas de datos leen de acá en vez de repetir los offsets cada una por su lado —
+        // así "columna en la cabecera pero no en los datos" (como pasó con CHOFER la primera
+        // vez que se armó este layout) deja de ser posible.
+        type ItemUnidad = (typeof d.porUnidad)[number];
+        const COLUMNS: Array<{
+          x: number; width: number; header: string; align?: 'left' | 'right';
+          font: string; size: number; color: string; ellipsis?: boolean; textHeight?: number;
+          value: (u: ItemUnidad, globalIndex: number) => string;
+        }> = [
+          { x: 0, width: 20, header: '#', font: 'Helvetica', size: 8.5, color: '#6b7280', value: (_u, i) => String(i) },
+          { x: 22, width: 50, header: 'UNIDAD', font: 'Helvetica-Bold', size: 8.5, color: '#111827', value: (u) => `Nº ${u.numeroUnidad || 'S/N'}` },
+          // height fijo es imprescindible: sin él, pdfkit ignora "ellipsis" en nombres largos
+          // y envuelve a una segunda línea que se superpone con la fila de abajo.
+          { x: 74, width: 110, header: 'CHOFER / CONDUCTOR', font: 'Helvetica', size: 8, color: '#374151', ellipsis: true, textHeight: 10, value: (u) => u.choferNombre?.trim() || 'Sin chofer asignado' },
+          { x: 186, width: 59, header: 'CARRERAS', align: 'right', font: 'Helvetica-Bold', size: 8.5, color: '#16a34a', value: (u) => String(u.cantidad) },
+        ];
+
         let yCurr = doc.y;
         let startIndex = 0;
         const items = d.porUnidad;
+
+        // Si el bloque de resumen de arriba dejó muy poco lugar en la página actual
+        // (menos de lo que ocupan cabecera + una fila), saltamos de página ANTES de
+        // empezar a dibujar en vez de forzar una fila cerca del pie de página.
+        if (MAX_PAGE_Y - (yCurr + HEADER_HEIGHT) < ROW_HEIGHT) {
+          doc.addPage();
+          yCurr = 40;
+        }
 
         while (startIndex < items.length) {
           const availableHeight = MAX_PAGE_Y - (yCurr + HEADER_HEIGHT);
@@ -163,9 +192,9 @@ export class ReportesService {
           for (let col = 0; col < numActiveCols; col++) {
             const colX = MARGIN_LEFT + col * (COL_WIDTH + COL_GAP);
             doc.font('Helvetica-Bold').fontSize(8.5).fillColor('#6b7280');
-            doc.text('#', colX, yCurr, { width: 22 });
-            doc.text('UNIDAD', colX + 24, yCurr, { width: 65 });
-            doc.text('CARRERAS', colX + 92, yCurr, { width: 63, align: 'right' });
+            for (const c of COLUMNS) {
+              doc.text(c.header, colX + c.x, yCurr, { width: c.width, align: c.align });
+            }
             doc.moveTo(colX, yCurr + 13).lineTo(colX + COL_WIDTH, yCurr + 13).strokeColor('#d1d5db').lineWidth(0.8).stroke();
           }
 
@@ -182,14 +211,10 @@ export class ReportesService {
               doc.rect(colX - 2, itemY - 2, COL_WIDTH + 4, ROW_HEIGHT).fill('#f9fafb');
             }
 
-            doc.font('Helvetica').fontSize(8.5).fillColor('#6b7280');
-            doc.text(String(globalIndex), colX, itemY, { width: 22 });
-
-            doc.font('Helvetica-Bold').fontSize(8.5).fillColor('#111827');
-            doc.text(`Nº ${u.numeroUnidad || 'S/N'}`, colX + 24, itemY, { width: 65 });
-
-            doc.font('Helvetica-Bold').fontSize(8.5).fillColor('#16a34a');
-            doc.text(String(u.cantidad), colX + 92, itemY, { width: 63, align: 'right' });
+            for (const c of COLUMNS) {
+              doc.font(c.font).fontSize(c.size).fillColor(c.color);
+              doc.text(c.value(u, globalIndex), colX + c.x, itemY, { width: c.width, align: c.align, ellipsis: c.ellipsis, height: c.textHeight });
+            }
           });
 
           yCurr += HEADER_HEIGHT + rowsThisPage * ROW_HEIGHT + 10;

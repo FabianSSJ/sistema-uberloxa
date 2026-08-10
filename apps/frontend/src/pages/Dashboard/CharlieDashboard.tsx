@@ -7,9 +7,11 @@ import { useCambiarEstadoUnidad } from '../../features/unidades/hooks/useUnidade
 import { ESTADO_UNIDAD_STYLES } from '../../features/unidades/components/EstadoUnidadBadge';
 import { UnidadDetalleModal } from '../../features/unidades/components/UnidadDetalleModal';
 import { useCreateCarrera, useCompletarCarrera, useCancelarCarrera, usePerderCarrera, useDeleteCarrera } from '../../features/carreras/hooks/useCarreras';
+import type { CreateCarreraDto } from '../../features/carreras/services/carreras.service';
 import { CarreraFormModal } from './CarreraFormModal';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { CodigoBadge, formatCodigo } from '../../components/ui/CodigoBadge';
+import { Switch } from '../../components/ui/Switch';
 import { ESTADO_CARRERA_STYLES } from '../../features/carreras/components/EstadoCarreraBadge';
 import { notify } from '../../components/ui/toast';
 import { rankBy, scoreUnidad, scoreCliente } from '../../core/search/matchers';
@@ -71,6 +73,20 @@ export const CharlieDashboard = () => {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const unitInputRef = useRef<HTMLInputElement>(null);
 
+  // Único punto de creación de carrera de todo el dashboard: SIEMPRE manda el toggle de
+  // Encomienda vigente y SIEMPRE lo resetea al terminar. Existe para que sea estructuralmente
+  // imposible que un nuevo botón/handler se olvide de alguno de los dos pasos, como pasó acá
+  // (varios lugares creaban la carrera sin pasar esEncomienda).
+  const crearCarrera = (
+    payload: Omit<CreateCarreraDto, 'esEncomienda'>,
+    options?: { onSuccess?: () => void },
+  ) => {
+    createCarreraMutation.mutate(
+      { ...payload, esEncomienda: rapidoEncomienda },
+      { onSuccess: () => { setRapidoEncomienda(false); options?.onSuccess?.(); } },
+    );
+  };
+
   const despacharConUnidad = (clienteId: number, numUnidadStr: string) => {
     const numClean = numUnidadStr.trim();
     if (!numClean) {
@@ -97,13 +113,12 @@ export const CharlieDashboard = () => {
       return;
     }
 
-    createCarreraMutation.mutate(
-      { clienteId, unidadId: unidadTarget.id, esEncomienda: rapidoEncomienda, notas: 'Despacho Rápido' },
+    crearCarrera(
+      { clienteId, unidadId: unidadTarget.id, notas: 'Despacho Rápido' },
       {
         onSuccess: () => {
           setSearchCliente('');
           setNumUnidadRapido('');
-          setRapidoEncomienda(false);
           setTimeout(() => searchInputRef.current?.focus(), 50);
         }
       }
@@ -153,10 +168,7 @@ export const CharlieDashboard = () => {
   // el backend ya default-ea a eso) y queda esperando en el tope de la cola hasta que se le
   // arrastre una unidad o se la marque cancelada/perdida.
   const crearPendiente = (clienteId: number) => {
-    createCarreraMutation.mutate(
-      { clienteId, esEncomienda: rapidoEncomienda },
-      { onSuccess: () => { setSearchCliente(''); setRapidoEncomienda(false); } }
-    );
+    crearCarrera({ clienteId }, { onSuccess: () => setSearchCliente('') });
   };
 
   // Enter en el buscador = registrar la carrera inmediatamente con UN SOLO ENTER (sin requerir un segundo Enter).
@@ -182,7 +194,7 @@ export const CharlieDashboard = () => {
       { nombre: nombre || undefined, telefono: telefono || undefined },
       {
         onSuccess: (cliente) => {
-          createCarreraMutation.mutate({ clienteId: cliente.id });
+          crearCarrera({ clienteId: cliente.id });
           setRapidoNombre('');
           setRapidoTelefono('');
           setModoRapido(false); // vuelve solo a buscar/agregar/eliminar: no se queda ocupando espacio
@@ -315,7 +327,7 @@ export const CharlieDashboard = () => {
                       } else if (estado === 'ocupado') {
                         notify.error(`La unidad Nº ${u.numeroUnidad || 'S/N'} ya está ocupada en otra carrera.`);
                       } else {
-                        createCarreraMutation.mutate({ clienteId: draggedItem.id, unidadId: u.id, notas: 'Asignación Rápida' });
+                        crearCarrera({ clienteId: draggedItem.id, unidadId: u.id, notas: 'Asignación Rápida' });
                       }
                     }
                     setDraggedItem(null); setDragOverItem(null);
@@ -475,7 +487,7 @@ export const CharlieDashboard = () => {
                           } else if (unidadDrag?.estado === 'ocupado') {
                             notify.error(`La unidad Nº ${unidadDrag.numeroUnidad || 'S/N'} ya está ocupada en otra carrera.`);
                           } else {
-                            createCarreraMutation.mutate({ clienteId: c.id, unidadId: draggedItem.id, notas: 'Asignación Rápida' });
+                            crearCarrera({ clienteId: c.id, unidadId: draggedItem.id, notas: 'Asignación Rápida' });
                             setSearchCliente('');
                           }
                         }
@@ -559,27 +571,7 @@ export const CharlieDashboard = () => {
                                 <label className="text-[0.6875rem] font-bold uppercase tracking-wider text-gray-500">
                                   Despachar a Unidad
                                 </label>
-                                <div 
-                                  className="flex items-center gap-2 cursor-pointer select-none"
-                                  onMouseDown={(e) => e.preventDefault()}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setRapidoEncomienda((prev) => !prev);
-                                  }}
-                                >
-                                  <span className="text-xs font-bold text-gray-700">Encomienda</span>
-                                  <span
-                                    className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
-                                      rapidoEncomienda ? 'bg-amber-500' : 'bg-gray-300'
-                                    }`}
-                                  >
-                                    <span
-                                      className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                                        rapidoEncomienda ? 'translate-x-4' : 'translate-x-0'
-                                      }`}
-                                    />
-                                  </span>
-                                </div>
+                                <Switch checked={rapidoEncomienda} onChange={setRapidoEncomienda} label="Encomienda" size="sm" />
                               </div>
                               <form
                                 onSubmit={(e) => {
@@ -605,7 +597,7 @@ export const CharlieDashboard = () => {
                                 <button
                                   type="button"
                                   onClick={() => {
-                                    createCarreraMutation.mutate(
+                                    crearCarrera(
                                       { clienteId: c.id, estado: 'perdida', notas: 'Sin unidad disponible' },
                                       { onSuccess: () => { setSearchCliente(''); setNumUnidadRapido(''); } }
                                     );
@@ -640,7 +632,7 @@ export const CharlieDashboard = () => {
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                createCarreraMutation.mutate(
+                                crearCarrera(
                                   { clienteId: c.id, estado: 'perdida', notas: 'Sin unidad disponible' },
                                   { onSuccess: () => setSearchCliente('') }
                                 );

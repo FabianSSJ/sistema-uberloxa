@@ -3,6 +3,7 @@ import { Modal } from '../../components/ui/Modal';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { Select } from '../../components/ui/Select';
+import { Switch } from '../../components/ui/Switch';
 import { useCreateCarrera } from '../../features/carreras/hooks/useCarreras';
 import { useClientes } from '../../features/clientes/hooks/useClientes';
 import { useUnidades } from '../../features/unidades/hooks/useUnidades';
@@ -94,25 +95,12 @@ export const NuevaCarreraModal: React.FC<NuevaCarreraModalProps> = ({ isOpen, on
           searchable
         />
 
-        {/* Switch Encomienda */}
-        <div 
-          className="flex items-center justify-between px-3 py-2.5 bg-gray-50 rounded-lg border border-gray-200 cursor-pointer select-none"
-          onMouseDown={(e) => e.preventDefault()}
-          onClick={() => setEsEncomienda(prev => !prev)}
-        >
-          <span className="text-sm font-semibold text-gray-700">Encomienda</span>
-          <span
-            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
-              esEncomienda ? 'bg-amber-500' : 'bg-gray-300'
-            }`}
-          >
-            <span
-              className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                esEncomienda ? 'translate-x-5' : 'translate-x-0'
-              }`}
-            />
-          </span>
-        </div>
+        <Switch
+          checked={esEncomienda}
+          onChange={setEsEncomienda}
+          label="Encomienda"
+          className="justify-between w-full px-3 py-2.5 bg-gray-50 rounded-lg border border-gray-200"
+        />
 
         <Input
           label="Notas para el Taxista"

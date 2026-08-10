@@ -1,4 +1,4 @@
-import { IsEnum, IsNumber, IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsEnum, IsNumber, IsOptional, IsString } from 'class-validator';
 import { EstadoCarrera } from '../../../generated/prisma/client';
 
 export class CreateCarreraDto {
@@ -17,6 +17,7 @@ export class CreateCarreraDto {
   @IsOptional()
   estado?: EstadoCarrera;
 
+  @IsBoolean()
   @IsOptional()
   esEncomienda?: boolean;
 }
