@@ -138,54 +138,70 @@ export class ReportesService {
       if (d.porUnidad.length === 0) {
         doc.font('Helvetica').fontSize(10).fillColor('#6b7280').text(`No hubo carreras asignadas a unidades ${esRango ? `en el período ${d.fecha}` : `el ${d.fecha}`}.`);
       } else {
-        // Función para renderizar la cabecera de la tabla
-        const dibujarCabeceraTabla = (y: number) => {
-          doc.font('Helvetica-Bold').fontSize(9).fillColor('#6b7280');
-          doc.text('#', 40, y, { width: 30 });
-          doc.text('UNIDAD', 75, y, { width: 75 });
-          doc.text('CHOFER / CONDUCTOR', 155, y, { width: 275 });
-          doc.text('CARRERAS', 435, y, { width: 120, align: 'right' });
-          doc.moveTo(40, y + 14).lineTo(555, y + 14).strokeColor('#d1d5db').lineWidth(1).stroke();
-        };
+        const NUM_COLS = 3;
+        const COL_WIDTH = 155;
+        const COL_GAP = 25;
+        const MARGIN_LEFT = 40;
+        const ROW_HEIGHT = 16;
+        const HEADER_HEIGHT = 20;
+        const MAX_PAGE_Y = 750;
 
         let yCurr = doc.y;
-        dibujarCabeceraTabla(yCurr);
-        yCurr += 20;
+        let startIndex = 0;
+        const items = d.porUnidad;
 
-        const maxPageY = 750; // Límite inferior seguro para evitar desbordes de página
+        while (startIndex < items.length) {
+          const availableHeight = MAX_PAGE_Y - (yCurr + HEADER_HEIGHT);
+          const maxRowsPerPage = Math.max(1, Math.floor(availableHeight / ROW_HEIGHT));
+          const itemsPerPage = maxRowsPerPage * NUM_COLS;
 
-        d.porUnidad.forEach((u, i) => {
-          // Si el siguiente elemento supera el límite de la página, creamos una nueva página
-          if (yCurr + 18 > maxPageY) {
+          const pageItems = items.slice(startIndex, startIndex + itemsPerPage);
+          const rowsThisPage = Math.min(maxRowsPerPage, Math.max(1, Math.ceil(pageItems.length / NUM_COLS)));
+          const numActiveCols = Math.min(NUM_COLS, Math.ceil(pageItems.length / rowsThisPage));
+
+          // Dibujar cabeceras para cada columna activa en esta página
+          for (let col = 0; col < numActiveCols; col++) {
+            const colX = MARGIN_LEFT + col * (COL_WIDTH + COL_GAP);
+            doc.font('Helvetica-Bold').fontSize(8.5).fillColor('#6b7280');
+            doc.text('#', colX, yCurr, { width: 22 });
+            doc.text('UNIDAD', colX + 24, yCurr, { width: 65 });
+            doc.text('CARRERAS', colX + 92, yCurr, { width: 63, align: 'right' });
+            doc.moveTo(colX, yCurr + 13).lineTo(colX + COL_WIDTH, yCurr + 13).strokeColor('#d1d5db').lineWidth(0.8).stroke();
+          }
+
+          // Renderizar los elementos verticalmente por columna
+          pageItems.forEach((u, i) => {
+            const col = Math.floor(i / rowsThisPage);
+            const row = i % rowsThisPage;
+            const colX = MARGIN_LEFT + col * (COL_WIDTH + COL_GAP);
+            const itemY = yCurr + HEADER_HEIGHT + row * ROW_HEIGHT;
+            const globalIndex = startIndex + i + 1;
+
+            // Fondo alternado por fila dentro de cada columna
+            if (row % 2 === 1) {
+              doc.rect(colX - 2, itemY - 2, COL_WIDTH + 4, ROW_HEIGHT).fill('#f9fafb');
+            }
+
+            doc.font('Helvetica').fontSize(8.5).fillColor('#6b7280');
+            doc.text(String(globalIndex), colX, itemY, { width: 22 });
+
+            doc.font('Helvetica-Bold').fontSize(8.5).fillColor('#111827');
+            doc.text(`Nº ${u.numeroUnidad || 'S/N'}`, colX + 24, itemY, { width: 65 });
+
+            doc.font('Helvetica-Bold').fontSize(8.5).fillColor('#16a34a');
+            doc.text(String(u.cantidad), colX + 92, itemY, { width: 63, align: 'right' });
+          });
+
+          yCurr += HEADER_HEIGHT + rowsThisPage * ROW_HEIGHT + 10;
+          startIndex += itemsPerPage;
+
+          if (startIndex < items.length) {
             doc.addPage();
             yCurr = 40;
             doc.font('Helvetica-Bold').fontSize(9).fillColor('#6b7280').text(`Informe diario de carreras (${d.fecha}) - Continuación`, 40, yCurr);
             yCurr += 16;
-            dibujarCabeceraTabla(yCurr);
-            yCurr += 20;
           }
-
-          // Fondo alternado suave para facilitar la lectura
-          if (i % 2 === 1) {
-            doc.rect(40, yCurr - 2, 515, 16).fill('#f9fafb');
-          }
-
-          const chofer = u.choferNombre?.trim() || 'Sin chofer asignado';
-
-          doc.font('Helvetica').fontSize(9).fillColor('#6b7280');
-          doc.text(String(i + 1), 40, yCurr, { width: 30 });
-
-          doc.font('Helvetica-Bold').fontSize(9).fillColor('#111827');
-          doc.text(`Nº ${u.numeroUnidad || 'S/N'}`, 75, yCurr, { width: 75 });
-
-          doc.font('Helvetica').fontSize(9).fillColor('#374151');
-          doc.text(chofer, 155, yCurr, { width: 275, lineBreak: false, ellipsis: true });
-
-          doc.font('Helvetica-Bold').fontSize(9).fillColor('#16a34a');
-          doc.text(String(u.cantidad), 435, yCurr, { width: 120, align: 'right' });
-
-          yCurr += 17;
-        });
+        }
 
         doc.y = yCurr;
       }

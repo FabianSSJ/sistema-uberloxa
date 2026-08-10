@@ -53,13 +53,14 @@ export const CarreraFormModal: React.FC<CarreraFormModalProps> = ({
       clienteId: Number(formData.clienteId),
       unidadId: formData.unidadId ? Number(formData.unidadId) : undefined,
       estado: finalEstado,
+      esEncomienda: formData.esEncomienda ?? false,
       notas: formData.notas || undefined,
     };
 
     createMutation.mutate(payload, {
       onSuccess: () => {
         onClose();
-        setFormData({ clienteId: 0, unidadId: undefined, estado: 'completada', notas: '' });
+        setFormData({ clienteId: 0, unidadId: undefined, estado: 'completada', esEncomienda: false, notas: '' });
       },
     });
   };
@@ -113,6 +114,26 @@ export const CarreraFormModal: React.FC<CarreraFormModalProps> = ({
           placeholder="Seleccione una unidad o deje vacío..."
           searchable
         />
+
+        {/* Switch Encomienda */}
+        <div 
+          className="flex items-center justify-between px-3 py-2.5 bg-gray-50 rounded-lg border border-gray-200 cursor-pointer select-none"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => setFormData(prev => ({ ...prev, esEncomienda: !prev.esEncomienda }))}
+        >
+          <span className="text-sm font-semibold text-gray-700">Encomienda</span>
+          <span
+            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
+              formData.esEncomienda ? 'bg-amber-500' : 'bg-gray-300'
+            }`}
+          >
+            <span
+              className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                formData.esEncomienda ? 'translate-x-5' : 'translate-x-0'
+              }`}
+            />
+          </span>
+        </div>
 
         {/* Selección de Estado de la Carrera */}
         <div className="flex flex-col gap-1.5 w-full">

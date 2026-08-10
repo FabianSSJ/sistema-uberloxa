@@ -2,11 +2,12 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../features/auth/context/AuthContext';
 import api from '../../core/api/axios';
-import { Car } from 'lucide-react';
+import { Car, Eye, EyeOff } from 'lucide-react';
 
 export const LoginPage = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   
@@ -78,15 +79,24 @@ export const LoginPage = () => {
               <label className="block text-sm font-medium text-gray-300">
                 Contraseña
               </label>
-              <div className="mt-2">
+              <div className="mt-2 relative">
                 <input
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="appearance-none block w-full px-4 py-3 bg-[#0a0a0a] border border-gray-800 rounded-xl shadow-inner text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all sm:text-sm"
+                  className="appearance-none block w-full pl-4 pr-11 py-3 bg-[#0a0a0a] border border-gray-800 rounded-xl shadow-inner text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all sm:text-sm"
                   placeholder="••••••••"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-gray-500 hover:text-green-400 focus:outline-none transition-colors"
+                  tabIndex={-1}
+                  title={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
               </div>
             </div>
 

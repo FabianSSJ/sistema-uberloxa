@@ -101,6 +101,7 @@ model Carrera {
   unidadId     Int?                     @map("unidad_id")
   creadoPorId  Int?                     @map("creado_por")
   estado       EstadoCarrera            @default(pendiente)
+  esEncomienda Boolean                  @default(false) @map("es_encomienda")
   notas        String?
   createdAt    DateTime                 @default(now()) @map("created_at")
   fechaFin     DateTime?                @map("fecha_fin")

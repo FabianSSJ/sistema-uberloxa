@@ -9,6 +9,7 @@ export interface Carrera {
   unidadId?: number;
   unidad?: Unidad;
   estado: string;
+  esEncomienda?: boolean;
   notas?: string;
   createdAt: string;
   fechaFin?: string;
@@ -19,6 +20,7 @@ export interface CreateCarreraDto {
   unidadId?: number;
   notas?: string;
   estado?: string;
+  esEncomienda?: boolean;
 }
 
 export interface HistorialParams {

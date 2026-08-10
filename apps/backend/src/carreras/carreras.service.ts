@@ -106,6 +106,7 @@ export class CarrerasService {
         unidadId: createCarreraDto.unidadId || null,
         notas: createCarreraDto.notas || null,
         estado: createCarreraDto.estado ?? (createCarreraDto.unidadId ? 'completada' : 'pendiente'),
+        esEncomienda: createCarreraDto.esEncomienda ?? false,
         fechaFin: (createCarreraDto.estado === 'completada' || createCarreraDto.estado === 'perdida' || createCarreraDto.estado === 'cancelada' || (!createCarreraDto.estado && createCarreraDto.unidadId)) ? new Date() : null,
         creadoPorId: userId || null,
         numeroDiario: count + 1,

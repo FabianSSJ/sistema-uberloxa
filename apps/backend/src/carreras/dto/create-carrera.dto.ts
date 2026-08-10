@@ -16,4 +16,7 @@ export class CreateCarreraDto {
   @IsEnum(EstadoCarrera)
   @IsOptional()
   estado?: EstadoCarrera;
+
+  @IsOptional()
+  esEncomienda?: boolean;
 }

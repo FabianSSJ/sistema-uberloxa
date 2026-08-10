@@ -66,6 +66,7 @@ export const CharlieDashboard = () => {
   const [careerToDelete, setCareerToDelete] = useState<number | null>(null);
   const [detalleUnidad, setDetalleUnidad] = useState<any>(null);
   const [numUnidadRapido, setNumUnidadRapido] = useState('');
+  const [rapidoEncomienda, setRapidoEncomienda] = useState(false);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
   const unitInputRef = useRef<HTMLInputElement>(null);
@@ -97,11 +98,12 @@ export const CharlieDashboard = () => {
     }
 
     createCarreraMutation.mutate(
-      { clienteId, unidadId: unidadTarget.id, notas: 'Despacho Rápido' },
+      { clienteId, unidadId: unidadTarget.id, esEncomienda: rapidoEncomienda, notas: 'Despacho Rápido' },
       {
         onSuccess: () => {
           setSearchCliente('');
           setNumUnidadRapido('');
+          setRapidoEncomienda(false);
           setTimeout(() => searchInputRef.current?.focus(), 50);
         }
       }
@@ -151,7 +153,10 @@ export const CharlieDashboard = () => {
   // el backend ya default-ea a eso) y queda esperando en el tope de la cola hasta que se le
   // arrastre una unidad o se la marque cancelada/perdida.
   const crearPendiente = (clienteId: number) => {
-    createCarreraMutation.mutate({ clienteId }, { onSuccess: () => setSearchCliente('') });
+    createCarreraMutation.mutate(
+      { clienteId, esEncomienda: rapidoEncomienda },
+      { onSuccess: () => { setSearchCliente(''); setRapidoEncomienda(false); } }
+    );
   };
 
   // Enter en el buscador = registrar la carrera inmediatamente con UN SOLO ENTER (sin requerir un segundo Enter).
@@ -431,7 +436,7 @@ export const CharlieDashboard = () => {
                   title="Volver a buscar"
                   className="shrink-0 inline-flex items-center justify-center w-9 h-9 rounded-lg border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 transition-colors shadow-sm"
                 >
-                  <X size={16} />
+                <X size={16} />
                 </button>
               </div>
             )}
@@ -440,10 +445,10 @@ export const CharlieDashboard = () => {
             )}
           </div>
 
-          {/* Contenido: buscando → clientes para despachar | sin buscar → carreras del día */}
+          {/* Contenido: buscando → cliente para despachar con mini-columna de últimas unidades al lado | sin buscar → carreras del día */}
           <div className="flex-1 overflow-y-auto px-4 pb-4 pt-2 flex flex-col gap-2 bg-slate-50/50">
             {searchCliente.trim() ? (
-              <>
+              <div className="flex flex-col gap-2">
                 {filteredClientes.map((c: any) => {
                   const isDragOver = dragOverItem?.type === 'CLIENTE' && dragOverItem.id === c.id;
                   return (
@@ -471,85 +476,149 @@ export const CharlieDashboard = () => {
                             notify.error(`La unidad Nº ${unidadDrag.numeroUnidad || 'S/N'} ya está ocupada en otra carrera.`);
                           } else {
                             createCarreraMutation.mutate({ clienteId: c.id, unidadId: draggedItem.id, notas: 'Asignación Rápida' });
-                            setSearchCliente(''); // tras asignar, limpiamos la búsqueda para ver la carrera registrada
+                            setSearchCliente('');
                           }
                         }
                         setDraggedItem(null); setDragOverItem(null);
                       }}
                       title="Click para registrar la carrera pendiente (sin unidad) · arrastrá una unidad encima para asignarla directo"
-                      className={`border rounded-lg shadow-sm hover:-translate-y-0.5 hover:shadow transition-all duration-200 group cursor-pointer active:cursor-grabbing ${esBusquedaCodigo ? 'p-5 flex flex-col gap-4' : 'p-2.5 flex items-center justify-between gap-2'} ${isDragOver ? 'bg-green-50 ring-2 ring-green-400 border-green-300 scale-[1.02]' : 'bg-white border-gray-100'}`}
+                      className={`border rounded-lg shadow-sm hover:shadow transition-all duration-200 group cursor-pointer ${esBusquedaCodigo ? 'p-3 flex flex-col gap-2 bg-white border-gray-200' : 'p-2.5 flex items-center justify-between gap-2 bg-white border-gray-100'} ${isDragOver ? 'bg-green-50 ring-2 ring-green-400 border-green-300 scale-[1.01]' : ''}`}
                     >
                       {esBusquedaCodigo ? (
-                        /* Vista GRANDE: búsqueda por código → un cliente, toda la info a la vista + botones rápidos */
-                        <>
-                          <div className="pointer-events-none flex flex-col gap-4">
-                            <div className="flex items-start justify-between gap-4">
-                              <h3 className="font-black text-gray-900 m-0 text-3xl leading-tight break-words">{c.nombre}</h3>
-                              <span className="shrink-0 inline-flex flex-col items-center bg-blue-50 text-blue-700 border border-blue-200 rounded-2xl px-5 py-2 shadow-sm">
-                                <span className="text-[0.625rem] font-bold uppercase tracking-widest text-blue-400">Código</span>
-                                <span className="text-4xl font-black font-mono leading-none">{formatCodigo(c.codigo)}</span>
-                              </span>
+                        /* Vista por código: 2 columnas A UN LADITO (Izquierda: ÚLTIMAS UNIDADES | Derecha: DATOS CLIENTE) */
+                        <div className="w-full grid grid-cols-1 md:grid-cols-12 gap-3" onClick={(e) => e.stopPropagation()}>
+                          {/* Columna Izquierda (A un ladito): Últimas unidades despachadas */}
+                          <div className="md:col-span-4 bg-slate-50 p-2.5 rounded-xl border border-slate-200 flex flex-col gap-2">
+                            <div className="flex items-center justify-between pb-1 border-b border-slate-200">
+                              <span className="text-[0.6875rem] font-black text-gray-700 uppercase tracking-wider">Últimas Despachadas</span>
+                              <span className="text-[0.5625rem] text-gray-400 font-bold">Recientes</span>
                             </div>
-                            {c.direccion ? (
-                              <div className="flex items-start gap-3 text-gray-800 bg-slate-100/80 rounded-xl px-4 py-3.5 border border-slate-200 shadow-sm">
-                                <MapPin size={26} className="shrink-0 text-blue-600 mt-0.5" />
-                                <span className="text-xl font-bold leading-snug break-words">{c.direccion}</span>
-                              </div>
-                            ) : (
-                              <p className="text-sm font-semibold text-gray-400 uppercase tracking-wide m-0">Sin dirección registrada</p>
-                            )}
-                            {(c.telefono || c.telefonoAlt) && (
-                              <div className="flex items-center gap-3 text-gray-800">
-                                <Phone size={22} className="shrink-0 text-green-600" />
-                                <span className="text-xl font-bold tracking-wide">
-                                  {[c.telefono, c.telefonoAlt].filter(Boolean).join('   ·   ')}
-                                </span>
-                              </div>
-                            )}
+                            <div className="flex flex-wrap gap-1.5 overflow-y-auto max-h-[220px]">
+                              {carrerasDelDia.slice(0, 10).map((r: any) => {
+                                const numU = r.unidad?.numeroUnidad;
+                                return (
+                                  <button
+                                    key={r.id}
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (numU) {
+                                        setNumUnidadRapido(numU.toString());
+                                        setTimeout(() => unitInputRef.current?.focus(), 30);
+                                      }
+                                    }}
+                                    className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white hover:bg-amber-100/80 active:bg-amber-200 rounded-lg border border-gray-200 shadow-2xs transition cursor-pointer"
+                                    title={numU ? `Unidad Nº ${numU} · Click para elegir` : 'Sin unidad'}
+                                  >
+                                    <Car size={14} className={numU ? 'text-amber-600' : 'text-gray-400'} />
+                                    <span className="font-black text-gray-900 text-sm font-mono">
+                                      {numU ? `Nº ${numU}` : 'S/N'}
+                                    </span>
+                                  </button>
+                                );
+                              })}
+                              {carrerasDelDia.length === 0 && (
+                                <div className="text-[0.6875rem] text-gray-400 text-center py-4 w-full">Sin carreras previas hoy</div>
+                              )}
+                            </div>
                           </div>
 
-                          {/* Campo de entrada rápida para número de unidad + despacho con ENTER */}
-                          <div className="pt-3 border-t border-gray-100 flex flex-col gap-2" onClick={(e) => e.stopPropagation()}>
-                            <label className="text-xs font-bold uppercase tracking-wider text-gray-500">
-                              Despachar a Unidad
-                            </label>
-                            <form
-                              onSubmit={(e) => {
-                                e.preventDefault();
-                                despacharConUnidad(c.id, numUnidadRapido);
-                              }}
-                              className="w-full"
-                            >
-                              <div className="relative w-full">
-                                <Car className="absolute left-3 top-1/2 -translate-y-1/2 text-amber-500" size={20} />
-                                <input
-                                  ref={unitInputRef}
-                                  type="text"
-                                  placeholder="Escribí el Nº de Unidad (opcional) y presioná Enter..."
-                                  value={numUnidadRapido}
-                                  onChange={(e) => setNumUnidadRapido(e.target.value)}
-                                  className="w-full pl-10 pr-4 py-2.5 bg-amber-50/60 border-2 border-amber-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 text-lg font-black text-gray-900 rounded-xl outline-none transition shadow-sm placeholder:text-gray-400 placeholder:font-normal"
-                                />
+                          {/* Columna Derecha: Datos del Cliente + Despacho */}
+                          <div className="md:col-span-8 flex flex-col justify-between gap-2">
+                            <div className="flex flex-col gap-1.5">
+                              <div className="flex items-start justify-between gap-2">
+                                <h3 className="font-black text-gray-900 m-0 text-xl leading-tight break-words">{c.nombre}</h3>
+                                <span className="shrink-0 inline-flex flex-col items-center bg-blue-50 text-blue-700 border border-blue-200 rounded-xl px-3 py-1 shadow-sm">
+                                  <span className="text-[0.5625rem] font-bold uppercase tracking-widest text-blue-400">Código</span>
+                                  <span className="text-2xl font-black font-mono leading-none">{formatCodigo(c.codigo)}</span>
+                                </span>
                               </div>
-                            </form>
-                            <div className="flex items-center justify-between text-xs text-gray-400 font-medium px-1">
-                              <span>Presioná <strong className="text-gray-600">Enter</strong> para despachar (con o sin unidad)</span>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  createCarreraMutation.mutate(
-                                    { clienteId: c.id, estado: 'perdida', notas: 'Sin unidad disponible' },
-                                    { onSuccess: () => { setSearchCliente(''); setNumUnidadRapido(''); } }
-                                  );
+
+                              {c.direccion ? (
+                                <div className="flex items-start gap-1.5 text-gray-800 bg-slate-100/80 rounded-lg px-2.5 py-1.5 border border-slate-200 shadow-sm">
+                                  <MapPin size={16} className="shrink-0 text-blue-600 mt-0.5" />
+                                  <span className="text-xs font-bold leading-snug break-words">{c.direccion}</span>
+                                </div>
+                              ) : (
+                                <p className="text-[0.6875rem] font-semibold text-gray-400 uppercase tracking-wide m-0">Sin dirección registrada</p>
+                              )}
+
+                              {(c.telefono || c.telefonoAlt) && (
+                                <div className="flex items-center gap-1.5 text-gray-800">
+                                  <Phone size={14} className="shrink-0 text-green-600" />
+                                  <span className="text-xs font-bold tracking-wide">
+                                    {[c.telefono, c.telefonoAlt].filter(Boolean).join('   ·   ')}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Campo de despacho + Encomienda switch */}
+                            <div className="pt-2 border-t border-gray-100 flex flex-col gap-2">
+                              <div className="flex items-center justify-between">
+                                <label className="text-[0.6875rem] font-bold uppercase tracking-wider text-gray-500">
+                                  Despachar a Unidad
+                                </label>
+                                <div 
+                                  className="flex items-center gap-2 cursor-pointer select-none"
+                                  onMouseDown={(e) => e.preventDefault()}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setRapidoEncomienda((prev) => !prev);
+                                  }}
+                                >
+                                  <span className="text-xs font-bold text-gray-700">Encomienda</span>
+                                  <span
+                                    className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
+                                      rapidoEncomienda ? 'bg-amber-500' : 'bg-gray-300'
+                                    }`}
+                                  >
+                                    <span
+                                      className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                                        rapidoEncomienda ? 'translate-x-4' : 'translate-x-0'
+                                      }`}
+                                    />
+                                  </span>
+                                </div>
+                              </div>
+                              <form
+                                onSubmit={(e) => {
+                                  e.preventDefault();
+                                  despacharConUnidad(c.id, numUnidadRapido);
                                 }}
-                                className="text-orange-600 hover:text-orange-700 hover:underline font-semibold flex items-center gap-1 cursor-pointer"
+                                className="w-full"
                               >
-                                <AlertTriangle size={12} />
-                                <span>Carrera Perdida (Sin unidad)</span>
-                              </button>
+                                <div className="relative w-full">
+                                  <Car className="absolute left-3 top-1/2 -translate-y-1/2 text-amber-500" size={18} />
+                                  <input
+                                    ref={unitInputRef}
+                                    type="text"
+                                    placeholder="Nº de Unidad y Enter..."
+                                    value={numUnidadRapido}
+                                    onChange={(e) => setNumUnidadRapido(e.target.value)}
+                                    className="w-full pl-9 pr-4 py-1.5 bg-amber-50/60 border-2 border-amber-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 text-base font-black text-gray-900 rounded-xl outline-none transition shadow-sm placeholder:text-gray-400 placeholder:font-normal"
+                                  />
+                                </div>
+                              </form>
+                              <div className="flex items-center justify-between text-[0.6875rem] text-gray-400 font-medium px-1">
+                                <span>Enter para despachar</span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    createCarreraMutation.mutate(
+                                      { clienteId: c.id, estado: 'perdida', notas: 'Sin unidad disponible' },
+                                      { onSuccess: () => { setSearchCliente(''); setNumUnidadRapido(''); } }
+                                    );
+                                  }}
+                                  className="text-orange-600 hover:text-orange-700 hover:underline font-semibold flex items-center gap-1 cursor-pointer"
+                                >
+                                  <AlertTriangle size={11} />
+                                  <span>Carrera Perdida</span>
+                                </button>
+                              </div>
                             </div>
                           </div>
-                        </>
+                        </div>
                       ) : (
                         /* Vista compacta: búsqueda por nombre → lista con botón de Carrera Perdida únicamente */
                         <>
@@ -589,23 +658,17 @@ export const CharlieDashboard = () => {
                   );
                 })}
                 {filteredClientes.length === 0 && (
-                  <div className="text-center text-gray-400 mt-10 font-medium px-4">No hay clientes encontrados</div>
+                  <div className="text-center text-gray-400 my-4 font-medium px-4">No hay clientes encontrados</div>
                 )}
-              </>
+              </div>
             ) : (
               <>
                 {carrerasDelDia.map((r: any) => {
                   const op = colorOperador(r.creadoPor);
                   const esPendiente = r.estado === 'pendiente';
                   const estadoCls = ESTADO_CARRERA_STYLES[r.estado as keyof typeof ESTADO_CARRERA_STYLES] || 'bg-gray-200 text-gray-800 border-gray-300';
-                  // Solo las PENDIENTES son drop-target: arrastrar una unidad encima las asigna
-                  // y las completa en el mismo gesto (completar() ya hace ambas cosas server-side).
                   const isDragOverCarrera = esPendiente && dragOverItem?.type === 'CARRERA' && dragOverItem.id === r.id;
                   return (
-                    // Fila tipo "ticket de cola": una sola línea por carrera (punto de estado +
-                    // cliente/unidad + chip + hora + acciones icon-only) en vez de card expandida —
-                    // con decenas de carreras por turno, la cola tiene que poder escanearse de un
-                    // vistazo (Miller: chunking) sin scrollear cada 100px por una sola fila.
                     <div
                       key={r.id}
                       style={op.borderLeft}
@@ -628,17 +691,16 @@ export const CharlieDashboard = () => {
                         }
                         setDraggedItem(null); setDragOverItem(null);
                       } : undefined}
-                      className={`bg-white border-l-4 border rounded-lg pl-3 pr-2.5 py-2.5 flex items-center gap-2.5 shadow-sm hover:shadow-md transition-shadow duration-200 ${
-                        isDragOverCarrera
-                          ? 'bg-amber-50 ring-2 ring-amber-400 border-amber-300 scale-[1.01]'
-                          : esPendiente
-                            ? 'border-y-amber-200 border-r-amber-200'
-                            : 'border-y-gray-100 border-r-gray-100'
+                      className={`border-l-4 border rounded-lg pl-3 pr-2.5 py-2.5 flex items-center gap-2.5 shadow-sm hover:shadow-md transition-all duration-200 ${
+                        r.esEncomienda
+                          ? 'bg-amber-50/90 border-amber-300'
+                          : isDragOverCarrera
+                            ? 'bg-amber-50 ring-2 ring-amber-400 border-amber-300 scale-[1.01]'
+                            : esPendiente
+                              ? 'bg-white border-y-amber-200 border-r-amber-200'
+                              : 'bg-white border-y-gray-100 border-r-gray-100'
                       }`}
                     >
-                      {/* Punto de estado: pulsa en ámbar mientras está sin resolver, gris apagado
-                          una vez resuelta — refuerzo periférico redundante con el chip de texto
-                          (heurística #6, reconocer sin tener que leer cada fila). */}
                       <span className={`shrink-0 w-2 h-2 rounded-full ${esPendiente ? 'bg-amber-500 animate-pulse' : 'bg-gray-300'}`} />
 
                       <div className="flex-1 min-w-0">
@@ -647,6 +709,11 @@ export const CharlieDashboard = () => {
                           <p style={op.textColor} className="font-bold text-sm leading-tight truncate m-0">
                             {r.cliente?.nombre || 'Cliente'}
                           </p>
+                          {r.esEncomienda && (
+                            <span className="px-1.5 py-0.5 text-[0.625rem] font-black bg-amber-200 text-amber-900 rounded border border-amber-400 shrink-0 uppercase tracking-tight">
+                              ENC
+                            </span>
+                          )}
                         </div>
                         <p className="text-xs text-gray-500 leading-tight truncate m-0 flex items-center gap-1 mt-1">
                           <Car size={11} className="shrink-0" />
@@ -662,14 +729,9 @@ export const CharlieDashboard = () => {
 
                       <span className="shrink-0 text-xs font-black text-gray-400 tabular-nums">{formatTime(r.createdAt)}</span>
 
-                      {/* Reclasificar es válida en cualquier estado (incluida pendiente); se oculta
-                          solo la acción que sería un no-op (ya está en ese estado — el chip de arriba
-                          ya lo comunica, no hace falta un segundo indicador estático). */}
                       <div className="flex items-center gap-1 shrink-0">
                         {r.estado !== 'cancelada' && btnEstado(<XCircle size={12} />, 'Marcar cancelada', 'bg-red-500', () => cancelarMutation.mutate(r.id))}
                         {r.estado !== 'perdida' && btnEstado(<AlertTriangle size={12} />, 'Marcar perdida', 'bg-orange-500', () => perderMutation.mutate(r.id))}
-                        {/* SUPERADMIN borra cualquiera; el resto solo la suya y mientras sigue
-                            pendiente (típico "la puse 2 veces por error", recién creada). */}
                         {(user?.rol === 'SUPERADMIN' || (esPendiente && r.creadoPorId === user?.id)) &&
                           btnEstado(<Trash2 size={12} />, 'Eliminar carrera', 'bg-gray-400', () => setCareerToDelete(r.id))}
                       </div>

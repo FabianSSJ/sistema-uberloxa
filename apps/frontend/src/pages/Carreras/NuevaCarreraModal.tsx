@@ -20,6 +20,7 @@ export const NuevaCarreraModal: React.FC<NuevaCarreraModalProps> = ({ isOpen, on
   
   const [clienteId, setClienteId] = useState<number | ''>('');
   const [unidadId, setUnidadId] = useState<number | ''>('');
+  const [esEncomienda, setEsEncomienda] = useState(false);
   const [notas, setNotas] = useState('');
 
   const clientesActivos = clientesQuery.data?.filter(c => c.activo) || [];
@@ -33,12 +34,14 @@ export const NuevaCarreraModal: React.FC<NuevaCarreraModalProps> = ({ isOpen, on
       { 
         clienteId: Number(clienteId), 
         unidadId: unidadId ? Number(unidadId) : undefined,
+        esEncomienda,
         notas 
       },
       {
         onSuccess: () => {
           setClienteId('');
           setUnidadId('');
+          setEsEncomienda(false);
           setNotas('');
           onClose();
         }
@@ -90,6 +93,26 @@ export const NuevaCarreraModal: React.FC<NuevaCarreraModalProps> = ({ isOpen, on
           placeholder="Buscar por nº, placa, chofer, teléfono, modelo..."
           searchable
         />
+
+        {/* Switch Encomienda */}
+        <div 
+          className="flex items-center justify-between px-3 py-2.5 bg-gray-50 rounded-lg border border-gray-200 cursor-pointer select-none"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => setEsEncomienda(prev => !prev)}
+        >
+          <span className="text-sm font-semibold text-gray-700">Encomienda</span>
+          <span
+            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
+              esEncomienda ? 'bg-amber-500' : 'bg-gray-300'
+            }`}
+          >
+            <span
+              className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                esEncomienda ? 'translate-x-5' : 'translate-x-0'
+              }`}
+            />
+          </span>
+        </div>
 
         <Input
           label="Notas para el Taxista"

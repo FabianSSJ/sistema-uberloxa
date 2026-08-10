@@ -166,6 +166,11 @@ export const CarrerasPage = () => {
                       <CodigoBadge codigo={carrera.cliente.codigo} className="shrink-0" />
                     )}
                     <span className="text-[0.8125rem] font-bold text-gray-800 truncate">{carrera.cliente.nombre}</span>
+                    {carrera.esEncomienda && (
+                      <span className="px-2 py-0.5 text-[0.6875rem] font-extrabold bg-amber-100 text-amber-800 rounded border border-amber-300 shrink-0">
+                        ENCOMIENDA
+                      </span>
+                    )}
                   </div>
                 </div>
 
