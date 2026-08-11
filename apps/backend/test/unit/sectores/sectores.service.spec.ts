@@ -6,6 +6,7 @@ import { ConflictException, NotFoundException } from '@nestjs/common';
 const mockPrismaService = {
   sector: {
     findUnique: jest.fn(),
+    findFirst: jest.fn(),
     findMany: jest.fn(),
     create: jest.fn(),
     update: jest.fn(),
@@ -38,7 +39,7 @@ describe('SectoresService', () => {
 
   describe('create', () => {
     it('debe crear un sector exitosamente', async () => {
-      mockPrismaService.sector.findUnique.mockResolvedValue(null);
+      mockPrismaService.sector.findMany.mockResolvedValue([]);
       mockPrismaService.sector.create.mockResolvedValue({ id: 1, nombre: 'Norte' });
 
       const result = await service.create({ nombre: 'Norte' });
@@ -50,7 +51,7 @@ describe('SectoresService', () => {
     });
 
     it('debe lanzar ConflictException si el nombre ya existe', async () => {
-      mockPrismaService.sector.findUnique.mockResolvedValue({ id: 1, nombre: 'Norte' });
+      mockPrismaService.sector.findMany.mockResolvedValue([{ id: 1, nombre: 'Norte' }]);
 
       await expect(service.create({ nombre: 'Norte' })).rejects.toThrow(ConflictException);
     });

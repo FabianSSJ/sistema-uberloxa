@@ -30,11 +30,10 @@ export class SectoresController {
   constructor(private readonly sectoresService: SectoresService) {}
 
   // Lectura: cualquier usuario autenticado (Charlie la necesita para el combo de sector al
-  // crear/editar un cliente). Escritura: solo administración — no hay ningún flujo de UI donde
-  // Charlie deba crear/editar/borrar sectores.
+  // crear/editar un cliente). Creación/Edición: SUPERADMIN, ADMIN y CHARLIE (para agregar ciudadelas sobre la marcha).
   @Post()
   @UseGuards(RolesGuard)
-  @Roles('SUPERADMIN', 'ADMIN')
+  @Roles('SUPERADMIN', 'ADMIN', 'CHARLIE')
   @ApiOperation({ summary: 'Crear un nuevo sector' })
   @ApiResponse({ status: 201, description: 'El sector ha sido creado.' })
   @ApiResponse({ status: 409, description: 'El nombre del sector ya existe.' })
@@ -57,7 +56,7 @@ export class SectoresController {
 
   @Patch(':id')
   @UseGuards(RolesGuard)
-  @Roles('SUPERADMIN', 'ADMIN')
+  @Roles('SUPERADMIN', 'ADMIN', 'CHARLIE')
   @ApiOperation({ summary: 'Actualizar un sector' })
   @ApiResponse({ status: 404, description: 'Sector no encontrado.' })
   @ApiResponse({ status: 409, description: 'El nombre del sector ya existe.' })

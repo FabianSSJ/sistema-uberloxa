@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { ChevronDown, Check, Search } from 'lucide-react';
+import { ChevronDown, Check, Search, Plus } from 'lucide-react';
 
 export interface SelectOption {
   value: string | number;
@@ -18,7 +18,20 @@ interface SelectProps {
   error?: string;
   fullWidth?: boolean;
   searchable?: boolean;
+  onAddNew?: (term: string) => void;
+  addNewLabel?: string;
+  isAddingNew?: boolean;
 }
+
+export const normalizeString = (str?: string | null): string => {
+  if (!str) return '';
+  return str
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ');
+};
 
 export const Select: React.FC<SelectProps> = ({
   label,
@@ -29,6 +42,9 @@ export const Select: React.FC<SelectProps> = ({
   error,
   fullWidth = true,
   searchable = false,
+  onAddNew,
+  addNewLabel = 'Crear',
+  isAddingNew = false,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -60,13 +76,19 @@ export const Select: React.FC<SelectProps> = ({
 
   const filteredOptions = useMemo(() => {
     if (!searchable || !searchTerm) return options;
-    const term = searchTerm.toLowerCase();
+    const term = normalizeString(searchTerm);
     return options.filter(opt =>
-      opt.label.toLowerCase().includes(term) ||
+      normalizeString(opt.label).includes(term) ||
       String(opt.value).toLowerCase().includes(term) ||
-      (opt.searchText?.toLowerCase().includes(term) ?? false)
+      (opt.searchText ? normalizeString(opt.searchText).includes(term) : false)
     );
   }, [options, searchable, searchTerm]);
+
+  const exactMatchExists = useMemo(() => {
+    if (!searchTerm.trim()) return true;
+    const term = normalizeString(searchTerm);
+    return options.some(opt => normalizeString(opt.label) === term);
+  }, [options, searchTerm]);
 
   const widthClass = fullWidth ? 'w-full' : '';
   const errorClass = error 
@@ -154,6 +176,26 @@ export const Select: React.FC<SelectProps> = ({
               </ul>
             )}
           </div>
+
+          {/* Botón rápido para agregar nueva opción si no existe coincidencia exacta */}
+          {onAddNew && searchTerm.trim() && !exactMatchExists && (
+            <div
+              className="p-2.5 border-t border-blue-100 bg-blue-50 hover:bg-blue-100/90 transition-colors cursor-pointer flex items-center justify-between text-blue-700 font-semibold text-sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                const termToCreate = searchTerm.trim();
+                onAddNew(termToCreate);
+                setIsOpen(false);
+                setSearchTerm('');
+              }}
+            >
+              <span className="flex items-center gap-2 truncate">
+                <Plus size={16} className="shrink-0 text-blue-600" />
+                <span className="truncate">{addNewLabel} "{searchTerm.trim()}"</span>
+              </span>
+              {isAddingNew && <span className="animate-spin text-xs">⏳</span>}
+            </div>
+          )}
         </div>
       )}
 
