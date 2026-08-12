@@ -43,6 +43,7 @@ describe('ClientesService', () => {
       expect(mockPrismaService.sector.findUnique).not.toHaveBeenCalled();
       expect(mockPrismaService.cliente.create).toHaveBeenCalledWith({
         data: { nombre: 'Juan' },
+        include: { sector: true },
       });
     });
 
@@ -73,7 +74,8 @@ describe('ClientesService', () => {
       expect(mockPrismaService.cliente.findMany).toHaveBeenCalledWith({
         where: { activo: true },
         include: { sector: true },
-        orderBy: { nombre: 'asc' },
+        orderBy: { codigo: { sort: 'asc', nulls: 'last' } },
+        take: 10000,
       });
     });
   });
@@ -108,7 +110,7 @@ describe('ClientesService', () => {
       });
       expect(mockPrismaService.cliente.update).toHaveBeenCalledWith({
         where: { id: 1 },
-        data: { activo: false },
+        data: { activo: false, codigo: null },
       });
     });
   });

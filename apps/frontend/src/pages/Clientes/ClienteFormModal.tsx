@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { Plus, Check, X, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { Modal } from '../../components/ui/Modal';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
-import { Select } from '../../components/ui/Select';
+import { Select, normalizeString } from '../../components/ui/Select';
 import { useClientes, useCreateCliente, useUpdateCliente } from '../../features/clientes/hooks/useClientes';
-import { useSectores } from '../../features/sectores/hooks/useSectores';
+import { useSectores, useCreateSector } from '../../features/sectores/hooks/useSectores';
 import { CreateClienteDto } from '../../features/clientes/services/clientes.service';
+import { notify } from '../../components/ui/toast';
 
 interface ClienteFormModalProps {
   isOpen: boolean;
@@ -22,6 +24,10 @@ export const ClienteFormModal: React.FC<ClienteFormModalProps> = ({
   const { data: sectores } = useSectores();
   const createMutation = useCreateCliente();
   const updateMutation = useUpdateCliente();
+  const createSectorMutation = useCreateSector();
+
+  const [isInlineSectorOpen, setIsInlineSectorOpen] = useState(false);
+  const [nuevoSectorNombre, setNuevoSectorNombre] = useState('');
 
   const [formData, setFormData] = useState<CreateClienteDto>({
     codigo: undefined,
@@ -37,9 +43,7 @@ export const ClienteFormModal: React.FC<ClienteFormModalProps> = ({
 
   const isEditing = clienteId !== null;
 
-  // Código sugerido: el primer hueco libre en la secuencia (ej: 1..999 ocupados y 1100 también
-  // ocupado -> sugiere 1000, no 1101). Solo se usa como valor inicial en "Nuevo Cliente"; el
-  // usuario puede pisarlo con cualquier otro número.
+  // Código sugerido: el primer hueco libre en la secuencia
   const codigoSugerido = useMemo(() => {
     const usados = new Set((clientes ?? []).map((c) => c.codigo).filter((c): c is number => c != null));
     let candidato = 1;
@@ -49,12 +53,12 @@ export const ClienteFormModal: React.FC<ClienteFormModalProps> = ({
 
   useEffect(() => {
     setCodigoError(null);
+    setIsInlineSectorOpen(false);
+    setNuevoSectorNombre('');
     if (isEditing && clientes) {
       const cliente = clientes.find(c => c.id === clienteId);
       if (cliente) {
         setFormData({
-          // Si el cliente ya venía sin código (bandeja de "Nuevos Clientes"), lo prellenamos
-          // igual que en alta nueva; si ya tiene uno asignado, se respeta el existente.
           codigo: cliente.codigo ?? codigoSugerido,
           nombre: cliente.nombre,
           telefono: cliente.telefono || '',
@@ -79,8 +83,54 @@ export const ClienteFormModal: React.FC<ClienteFormModalProps> = ({
     }
   }, [clienteId, isEditing, clientes, isOpen, codigoSugerido]);
 
-  // Chequeo PROACTIVO del código: contra los clientes ya cargados en memoria (instantáneo, sin red).
-  // Excluye al propio cliente al editar. La validación del backend queda como red de seguridad.
+  // Coincidencia PROACTIVA en tiempo real mientras el usuario escribe una nueva ciudadela
+  const coincidenciaSector = useMemo(() => {
+    const clean = nuevoSectorNombre.trim().replace(/\s+/g, ' ');
+    if (!clean) return null;
+    const norm = normalizeString(clean);
+    return sectores?.find(s => normalizeString(s.nombre) === norm) ?? null;
+  }, [nuevoSectorNombre, sectores]);
+
+  const handleCreateSector = async (nombre: string) => {
+    const nombreClean = nombre.trim().replace(/\s+/g, ' ');
+    if (!nombreClean) return;
+
+    // Chequeo PROACTIVO de duplicado local (ignorando tildes, mayúsculas y espacios extra)
+    const normNuevo = normalizeString(nombreClean);
+    const sectorExistente = sectores?.find(s => normalizeString(s.nombre) === normNuevo);
+
+    if (sectorExistente) {
+      setFormData(prev => ({ ...prev, sectorId: sectorExistente.id }));
+      setIsInlineSectorOpen(false);
+      setNuevoSectorNombre('');
+      notify.info(`El sector "${sectorExistente.nombre}" ya existe y fue seleccionado automáticamente.`);
+      return;
+    }
+
+    try {
+      const nuevoSector = await createSectorMutation.mutateAsync({ nombre: nombreClean });
+      notify.success(`Sector "${nuevoSector.nombre}" creado con éxito`);
+      setFormData(prev => ({ ...prev, sectorId: nuevoSector.id }));
+      setIsInlineSectorOpen(false);
+      setNuevoSectorNombre('');
+    } catch (err: any) {
+      const msg = err?.response?.data?.message;
+      const errorText = Array.isArray(msg) ? msg.join(', ') : (msg || 'No se pudo crear el sector.');
+
+      // Si el servidor detectó que ya existía, seleccionar el existente
+      const colisionServidor = sectores?.find(s => normalizeString(s.nombre) === normNuevo);
+      if (colisionServidor) {
+        setFormData(prev => ({ ...prev, sectorId: colisionServidor.id }));
+        setIsInlineSectorOpen(false);
+        setNuevoSectorNombre('');
+        notify.info(`El sector "${colisionServidor.nombre}" ya existe y fue seleccionado automáticamente.`);
+      } else {
+        notify.error(errorText);
+      }
+    }
+  };
+
+  // Chequeo PROACTIVO del código: contra los clientes ya cargados en memoria
   const codigoOcupadoPor = useMemo(() => {
     if (formData.codigo == null) return null;
     return clientes?.find((c) => c.codigo === formData.codigo && c.id !== clienteId) ?? null;
@@ -89,11 +139,8 @@ export const ClienteFormModal: React.FC<ClienteFormModalProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setCodigoError(null);
-    if (codigoOcupadoPor) return; // ya avisado en el form; no enviamos
+    if (codigoOcupadoPor) return;
 
-    // Preparar payload, limpiando strings vacíos. Nombre no es obligatorio: si queda vacío,
-    // el backend arma uno provisorio a partir del teléfono (mismo criterio que el alta rápida
-    // del despacho) — acá solo evitamos mandar un string vacío en vez de omitir el campo.
     const payload: CreateClienteDto = {
       codigo: formData.codigo ?? undefined,
       nombre: formData.nombre?.trim() || undefined,
@@ -105,7 +152,6 @@ export const ClienteFormModal: React.FC<ClienteFormModalProps> = ({
       sectorId: formData.sectorId ? Number(formData.sectorId) : undefined,
     };
 
-    // El backend valida el código único (409): mostramos su mensaje y mantenemos el modal abierto.
     const onError = (err: any) => {
       const msg = err?.response?.data?.message;
       setCodigoError(Array.isArray(msg) ? msg.join(', ') : (msg || 'No se pudo guardar el cliente.'));
@@ -186,14 +232,99 @@ export const ClienteFormModal: React.FC<ClienteFormModalProps> = ({
           </div>
         </div>
 
-        <Select
-          label="Sector"
-          options={sectores?.map(s => ({ value: s.id, label: s.nombre })) || []}
-          value={formData.sectorId || ''}
-          onChange={(val) => setFormData({ ...formData, sectorId: val ? Number(val) : undefined })}
-          placeholder="Seleccione un sector..."
-          searchable
-        />
+        {/* Sector / Ciudadela */}
+        <div className="flex flex-col gap-1.5 w-full">
+          <div className="flex items-center justify-between">
+            <label className="text-sm font-semibold text-gray-700">Sector / Ciudadela</label>
+            <button
+              type="button"
+              onClick={() => setIsInlineSectorOpen(!isInlineSectorOpen)}
+              className="text-xs font-semibold text-blue-600 hover:text-blue-800 flex items-center gap-1 hover:underline cursor-pointer"
+            >
+              <Plus size={14} />
+              {isInlineSectorOpen ? 'Cancelar' : 'Añadir nueva ciudadela'}
+            </button>
+          </div>
+
+          {isInlineSectorOpen && (
+            <div className="flex flex-col gap-2 p-3 bg-slate-50 border border-blue-200 rounded-lg animate-[fadeIn_0.15s_ease-out]">
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  placeholder="Nombre de la nueva ciudadela..."
+                  value={nuevoSectorNombre}
+                  onChange={(e) => setNuevoSectorNombre(e.target.value)}
+                  className={`flex-1 px-3 py-1.5 text-sm bg-white border rounded outline-none transition-all ${
+                    coincidenciaSector
+                      ? 'border-amber-400 focus:ring-2 focus:ring-amber-300'
+                      : nuevoSectorNombre.trim()
+                      ? 'border-emerald-400 focus:ring-2 focus:ring-emerald-300'
+                      : 'border-gray-300 focus:ring-2 focus:ring-blue-500'
+                  }`}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleCreateSector(nuevoSectorNombre);
+                    }
+                  }}
+                  autoFocus
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={coincidenciaSector ? 'secondary' : 'primary'}
+                  onClick={() => handleCreateSector(nuevoSectorNombre)}
+                  isLoading={createSectorMutation.isPending}
+                  disabled={!nuevoSectorNombre.trim()}
+                >
+                  {coincidenciaSector ? 'Seleccionar existente' : 'Guardar'}
+                </Button>
+              </div>
+
+              {/* AVISO PROACTIVO EN TIEMPO REAL AL ESCRIBIR */}
+              {coincidenciaSector ? (
+                <div className="flex items-center justify-between gap-2 p-2 bg-amber-50 border border-amber-300 rounded-md text-amber-900 text-xs font-medium animate-[fadeIn_0.1s_ease-out]">
+                  <span className="flex items-center gap-1.5">
+                    <AlertTriangle size={15} className="text-amber-600 shrink-0" />
+                    <span>
+                      El sector <strong>"{coincidenciaSector.nombre}"</strong> ya existe en el sistema.
+                    </span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFormData(prev => ({ ...prev, sectorId: coincidenciaSector.id }));
+                      setIsInlineSectorOpen(false);
+                      setNuevoSectorNombre('');
+                      notify.info(`Sector "${coincidenciaSector.nombre}" seleccionado.`);
+                    }}
+                    className="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded text-xs shrink-0 cursor-pointer shadow-sm transition-all"
+                  >
+                    Usar este
+                  </button>
+                </div>
+              ) : nuevoSectorNombre.trim() ? (
+                <div className="flex items-center gap-1.5 p-2 bg-emerald-50 border border-emerald-300 rounded-md text-emerald-800 text-xs font-medium animate-[fadeIn_0.1s_ease-out]">
+                  <CheckCircle2 size={15} className="text-emerald-600 shrink-0" />
+                  <span>
+                    <strong>"{nuevoSectorNombre.trim()}"</strong> es una nueva ciudadela disponible para guardar.
+                  </span>
+                </div>
+              ) : null}
+            </div>
+          )}
+
+          <Select
+            options={sectores?.map(s => ({ value: s.id, label: s.nombre })) || []}
+            value={formData.sectorId || ''}
+            onChange={(val) => setFormData({ ...formData, sectorId: val ? Number(val) : undefined })}
+            placeholder="Seleccione un sector o busque una ciudadela..."
+            searchable
+            onAddNew={handleCreateSector}
+            addNewLabel="Crear sector"
+            isAddingNew={createSectorMutation.isPending}
+          />
+        </div>
 
         <Input 
           label="Dirección de la casa" 

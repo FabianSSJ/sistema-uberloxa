@@ -7,21 +7,40 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateSectorDto } from './dto/create-sector.dto';
 import { UpdateSectorDto } from './dto/update-sector.dto';
 
+export const normalizeSectorName = (str?: string | null): string => {
+  if (!str) return '';
+  return str
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ');
+};
+
 @Injectable()
 export class SectoresService {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(createSectorDto: CreateSectorDto) {
-    const existe = await this.prisma.sector.findUnique({
-      where: { nombre: createSectorDto.nombre },
-    });
+    const nombreLimpio = createSectorDto.nombre?.trim().replace(/\s+/g, ' ');
+    if (!nombreLimpio) {
+      throw new ConflictException('El nombre del sector no puede estar vacío.');
+    }
+
+    const sectoresExistentes = (await this.prisma.sector.findMany({ select: { id: true, nombre: true } })) ?? [];
+    const normNuevo = normalizeSectorName(nombreLimpio);
+
+    const existe = sectoresExistentes.find(s => normalizeSectorName(s.nombre) === normNuevo);
 
     if (existe) {
-      throw new ConflictException(`El sector con nombre '${createSectorDto.nombre}' ya existe.`);
+      throw new ConflictException(`El sector o ciudadela '${existe.nombre}' ya existe en el sistema.`);
     }
 
     return this.prisma.sector.create({
-      data: createSectorDto,
+      data: {
+        ...createSectorDto,
+        nombre: nombreLimpio,
+      },
     });
   }
 
