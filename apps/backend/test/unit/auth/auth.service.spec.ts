@@ -13,11 +13,12 @@ import type { LoginDto } from '../../../src/auth/dto/login.dto';
 const mockPrismaService = {
   usuario: {
     findUnique: jest.fn(),
+    update: jest.fn(),
   },
 };
 
 const mockJwtService = {
-  sign: jest.fn(),
+  signAsync: jest.fn(),
 };
 
 // ──────────────────────────────────────────────────────────
@@ -30,6 +31,10 @@ async function buildUserFixture(overrides: Partial<{
   nombre: string;
   password: string;
   activo: boolean;
+  rol: string;
+  modulosPermitidos: string[];
+  intentosFallidos: number;
+  bloqueadoHasta: Date | null;
 }> = {}) {
   const {
     id = 1,
@@ -37,6 +42,10 @@ async function buildUserFixture(overrides: Partial<{
     nombre = 'Administrador',
     password = 'secret123',
     activo = true,
+    rol = 'SUPERADMIN',
+    modulosPermitidos = ['clientes', 'carreras'],
+    intentosFallidos = 0,
+    bloqueadoHasta = null,
   } = overrides;
 
   return {
@@ -45,6 +54,10 @@ async function buildUserFixture(overrides: Partial<{
     nombre,
     passwordHash: await bcrypt.hash(password, 10),
     activo,
+    rol,
+    modulosPermitidos,
+    intentosFallidos,
+    bloqueadoHasta,
     createdAt: new Date('2026-01-01T00:00:00Z'),
   };
 }
@@ -81,18 +94,27 @@ describe('AuthService', () => {
       it('retorna access_token cuando las credenciales son válidas', async () => {
         const user = await buildUserFixture();
         mockPrismaService.usuario.findUnique.mockResolvedValue(user);
-        mockJwtService.sign.mockReturnValue('signed.jwt.token');
+        mockJwtService.signAsync.mockResolvedValue('signed.jwt.token');
 
         const dto: LoginDto = { username: 'admin', password: 'secret123' };
         const result = await service.login(dto);
 
-        expect(result).toEqual({ access_token: 'signed.jwt.token' });
+        expect(result).toEqual({
+          access_token: 'signed.jwt.token',
+          user: {
+            id: 1,
+            nombre: 'Administrador',
+            username: 'admin',
+            rol: 'SUPERADMIN',
+            modulosPermitidos: ['clientes', 'carreras'],
+          },
+        });
       });
 
       it('llama a findUnique con el username correcto', async () => {
         const user = await buildUserFixture();
         mockPrismaService.usuario.findUnique.mockResolvedValue(user);
-        mockJwtService.sign.mockReturnValue('token');
+        mockJwtService.signAsync.mockResolvedValue('token');
 
         await service.login({ username: 'admin', password: 'secret123' });
 
@@ -105,25 +127,27 @@ describe('AuthService', () => {
       it('firma el JWT con el payload correcto (sub, username, nombre)', async () => {
         const user = await buildUserFixture({ id: 42, nombre: 'Juan Pérez' });
         mockPrismaService.usuario.findUnique.mockResolvedValue(user);
-        mockJwtService.sign.mockReturnValue('token');
+        mockJwtService.signAsync.mockResolvedValue('token');
 
         await service.login({ username: 'admin', password: 'secret123' });
 
-        expect(mockJwtService.sign).toHaveBeenCalledWith({
+        expect(mockJwtService.signAsync).toHaveBeenCalledWith({
           sub: 42,
           username: 'admin',
           nombre: 'Juan Pérez',
+          rol: 'SUPERADMIN',
+          modulosPermitidos: ['clientes', 'carreras'],
         });
       });
 
       it('nunca incluye passwordHash en el payload del JWT', async () => {
         const user = await buildUserFixture();
         mockPrismaService.usuario.findUnique.mockResolvedValue(user);
-        mockJwtService.sign.mockReturnValue('token');
+        mockJwtService.signAsync.mockResolvedValue('token');
 
         await service.login({ username: 'admin', password: 'secret123' });
 
-        const signPayload = mockJwtService.sign.mock.calls[0][0] as Record<string, unknown>;
+        const signPayload = mockJwtService.signAsync.mock.calls[0][0] as Record<string, unknown>;
         expect(signPayload).not.toHaveProperty('passwordHash');
         expect(signPayload).not.toHaveProperty('password');
       });
@@ -190,10 +214,10 @@ describe('AuthService', () => {
         }
       });
 
-      it('no llama a jwtService.sign en ningún caso de fallo', async () => {
+      it('no llama a jwtService.signAsync en ningún caso de fallo', async () => {
         mockPrismaService.usuario.findUnique.mockResolvedValue(null);
         await service.login({ username: 'x', password: 'y' }).catch(() => {});
-        expect(mockJwtService.sign).not.toHaveBeenCalled();
+        expect(mockJwtService.signAsync).not.toHaveBeenCalled();
       });
     });
 
