@@ -78,14 +78,13 @@ export const NuevaCarreraModal: React.FC<NuevaCarreraModalProps> = ({ isOpen, on
           options={[
             { value: '', label: 'Ninguna (Dejar Sin Asignar)' },
             ...unidades.map(u => {
-              const isOcupado = u.estado === 'ocupado';
               const isInactivo = u.estado === 'inactivo';
-              const extra = isOcupado ? ' (OCUPADO)' : isInactivo ? ' (INACTIVO)' : '';
+              const extra = isInactivo ? ' (INACTIVO)' : '';
               return {
                 value: u.id,
                 label: `[${u.placa}] ${u.modelo?.marca?.nombre || ''} ${u.modelo?.nombre || ''} - Chofer: ${u.choferNombre}${extra}`,
                 searchText: unidadSearchText(u),
-                disabled: isOcupado || isInactivo,
+                disabled: isInactivo,
               };
             })
           ]}

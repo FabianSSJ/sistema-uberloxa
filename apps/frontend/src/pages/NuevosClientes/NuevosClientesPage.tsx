@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { UserPlus, Phone, MapPin, CheckCircle2, Trash2, Inbox } from 'lucide-react';
-import { usePendientes, useDeleteCliente } from '../../features/clientes/hooks/useClientes';
+import { usePendientes, useDeleteCliente, useDeletePendientes } from '../../features/clientes/hooks/useClientes';
 import { ClienteFormModal } from '../Clientes/ClienteFormModal';
 import { Button } from '../../components/ui/Button';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
@@ -12,8 +12,10 @@ import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 export const NuevosClientesPage = () => {
   const { data: pendientes = [], isLoading } = usePendientes();
   const deleteMutation = useDeleteCliente();
+  const deletePendientesMutation = useDeletePendientes();
   const [completarId, setCompletarId] = useState<number | null>(null);
   const [descartarData, setDescartarData] = useState<{ id: number; nombre: string } | null>(null);
+  const [descartarTodosConfirm, setDescartarTodosConfirm] = useState(false);
 
   const handleDescartar = (id: number, nombre: string) => {
     setDescartarData({ id, nombre });
@@ -21,11 +23,23 @@ export const NuevosClientesPage = () => {
 
   return (
     <div className="animate-[fadeIn_0.5s_ease-in]">
-      <div className="flex items-center gap-3 mb-2">
-        <UserPlus className="text-blue-600" size={32} />
-        <h2 className="text-2xl md:text-[1.75rem] text-gray-800 m-0 font-bold">Nuevos Clientes</h2>
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-2">
+        <div className="flex items-center gap-3">
+          <UserPlus className="text-blue-600" size={32} />
+          <h2 className="text-2xl md:text-[1.75rem] text-gray-800 m-0 font-bold">Nuevos Clientes</h2>
+          {pendientes.length > 0 && (
+            <span className="px-2.5 py-1 text-sm font-bold bg-red-100 text-red-700 rounded-full">{pendientes.length} pendientes</span>
+          )}
+        </div>
         {pendientes.length > 0 && (
-          <span className="px-2.5 py-1 text-sm font-bold bg-red-100 text-red-700 rounded-full">{pendientes.length} pendientes</span>
+          <Button
+            variant="danger"
+            onClick={() => setDescartarTodosConfirm(true)}
+            icon={<Trash2 size={16} />}
+            isLoading={deletePendientesMutation.isPending}
+          >
+            Eliminar todos
+          </Button>
         )}
       </div>
       <p className="text-gray-500 mb-8">Clientes agregados sin código. Completalos asignándoles un código (y lo que falte).</p>
@@ -100,6 +114,26 @@ export const NuevosClientesPage = () => {
             </span>
           }
           confirmText="Descartar"
+          variant="danger"
+        />
+      )}
+
+      {descartarTodosConfirm && (
+        <ConfirmDialog
+          isOpen={true}
+          onClose={() => setDescartarTodosConfirm(false)}
+          onConfirm={() => {
+            deletePendientesMutation.mutate(undefined, {
+              onSuccess: () => setDescartarTodosConfirm(false),
+            });
+          }}
+          title="Eliminar todos los clientes pendientes"
+          message={
+            <span>
+              ¿Estás seguro de eliminar los <span className="font-bold">{pendientes.length} clientes pendientes</span>? Se descartarán todos los registros de esta bandeja.
+            </span>
+          }
+          confirmText="Sí, eliminar todos"
           variant="danger"
         />
       )}

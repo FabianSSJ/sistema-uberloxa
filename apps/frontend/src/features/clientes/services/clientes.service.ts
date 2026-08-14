@@ -80,5 +80,10 @@ export const clientesService = {
   delete: async (id: number): Promise<{ message: string; id: number }> => {
     const response = await api.delete(`/clientes/${id}`);
     return response.data;
+  },
+
+  deletePendientes: async (): Promise<{ message: string; count: number }> => {
+    const response = await api.delete('/clientes/pendientes');
+    return response.data;
   }
 };

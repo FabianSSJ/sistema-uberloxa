@@ -86,9 +86,6 @@ export class CarrerasService {
       if (unidad.estado === 'inactivo') {
         throw new BadRequestException(`La unidad Nº ${unidad.numeroUnidad ?? unidad.id} está inactiva y no puede recibir carreras.`);
       }
-      if (unidad.estado === 'ocupado') {
-        throw new BadRequestException(`La unidad Nº ${unidad.numeroUnidad ?? unidad.id} está ocupada en otra carrera.`);
-      }
     }
 
     const startOfDay = new Date();
@@ -122,14 +119,7 @@ export class CarrerasService {
       }
     });
 
-    // Al asignarle una carrera, la unidad pasa a 'ocupado' por MINUTOS_OCUPADO; luego se auto-libera.
-    if (createCarreraDto.unidadId) {
-      const ocupadoHasta = new Date(Date.now() + MINUTOS_OCUPADO * 60 * 1000);
-      await this.prisma.unidad.update({
-        where: { id: createCarreraDto.unidadId },
-        data: { estado: 'ocupado', ocupadoHasta },
-      });
-    }
+
 
     return carrera;
   }
@@ -275,9 +265,6 @@ export class CarrerasService {
       if (unidad.estado === 'inactivo') {
         throw new BadRequestException(`La unidad Nº ${unidad.numeroUnidad ?? unidad.id} está inactiva y no puede recibir carreras.`);
       }
-      if (unidad.estado === 'ocupado' && carrera.unidadId !== unidad.id) {
-        throw new BadRequestException(`La unidad Nº ${unidad.numeroUnidad ?? unidad.id} está ocupada en otra carrera.`);
-      }
     }
 
     const updated = await this.prisma.carrera.update({
@@ -298,14 +285,6 @@ export class CarrerasService {
       }
     });
 
-    // Terminar o asignar la unidad pone su estado en 'ocupado' por MINUTOS_OCUPADO (10 min).
-    if (uId) {
-      const ocupadoHasta = new Date(Date.now() + MINUTOS_OCUPADO * 60 * 1000);
-      await this.prisma.unidad.update({
-        where: { id: uId },
-        data: { estado: 'ocupado', ocupadoHasta },
-      });
-    }
     return updated;
   }
 

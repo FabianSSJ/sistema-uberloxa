@@ -92,14 +92,13 @@ export const CarreraFormModal: React.FC<CarreraFormModalProps> = ({
           options={[
             { value: '', label: 'Sin Unidad (Carrera Perdida)' },
             ...unidades.map(u => {
-              const isOcupado = u.estado === 'ocupado';
               const isInactivo = u.estado === 'inactivo';
-              const extra = isOcupado ? ' (OCUPADO)' : isInactivo ? ' (INACTIVO)' : '';
+              const extra = isInactivo ? ' (INACTIVO)' : '';
               return {
                 value: u.id,
                 label: `Nº ${u.numeroUnidad || 'S/N'} - ${u.choferNombre} (${u.placa})${extra}`,
                 searchText: unidadSearchText(u),
-                disabled: isOcupado || isInactivo,
+                disabled: isInactivo,
               };
             })
           ]}

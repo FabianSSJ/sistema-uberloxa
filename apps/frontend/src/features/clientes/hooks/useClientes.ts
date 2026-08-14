@@ -106,3 +106,15 @@ export const useDeleteCliente = () => {
     },
   });
 };
+
+export const useDeletePendientes = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => clientesService.deletePendientes(),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['clientes'] });
+      notify.success(data.message || 'Clientes pendientes eliminados');
+    },
+  });
+};
