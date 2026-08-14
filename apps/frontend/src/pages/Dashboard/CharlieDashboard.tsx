@@ -6,6 +6,7 @@ import { useColaDespacho } from '../../features/unidades/hooks/useColaDespacho';
 import { useCambiarEstadoUnidad } from '../../features/unidades/hooks/useUnidades';
 import { ESTADO_UNIDAD_STYLES } from '../../features/unidades/components/EstadoUnidadBadge';
 import { UnidadDetalleModal } from '../../features/unidades/components/UnidadDetalleModal';
+import { CarreraDetalleModal } from '../../features/carreras/components/CarreraDetalleModal';
 import { useCreateCarrera, useCompletarCarrera, useCancelarCarrera, usePerderCarrera, useDeleteCarrera } from '../../features/carreras/hooks/useCarreras';
 import type { CreateCarreraDto } from '../../features/carreras/services/carreras.service';
 import { CarreraFormModal } from './CarreraFormModal';
@@ -67,6 +68,7 @@ export const CharlieDashboard = () => {
   const [rapidoTelefono, setRapidoTelefono] = useState('');
   const [careerToDelete, setCareerToDelete] = useState<number | null>(null);
   const [detalleUnidad, setDetalleUnidad] = useState<any>(null);
+  const [detalleCarrera, setDetalleCarrera] = useState<any>(null);
   const [numUnidadRapido, setNumUnidadRapido] = useState('');
   const [rapidoEncomienda, setRapidoEncomienda] = useState(false);
 
@@ -650,6 +652,8 @@ export const CharlieDashboard = () => {
                     <div
                       key={r.id}
                       style={op.borderLeft}
+                      onClick={() => setDetalleCarrera(r)}
+                      title="Click para ver detalle del cliente y la carrera"
                       onDragOver={esPendiente ? (e) => {
                         e.preventDefault();
                         if (draggedItem?.type === 'CHOFER') setDragOverItem({ type: 'CARRERA', id: r.id });
@@ -667,7 +671,7 @@ export const CharlieDashboard = () => {
                         }
                         setDraggedItem(null); setDragOverItem(null);
                       } : undefined}
-                      className={`border-l-4 border rounded-lg pl-3 pr-2.5 py-2.5 flex items-center gap-2.5 shadow-sm hover:shadow-md transition-all duration-200 ${
+                      className={`border-l-4 border rounded-lg pl-3 pr-2.5 py-2.5 flex items-center gap-2.5 shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer ${
                         r.esEncomienda
                           ? 'bg-amber-50/90 border-amber-300'
                           : isDragOverCarrera
@@ -735,6 +739,11 @@ export const CharlieDashboard = () => {
         unidad={detalleUnidad}
         carrerasHoy={detalleUnidad ? (carrerasHoy.get(detalleUnidad.id) || 0) : 0}
         onClose={() => setDetalleUnidad(null)}
+      />
+
+      <CarreraDetalleModal
+        carrera={detalleCarrera}
+        onClose={() => setDetalleCarrera(null)}
       />
 
       <ConfirmDialog
