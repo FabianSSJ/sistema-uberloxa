@@ -54,8 +54,6 @@ export const useCreateCarrera = () => {
     mutationFn: (data: CreateCarreraDto) => carrerasService.create(data),
     onSuccess: () => {
       invalidarCarreras(queryClient);
-      // La unidad pasa a 'ocupado' en el backend al asignarse: refrescamos su lista.
-      queryClient.invalidateQueries({ queryKey: ['unidades'] });
       notify.success('Carrera registrada con éxito');
     },
   });
@@ -69,7 +67,6 @@ export const useCompletarCarrera = () => {
       carrerasService.completar(id, unidadId),
     onSuccess: () => {
       invalidarCarreras(queryClient);
-      queryClient.invalidateQueries({ queryKey: ['unidades'] });
       notify.success('Carrera completada');
     },
   });
