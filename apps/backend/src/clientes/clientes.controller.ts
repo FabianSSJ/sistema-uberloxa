@@ -72,6 +72,12 @@ export class ClientesController {
     return this.clientesService.countPendientes();
   }
 
+  @Delete('pendientes')
+  @ApiOperation({ summary: 'Eliminar masivamente todos los clientes pendientes' })
+  removeAllPendientes() {
+    return this.clientesService.removeAllPendientes();
+  }
+
   @Get(':id')
   @RequireModule('clientes', 'carreras')
   @ApiOperation({ summary: 'Obtener un cliente activo por ID' })

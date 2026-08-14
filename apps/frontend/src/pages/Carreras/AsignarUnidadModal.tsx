@@ -49,14 +49,13 @@ export const AsignarUnidadModal: React.FC<AsignarUnidadModalProps> = ({ isOpen, 
         <Select
           label="Unidad a despachar *"
           options={unidades.map(u => {
-            const isOcupado = u.estado === 'ocupado';
             const isInactivo = u.estado === 'inactivo';
-            const extra = isOcupado ? ' (OCUPADO)' : isInactivo ? ' (INACTIVO)' : '';
+            const extra = isInactivo ? ' (INACTIVO)' : '';
             return {
               value: u.id,
               label: `[${u.placa}] ${u.modelo?.marca?.nombre || ''} ${u.modelo?.nombre || ''} - Chofer: ${u.choferNombre}${extra}`,
               searchText: unidadSearchText(u),
-              disabled: isOcupado || isInactivo,
+              disabled: isInactivo,
             };
           })}
           value={unidadId}

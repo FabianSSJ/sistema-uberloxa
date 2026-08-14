@@ -6,6 +6,7 @@ import { useColaDespacho } from '../../features/unidades/hooks/useColaDespacho';
 import { useCambiarEstadoUnidad } from '../../features/unidades/hooks/useUnidades';
 import { ESTADO_UNIDAD_STYLES } from '../../features/unidades/components/EstadoUnidadBadge';
 import { UnidadDetalleModal } from '../../features/unidades/components/UnidadDetalleModal';
+import { CarreraDetalleModal } from '../../features/carreras/components/CarreraDetalleModal';
 import { useCreateCarrera, useCompletarCarrera, useCancelarCarrera, usePerderCarrera, useDeleteCarrera } from '../../features/carreras/hooks/useCarreras';
 import type { CreateCarreraDto } from '../../features/carreras/services/carreras.service';
 import { CarreraFormModal } from './CarreraFormModal';
@@ -67,6 +68,7 @@ export const CharlieDashboard = () => {
   const [rapidoTelefono, setRapidoTelefono] = useState('');
   const [careerToDelete, setCareerToDelete] = useState<number | null>(null);
   const [detalleUnidad, setDetalleUnidad] = useState<any>(null);
+  const [detalleCarrera, setDetalleCarrera] = useState<any>(null);
   const [numUnidadRapido, setNumUnidadRapido] = useState('');
   const [rapidoEncomienda, setRapidoEncomienda] = useState(false);
 
@@ -105,11 +107,6 @@ export const CharlieDashboard = () => {
 
     if (unidadTarget.estado === 'inactivo') {
       notify.error(`La unidad Nº ${unidadTarget.numeroUnidad || 'S/N'} está inactiva — activala antes de asignarle una carrera.`);
-      return;
-    }
-
-    if (unidadTarget.estado === 'ocupado') {
-      notify.error(`La unidad Nº ${unidadTarget.numeroUnidad || 'S/N'} ya está ocupada en otra carrera.`);
       return;
     }
 
@@ -223,8 +220,8 @@ export const CharlieDashboard = () => {
     <div className="-mt-4 -mx-4 md:-mx-6 -mb-10 min-h-[calc(100vh-70px)] h-auto lg:h-[calc(100vh-70px)] bg-gray-100 p-4 animate-[fadeIn_0.5s_ease-in]">
       <div className="flex flex-col lg:flex-row gap-5 h-full w-full">
 
-        {/* Panel 1: Choferes / Unidades (más ancho: es el foco del despacho) */}
-        <div className="flex-[1.5] bg-white rounded-2xl shadow-md border border-gray-200/60 flex flex-col overflow-hidden transition-all duration-300 hover:shadow-xl">
+        {/* Panel 1: Choferes / Unidades */}
+        <div className="flex-1 bg-white rounded-2xl shadow-md border border-gray-200/60 flex flex-col overflow-hidden transition-all duration-300 hover:shadow-xl">
           <div className="bg-gradient-to-r from-amber-500 to-amber-600 p-3 text-white flex items-center gap-3 shadow-sm">
             <div className="flex items-center gap-3 shrink-0">
               <div className="bg-white/20 p-2 rounded-xl backdrop-blur-sm shrink-0">
@@ -278,7 +275,7 @@ export const CharlieDashboard = () => {
             </div>
             {/* Leyenda del punto de color: se explica el código una vez, no card por card. */}
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-[0.625rem] font-semibold text-gray-500">
-              {(['disponible', 'ocupado', 'descanso', 'inactivo'] as const).map((e) => (
+              {(['disponible', 'descanso', 'inactivo'] as const).map((e) => (
                 <span key={e} className="inline-flex items-center gap-1">
                   <span className={`w-2 h-2 rounded-full ${ESTADO_UNIDAD_STYLES[e].dot}`} />
                   {ESTADO_UNIDAD_STYLES[e].label}
@@ -299,15 +296,10 @@ export const CharlieDashboard = () => {
                   onClick={() => setDetalleUnidad(u)}
                   title={`Unidad ${u.numeroUnidad || 'S/N'} · ${u.choferNombre || 'Sin chofer'} · ${ESTADO_UNIDAD_STYLES[estado as keyof typeof ESTADO_UNIDAD_STYLES]?.label ?? estado} · Click para ver detalle`}
                   onDragStart={(e) => {
-                    // Una unidad inactiva u ocupada no puede tomar carreras
+                    // Una unidad inactiva no puede tomar carreras
                     if (estado === 'inactivo') {
                       e.preventDefault();
                       notify.error(`La unidad Nº ${u.numeroUnidad || 'S/N'} está inactiva — activala antes de asignarle una carrera.`);
-                      return;
-                    }
-                    if (estado === 'ocupado') {
-                      e.preventDefault();
-                      notify.error(`La unidad Nº ${u.numeroUnidad || 'S/N'} ya está ocupada en otra carrera.`);
                       return;
                     }
                     setDraggedItem({ type: 'CHOFER', id: u.id });
@@ -316,7 +308,7 @@ export const CharlieDashboard = () => {
                   onDragEnd={() => { setDraggedItem(null); setDragOverItem(null); }}
                   onDragOver={(e) => {
                     e.preventDefault();
-                    if (draggedItem && draggedItem.type === 'CLIENTE' && estado !== 'inactivo' && estado !== 'ocupado') setDragOverItem({ type: 'CHOFER', id: u.id });
+                    if (draggedItem && draggedItem.type === 'CLIENTE' && estado !== 'inactivo') setDragOverItem({ type: 'CHOFER', id: u.id });
                   }}
                   onDragLeave={() => setDragOverItem(null)}
                   onDrop={(e) => {
@@ -324,8 +316,6 @@ export const CharlieDashboard = () => {
                     if (draggedItem && draggedItem.type === 'CLIENTE') {
                       if (estado === 'inactivo') {
                         notify.error(`La unidad Nº ${u.numeroUnidad || 'S/N'} está inactiva — activala antes de asignarle una carrera.`);
-                      } else if (estado === 'ocupado') {
-                        notify.error(`La unidad Nº ${u.numeroUnidad || 'S/N'} ya está ocupada en otra carrera.`);
                       } else {
                         crearCarrera({ clienteId: draggedItem.id, unidadId: u.id, notas: 'Asignación Rápida' });
                       }
@@ -484,8 +474,6 @@ export const CharlieDashboard = () => {
                           const unidadDrag = todasUnidades.find((u: any) => u.id === draggedItem.id);
                           if (unidadDrag?.estado === 'inactivo') {
                             notify.error(`La unidad Nº ${unidadDrag.numeroUnidad || 'S/N'} está inactiva — activala antes de asignarle una carrera.`);
-                          } else if (unidadDrag?.estado === 'ocupado') {
-                            notify.error(`La unidad Nº ${unidadDrag.numeroUnidad || 'S/N'} ya está ocupada en otra carrera.`);
                           } else {
                             crearCarrera({ clienteId: c.id, unidadId: draggedItem.id, notas: 'Asignación Rápida' });
                             setSearchCliente('');
@@ -664,6 +652,8 @@ export const CharlieDashboard = () => {
                     <div
                       key={r.id}
                       style={op.borderLeft}
+                      onClick={() => setDetalleCarrera(r)}
+                      title="Click para ver detalle del cliente y la carrera"
                       onDragOver={esPendiente ? (e) => {
                         e.preventDefault();
                         if (draggedItem?.type === 'CHOFER') setDragOverItem({ type: 'CARRERA', id: r.id });
@@ -675,15 +665,13 @@ export const CharlieDashboard = () => {
                           const unidadDrag = todasUnidades.find((u: any) => u.id === draggedItem.id);
                           if (unidadDrag?.estado === 'inactivo') {
                             notify.error(`La unidad Nº ${unidadDrag.numeroUnidad || 'S/N'} está inactiva — activala antes de asignarle una carrera.`);
-                          } else if (unidadDrag?.estado === 'ocupado') {
-                            notify.error(`La unidad Nº ${unidadDrag.numeroUnidad || 'S/N'} ya está ocupada en otra carrera.`);
                           } else {
                             completarMutation.mutate({ id: r.id, unidadId: draggedItem.id });
                           }
                         }
                         setDraggedItem(null); setDragOverItem(null);
                       } : undefined}
-                      className={`border-l-4 border rounded-lg pl-3 pr-2.5 py-2.5 flex items-center gap-2.5 shadow-sm hover:shadow-md transition-all duration-200 ${
+                      className={`border-l-4 border rounded-lg pl-3 pr-2.5 py-2.5 flex items-center gap-2.5 shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer ${
                         r.esEncomienda
                           ? 'bg-amber-50/90 border-amber-300'
                           : isDragOverCarrera
@@ -751,6 +739,12 @@ export const CharlieDashboard = () => {
         unidad={detalleUnidad}
         carrerasHoy={detalleUnidad ? (carrerasHoy.get(detalleUnidad.id) || 0) : 0}
         onClose={() => setDetalleUnidad(null)}
+      />
+
+      <CarreraDetalleModal
+        carrera={detalleCarrera}
+        clientes={clientes}
+        onClose={() => setDetalleCarrera(null)}
       />
 
       <ConfirmDialog

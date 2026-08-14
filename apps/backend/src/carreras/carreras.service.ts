@@ -4,8 +4,11 @@ import { UnidadesService } from '../unidades/unidades.service';
 import { CreateCarreraDto } from './dto/create-carrera.dto';
 import { EstadoCarrera, Prisma } from '../../generated/prisma/client';
 
-// Al asignar una carrera, la unidad queda ocupada este tiempo y luego se auto-libera.
-const MINUTOS_OCUPADO = 10;
+// Ya no hay candado rígido de "unidad ocupada N minutos" (se sacó a propósito: era muy
+// rígido para redespachar rápido). Lo único que queda es esta ventana CORTA para frenar
+// una doble-asignación real — dos Charlies (o dos pestañas) arrastrando la misma unidad
+// casi al mismo tiempo, antes de que el poll de 1s alcance a mostrarla como ya despachada.
+const VENTANA_ANTI_DOBLE_ASIGNACION_MS = 10_000;
 
 // Ecuador (America/Guayaquil) es UTC-5 fijo, sin horario de verano — permite hacer
 // la matemática de "día local" con un offset constante, sin librerías de timezone.
@@ -65,6 +68,49 @@ export class CarrerasService {
     private unidadesService: UnidadesService,
   ) {}
 
+  /**
+   * Valida que una unidad pueda recibir una carrera: existe, no está inactiva, y no
+   * acaba de recibir otra carrera hace segundos (ver VENTANA_ANTI_DOBLE_ASIGNACION_MS).
+   * `excluirCarreraId` es para completar(): no hay que compararse contra sí misma al
+   * reasignarle unidad a una carrera que ya la tenía.
+   *
+   * Corre DENTRO de la transacción del caller (recibe `tx`, no usa this.prisma) y toma
+   * un advisory lock transaccional por unidad ANTES de leer nada: sin esto, dos requests
+   * casi simultáneos podrían pasar el chequeo los dos antes de que ninguno haga commit
+   * (check-then-act clásico) — el lock serializa asignaciones concurrentes a LA MISMA
+   * unidad (unidades distintas no se bloquean entre sí) hasta que la transacción termina.
+   */
+  private async assertUnidadAsignable(tx: Prisma.TransactionClient, unidadId: number, excluirCarreraId?: number) {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(${unidadId})`;
+
+    const unidad = await tx.unidad.findUnique({
+      where: { id: unidadId }
+    });
+    if (!unidad) {
+      throw new NotFoundException(`Unidad #${unidadId} no existe.`);
+    }
+    // Una unidad inactiva no está operando: no puede recibir carreras. Se valida acá
+    // (fuente de verdad) aunque el frontend ya filtre/bloquee esto en el selector y el
+    // drag-and-drop, porque nunca hay que confiar solo en el cliente.
+    if (unidad.estado === 'inactivo') {
+      throw new BadRequestException(`La unidad Nº ${unidad.numeroUnidad ?? unidad.id} está inactiva y no puede recibir carreras.`);
+    }
+
+    const asignacionReciente = await tx.carrera.findFirst({
+      where: {
+        unidadId,
+        ...(excluirCarreraId ? { id: { not: excluirCarreraId } } : {}),
+        createdAt: { gte: new Date(Date.now() - VENTANA_ANTI_DOBLE_ASIGNACION_MS) },
+      },
+      select: { id: true },
+    });
+    if (asignacionReciente) {
+      throw new BadRequestException(`La unidad Nº ${unidad.numeroUnidad ?? unidad.id} acaba de recibir otra carrera — esperá unos segundos e intentá de nuevo.`);
+    }
+
+    return unidad;
+  }
+
   async create(createCarreraDto: CreateCarreraDto, userId?: number) {
     const cliente = await this.prisma.cliente.findUnique({
       where: { id: createCarreraDto.clienteId }
@@ -73,45 +119,33 @@ export class CarrerasService {
       throw new NotFoundException(`Cliente #${createCarreraDto.clienteId} no existe.`);
     }
 
-    if (createCarreraDto.unidadId) {
-      const unidad = await this.prisma.unidad.findUnique({
-        where: { id: createCarreraDto.unidadId }
-      });
-      if (!unidad) {
-        throw new NotFoundException(`Unidad #${createCarreraDto.unidadId} no existe.`);
-      }
-      // Una unidad inactiva no está operando: no puede recibir carreras. Se valida acá
-      // (fuente de verdad) aunque el frontend ya filtre/bloquee esto en el selector y el
-      // drag-and-drop, porque nunca hay que confiar solo en el cliente.
-      if (unidad.estado === 'inactivo') {
-        throw new BadRequestException(`La unidad Nº ${unidad.numeroUnidad ?? unidad.id} está inactiva y no puede recibir carreras.`);
-      }
-      if (unidad.estado === 'ocupado') {
-        throw new BadRequestException(`La unidad Nº ${unidad.numeroUnidad ?? unidad.id} está ocupada en otra carrera.`);
-      }
-    }
-
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
 
-    const count = await this.prisma.carrera.count({
-      where: {
-        createdAt: { gte: startOfDay }
+    const carrera = await this.prisma.$transaction(async (tx) => {
+      if (createCarreraDto.unidadId) {
+        await this.assertUnidadAsignable(tx, createCarreraDto.unidadId);
       }
-    });
 
-    const carrera = await this.prisma.carrera.create({
-      data: {
-        clienteId: createCarreraDto.clienteId,
-        unidadId: createCarreraDto.unidadId || null,
-        notas: createCarreraDto.notas || null,
-        estado: createCarreraDto.estado ?? (createCarreraDto.unidadId ? 'completada' : 'pendiente'),
-        esEncomienda: createCarreraDto.esEncomienda ?? false,
-        fechaFin: (createCarreraDto.estado === 'completada' || createCarreraDto.estado === 'perdida' || createCarreraDto.estado === 'cancelada' || (!createCarreraDto.estado && createCarreraDto.unidadId)) ? new Date() : null,
-        creadoPorId: userId || null,
-        numeroDiario: count + 1,
-      },
-      include: INCLUDE_CARRERA,
+      const count = await tx.carrera.count({
+        where: {
+          createdAt: { gte: startOfDay }
+        }
+      });
+
+      return tx.carrera.create({
+        data: {
+          clienteId: createCarreraDto.clienteId,
+          unidadId: createCarreraDto.unidadId || null,
+          notas: createCarreraDto.notas || null,
+          estado: createCarreraDto.estado ?? (createCarreraDto.unidadId ? 'completada' : 'pendiente'),
+          esEncomienda: createCarreraDto.esEncomienda ?? false,
+          fechaFin: (createCarreraDto.estado === 'completada' || createCarreraDto.estado === 'perdida' || createCarreraDto.estado === 'cancelada' || (!createCarreraDto.estado && createCarreraDto.unidadId)) ? new Date() : null,
+          creadoPorId: userId || null,
+          numeroDiario: count + 1,
+        },
+        include: INCLUDE_CARRERA,
+      });
     });
 
     await this.prisma.historialEstadoCarrera.create({
@@ -122,14 +156,7 @@ export class CarrerasService {
       }
     });
 
-    // Al asignarle una carrera, la unidad pasa a 'ocupado' por MINUTOS_OCUPADO; luego se auto-libera.
-    if (createCarreraDto.unidadId) {
-      const ocupadoHasta = new Date(Date.now() + MINUTOS_OCUPADO * 60 * 1000);
-      await this.prisma.unidad.update({
-        where: { id: createCarreraDto.unidadId },
-        data: { estado: 'ocupado', ocupadoHasta },
-      });
-    }
+
 
     return carrera;
   }
@@ -264,30 +291,20 @@ export class CarrerasService {
   async completar(id: number, unidadId?: number, user?: any) {
     const carrera = await this.findOne(id, user);
 
-    const uId: number | null = unidadId ? Number(unidadId) : carrera.unidadId;
-    if (unidadId) {
-      const unidad = await this.prisma.unidad.findUnique({
-        where: { id: Number(unidadId) }
-      });
-      if (!unidad) {
-        throw new NotFoundException(`Unidad #${unidadId} no existe.`);
+    const updated = await this.prisma.$transaction(async (tx) => {
+      if (unidadId) {
+        await this.assertUnidadAsignable(tx, Number(unidadId), id);
       }
-      if (unidad.estado === 'inactivo') {
-        throw new BadRequestException(`La unidad Nº ${unidad.numeroUnidad ?? unidad.id} está inactiva y no puede recibir carreras.`);
-      }
-      if (unidad.estado === 'ocupado' && carrera.unidadId !== unidad.id) {
-        throw new BadRequestException(`La unidad Nº ${unidad.numeroUnidad ?? unidad.id} está ocupada en otra carrera.`);
-      }
-    }
 
-    const updated = await this.prisma.carrera.update({
-      where: { id },
-      data: {
-        estado: 'completada',
-        fechaFin: new Date(),
-        unidadId: unidadId !== undefined ? unidadId : carrera.unidadId
-      },
-      include: INCLUDE_CARRERA,
+      return tx.carrera.update({
+        where: { id },
+        data: {
+          estado: 'completada',
+          fechaFin: new Date(),
+          unidadId: unidadId !== undefined ? unidadId : carrera.unidadId
+        },
+        include: INCLUDE_CARRERA,
+      });
     });
 
     await this.prisma.historialEstadoCarrera.create({
@@ -298,14 +315,6 @@ export class CarrerasService {
       }
     });
 
-    // Terminar o asignar la unidad pone su estado en 'ocupado' por MINUTOS_OCUPADO (10 min).
-    if (uId) {
-      const ocupadoHasta = new Date(Date.now() + MINUTOS_OCUPADO * 60 * 1000);
-      await this.prisma.unidad.update({
-        where: { id: uId },
-        data: { estado: 'ocupado', ocupadoHasta },
-      });
-    }
     return updated;
   }
 
@@ -329,14 +338,6 @@ export class CarrerasService {
         estadoNuevo: nuevoEstado
       }
     });
-
-    // Cancelar/Perder liberan la unidad al instante (+ limpian el timer). 'completada' no la toca (sigue sus 10 min).
-    if ((nuevoEstado === 'cancelada' || nuevoEstado === 'perdida') && carrera.unidadId) {
-      await this.prisma.unidad.update({
-        where: { id: carrera.unidadId },
-        data: { estado: 'disponible', ocupadoHasta: null }
-      });
-    }
 
     return updated;
   }

@@ -229,4 +229,16 @@ export class ClientesService {
       id: cliente.id,
     };
   }
+
+  async removeAllPendientes() {
+    const result = await this.prisma.cliente.updateMany({
+      where: { activo: true, codigo: null },
+      data: { activo: false },
+    });
+
+    return {
+      message: `${result.count} clientes pendientes eliminados correctamente.`,
+      count: result.count,
+    };
+  }
 }
