@@ -743,6 +743,7 @@ export const CharlieDashboard = () => {
 
       <CarreraDetalleModal
         carrera={detalleCarrera}
+        clientes={clientes}
         onClose={() => setDetalleCarrera(null)}
       />
 

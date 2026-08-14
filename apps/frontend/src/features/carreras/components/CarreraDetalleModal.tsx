@@ -5,6 +5,7 @@ import { EstadoCarreraBadge } from './EstadoCarreraBadge';
 
 interface CarreraDetalleModalProps {
   carrera: any | null;
+  clientes?: any[];
   onClose: () => void;
 }
 
@@ -16,9 +17,12 @@ const Row = ({ icon, label, value }: { icon: ReactNode; label: string; value: Re
   </div>
 );
 
-export const CarreraDetalleModal = ({ carrera, onClose }: CarreraDetalleModalProps) => {
+export const CarreraDetalleModal = ({ carrera, clientes = [], onClose }: CarreraDetalleModalProps) => {
   if (!carrera) return null;
-  const cliente = carrera.cliente || {};
+
+  // Buscar el cliente completo en la lista de clientes en memoria si falta algo en la carrera
+  const clienteFromList = clientes.find((c: any) => c.id === (carrera.clienteId || carrera.cliente?.id));
+  const cliente = { ...carrera.cliente, ...clienteFromList };
   const unidad = carrera.unidad;
 
   const horaStr = carrera.createdAt
@@ -81,7 +85,7 @@ export const CarreraDetalleModal = ({ carrera, onClose }: CarreraDetalleModalPro
           value={
             unidad ? (
               <span className="font-bold text-emerald-700">
-                Nº {unidad.numeroUnidad || 'S/N'} ({unidad.choferNombre || 'Chofer'})
+                Nº {unidad.numeroUnidad || 'S/N'} {unidad.choferNombre ? `(${unidad.choferNombre})` : ''}
               </span>
             ) : (
               <span className="text-amber-600 font-semibold italic">Sin unidad (Pendiente)</span>

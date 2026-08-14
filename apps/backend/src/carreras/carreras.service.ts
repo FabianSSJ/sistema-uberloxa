@@ -53,7 +53,18 @@ const INCLUDE_CARRERA = {
 // solo lo mínimo para mostrar la cola (nombre+código del cliente, número+chofer de la
 // unidad). Traer el resto en cada poll es peso de red repetido sin ningún consumidor real.
 const INCLUDE_CARRERA_LIVIANO = {
-  cliente: { select: { id: true, nombre: true, codigo: true } },
+  cliente: {
+    select: {
+      id: true,
+      nombre: true,
+      codigo: true,
+      telefono: true,
+      telefonoAlt: true,
+      direccion: true,
+      descripcion: true,
+      sector: true,
+    },
+  },
   unidad: { select: { id: true, numeroUnidad: true, choferNombre: true } },
   creadoPor: { select: { id: true, nombre: true, rol: true, color: true } },
 } as const;
