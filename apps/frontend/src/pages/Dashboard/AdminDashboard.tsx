@@ -3,19 +3,15 @@ import { useCarrerasHistorial } from '../../features/carreras/hooks/useCarreras'
 import { useUnidades } from '../../features/unidades/hooks/useUnidades';
 import { rankBy, scoreUnidad, scoreUsuario } from '../../core/search/matchers';
 import { colorOperador, colorUnidad } from '../../core/operadores/colores';
-import { fechaCorta, inicioDiaEcuadorDesdeYMD, finDiaEcuadorDesdeYMD } from '../../core/tiempo';
+import { diaOperativoYMD, inicioDiaEcuadorDesdeYMD, finDiaEcuadorDesdeYMD } from '../../core/tiempo';
 import { Car, CheckCircle2, XCircle, AlertTriangle, TrendingUp, Calendar, Users, Search } from 'lucide-react';
 
 export const AdminDashboard = () => {
-  const [selectedDate, setSelectedDate] = useState<string>(() => {
-    const [dd, mm, yyyy] = fechaCorta(new Date()).split('/');
-    return `${yyyy}-${mm}-${dd}`;
-  });
+  const [selectedDate, setSelectedDate] = useState<string>(() => diaOperativoYMD());
   const [searchUnidad, setSearchUnidad] = useState('');
   const [searchCharlie, setSearchCharlie] = useState('');
 
-  // El día seleccionado se filtra en el SERVER (índice createdAt) — nunca se trae más
-  // que las carreras de ese único día, sin importar cuánto historial acumule el sistema.
+  // La jornada seleccionada (04:00 a 03:59:59 AM) se filtra en el SERVER (índice createdAt)
   const rangoDia = useMemo(
     () => ({ desde: inicioDiaEcuadorDesdeYMD(selectedDate).toISOString(), hasta: finDiaEcuadorDesdeYMD(selectedDate).toISOString() }),
     [selectedDate]
@@ -92,7 +88,7 @@ export const AdminDashboard = () => {
       <div className="mb-[30px] flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h2 className="text-[1.75rem] text-gray-800 font-bold mb-2">Reporte Operativo</h2>
-          <p className="text-gray-600">Resumen de carreras para la jornada seleccionada.</p>
+          <p className="text-gray-600">Resumen de carreras para la jornada seleccionada (04:00 AM a 03:59 AM).</p>
         </div>
         <div className="flex items-center gap-3 bg-white p-2 rounded-lg border border-gray-200 shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)]">
           <Calendar size={20} className="text-blue-500 ml-2" />

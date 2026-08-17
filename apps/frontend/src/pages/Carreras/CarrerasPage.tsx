@@ -8,22 +8,17 @@ import { CodigoBadge } from '../../components/ui/CodigoBadge';
 import { EstadoCarreraBadge } from '../../features/carreras/components/EstadoCarreraBadge';
 import { rankBy, scoreCarrera } from '../../core/search/matchers';
 import { colorOperador } from '../../core/operadores/colores';
-import { hora, fechaCorta, inicioDiaEcuadorDesdeYMD, finDiaEcuadorDesdeYMD } from '../../core/tiempo';
+import { hora, fechaCorta, diaOperativoYMD, inicioDiaEcuadorDesdeYMD, finDiaEcuadorDesdeYMD } from '../../core/tiempo';
 import { useAuth } from '../../features/auth/context/AuthContext';
-
-const hoyYMD = (): string => {
-  const [dd, mm, yyyy] = fechaCorta(new Date()).split('/');
-  return `${yyyy}-${mm}-${dd}`;
-};
 
 export const CarrerasPage = () => {
   const { user } = useAuth();
   const [desdeYMD, setDesdeYMD] = useState('');
   const [hastaYMD, setHastaYMD] = useState('');
 
-  // "Hoy" es un atajo del mismo filtro de rango (desde = hasta = hoy), no un caso especial.
+  // "Hoy" es un atajo de la jornada operativa actual (04:00 a 03:59:59 AM)
   const filtroActivo = Boolean(desdeYMD || hastaYMD);
-  const esHoyActivo = desdeYMD === hoyYMD() && hastaYMD === hoyYMD();
+  const esHoyActivo = desdeYMD === diaOperativoYMD() && hastaYMD === diaOperativoYMD();
 
   const filtros = useMemo(() => {
     if (!filtroActivo) return {};
@@ -80,7 +75,7 @@ export const CarrerasPage = () => {
           Filtrar por fecha:
         </div>
         <button
-          onClick={() => { const h = hoyYMD(); setDesdeYMD(h); setHastaYMD(h); }}
+          onClick={() => { const h = diaOperativoYMD(); setDesdeYMD(h); setHastaYMD(h); }}
           className={`text-sm font-bold px-3 py-1.5 rounded-md transition-colors ${esHoyActivo ? 'bg-green-600 text-white' : 'bg-green-50 text-green-700 hover:bg-green-100'}`}
         >
           Hoy

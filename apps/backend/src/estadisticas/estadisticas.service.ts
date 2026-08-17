@@ -1,8 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Prisma } from '../../generated/prisma/client';
+import { HORA_INICIO_JORNADA } from '../carreras/carreras.service';
 
 const TZ = 'America/Guayaquil';
+// Derivado de HORA_INICIO_JORNADA (fuente única de verdad, ver carreras.service.ts): restar
+// esto a la hora de Ecuador antes de truncar a día agrupa cada carrera en su JORNADA
+// operativa (04:00 a 03:59:59), no en el día calendario.
+const CORTE_JORNADA_SQL = `interval '${HORA_INICIO_JORNADA} hours'`;
 
 /**
  * Analítica de carreras: TODO se calcula con agregaciones SQL (GROUP BY) en la DB,
@@ -18,9 +23,9 @@ export class EstadisticasService {
       this.prisma.$queryRawUnsafe<Array<{ estado: string; cantidad: number }>>(
         `SELECT estado::text AS estado, COUNT(*)::int AS cantidad FROM carreras GROUP BY estado`,
       ),
-      // Volumen por día (últimos 30 días) — día en HORA DE ECUADOR
+      // Volumen por día (últimos 30 días) — día operativo en HORA DE ECUADOR (corte 03:59 AM)
       this.prisma.$queryRawUnsafe<Array<{ dia: string; cantidad: number }>>(
-        `SELECT to_char(date_trunc('day', created_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Guayaquil'), 'YYYY-MM-DD') AS dia, COUNT(*)::int AS cantidad
+        `SELECT to_char(date_trunc('day', created_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Guayaquil' - ${CORTE_JORNADA_SQL}), 'YYYY-MM-DD') AS dia, COUNT(*)::int AS cantidad
          FROM carreras WHERE created_at >= now() - interval '30 days'
          GROUP BY 1 ORDER BY 1`,
       ),
@@ -72,14 +77,12 @@ export class EstadisticasService {
    *
    *  - Sin `desde`: modo "Total acumulado" (el histórico, de siempre) — desde la primera
    *    carrera de cada unidad ("día 0") hasta `hasta` (o hasta hoy si tampoco se pasa `hasta`).
-   *  - Con `desde`: modo "ventana acotada" (Hoy / Día específico / Rango de fechas) — cuenta
+   *  - Con `desde`: modo "ventana acotada" (Hoy / Jornada específica / Rango de jornadas) — cuenta
    *    SOLO las carreras entre `desde` y `hasta` (o el mismo `desde` si no hay `hasta`), no
    *    acumula desde el día 0.
    *
-   * `desde`/`hasta` son 'YYYY-MM-DD' en hora de Ecuador (el valor crudo de un <input
-   * type="date">). El casteo a fecha se hace en SQL con AT TIME ZONE, igual que en
-   * reportes.service.ts — comparar contra el `Date` de JS sin este ajuste corta el día casi
-   * 19hs antes de lo esperado (medianoche UTC = 19:00 del día anterior en Guayaquil).
+   * `desde`/`hasta` son 'YYYY-MM-DD' de la jornada operativa en hora de Ecuador. Al restar
+   * 4 horas, la jornada cubre de 04:00 AM a 03:59:59 AM del día siguiente.
    * LEFT JOIN desde unidades: una unidad sin carreras en el período también aparece, cantidad 0.
    */
   async rankingUnidades(desde?: string, hasta?: string) {
@@ -92,7 +95,7 @@ export class EstadisticasService {
                COUNT(c.id)::int AS cantidad
         FROM unidades u
         LEFT JOIN carreras c ON c.unidad_id = u.id
-          AND (c.created_at AT TIME ZONE 'UTC' AT TIME ZONE '${Prisma.raw(TZ)}')::date BETWEEN ${desde}::date AND ${h}::date
+          AND (c.created_at AT TIME ZONE 'UTC' AT TIME ZONE '${Prisma.raw(TZ)}' - ${Prisma.raw(CORTE_JORNADA_SQL)})::date BETWEEN ${desde}::date AND ${h}::date
         GROUP BY u.id, u.numero_unidad, u.chofer_nombre
         ORDER BY cantidad DESC, u.numero_unidad ASC
       `;
@@ -104,7 +107,7 @@ export class EstadisticasService {
                COUNT(c.id)::int AS cantidad
         FROM unidades u
         LEFT JOIN carreras c ON c.unidad_id = u.id
-          AND (c.created_at AT TIME ZONE 'UTC' AT TIME ZONE '${Prisma.raw(TZ)}')::date <= ${hasta}::date
+          AND (c.created_at AT TIME ZONE 'UTC' AT TIME ZONE '${Prisma.raw(TZ)}' - ${Prisma.raw(CORTE_JORNADA_SQL)})::date <= ${hasta}::date
         GROUP BY u.id, u.numero_unidad, u.chofer_nombre
         ORDER BY cantidad DESC, u.numero_unidad ASC
       `;

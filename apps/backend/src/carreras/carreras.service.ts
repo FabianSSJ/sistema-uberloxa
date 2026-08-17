@@ -13,19 +13,39 @@ const VENTANA_ANTI_DOBLE_ASIGNACION_MS = 10_000;
 // Ecuador (America/Guayaquil) es UTC-5 fijo, sin horario de verano — permite hacer
 // la matemática de "día local" con un offset constante, sin librerías de timezone.
 const OFFSET_ECUADOR_MS = 5 * 60 * 60 * 1000;
-const HORA_VENTANA_TARDIA = 23;
+// Exportada: es la ÚNICA fuente de verdad del corte de jornada para el backend entero.
+// estadisticas.service.ts y reportes.service.ts la importan en vez de hardcodear "4 horas"
+// por su cuenta — así un cambio de horario no puede desincronizar un archivo del resto.
+export const HORA_INICIO_JORNADA = 4; // 04:00 AM (corte a las 03:59:59)
+const HORA_VENTANA_TARDIA = 3; // 03:30 a 03:59
 const MINUTO_VENTANA_TARDIA = 30;
-const EXTENSION_VENTANA_TARDIA_MS = 60 * 60 * 1000; // 1 hora
+const EXTENSION_VENTANA_TARDIA_MS = 30 * 60 * 1000; // 30 minutos de gracia para las carreras creadas al cierre de turno
 
-// Estados "en proceso": nunca se pierden del panel aunque cambie el día calendario.
+// Estados "en proceso": nunca se pierden del panel aunque cambie la jornada operativa.
 // 'asignada' no lo usa el código actual, pero queda por compatibilidad con datos viejos.
 const EN_PROCESO: EstadoCarrera[] = ['pendiente', 'asignada'];
 
 /**
- * Instante (UTC) hasta el cual una carrera resuelta sigue viendose en el panel de "hoy".
- * Regla: vive hasta la medianoche (hora Ecuador) del día siguiente a su creación — salvo
- * que se haya creado entre las 23:30 y las 23:59, en cuyo caso vive 1 hora exacta desde
- * su creación (para no cortarla seca justo al cruzar la medianoche).
+ * Instante (UTC) de inicio de la jornada operativa a la que pertenece la fecha dada.
+ * La jornada va de 04:00:00 a 03:59:59 del día siguiente en hora de Ecuador.
+ */
+export function inicioJornadaOperativaEcuador(fecha: Date = new Date()): Date {
+  const local = new Date(fecha.getTime() - OFFSET_ECUADOR_MS);
+  const h = local.getUTCHours();
+  const diaAjustado = h < HORA_INICIO_JORNADA ? local.getUTCDate() - 1 : local.getUTCDate();
+  const utcMs = Date.UTC(local.getUTCFullYear(), local.getUTCMonth(), diaAjustado, HORA_INICIO_JORNADA, 0, 0, 0);
+  return new Date(utcMs + OFFSET_ECUADOR_MS);
+}
+
+export function finJornadaOperativaEcuador(fecha: Date = new Date()): Date {
+  return new Date(inicioJornadaOperativaEcuador(fecha).getTime() + 24 * 60 * 60 * 1000);
+}
+
+/**
+ * Instante (UTC) hasta el cual una carrera resuelta sigue viéndose en el panel de "hoy".
+ * Regla: vive hasta las 04:00 AM (hora Ecuador) del cierre de su jornada operativa — salvo
+ * que se haya creado entre las 03:30 y las 03:59, en cuyo caso vive 30 minutos exactos desde
+ * su creación (para no cortarla seca justo al cruzar las 04:00 AM).
  */
 function calcularVisibleHasta(createdAt: Date): Date {
   const local = new Date(createdAt.getTime() - OFFSET_ECUADOR_MS); // hora de Ecuador, representada como UTC
@@ -34,10 +54,7 @@ function calcularVisibleHasta(createdAt: Date): Date {
     return new Date(createdAt.getTime() + EXTENSION_VENTANA_TARDIA_MS);
   }
 
-  const medianocheSiguienteLocal = Date.UTC(
-    local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate() + 1, 0, 0, 0, 0,
-  );
-  return new Date(medianocheSiguienteLocal + OFFSET_ECUADOR_MS);
+  return finJornadaOperativaEcuador(createdAt);
 }
 
 function esVisibleEnPanel(carrera: { createdAt: Date; estado: EstadoCarrera }, ahora: Date): boolean {
@@ -119,8 +136,8 @@ export class CarrerasService {
       throw new NotFoundException(`Cliente #${createCarreraDto.clienteId} no existe.`);
     }
 
-    const startOfDay = new Date();
-    startOfDay.setHours(0, 0, 0, 0);
+    // El conteo diario de carreras arranca en #1 a las 04:00 AM (inicio de jornada operativa)
+    const inicioJornada = inicioJornadaOperativaEcuador();
 
     const carrera = await this.prisma.$transaction(async (tx) => {
       if (createCarreraDto.unidadId) {
@@ -129,7 +146,7 @@ export class CarrerasService {
 
       const count = await tx.carrera.count({
         where: {
-          createdAt: { gte: startOfDay }
+          createdAt: { gte: inicioJornada }
         }
       });
 
@@ -201,7 +218,7 @@ export class CarrerasService {
 
   /**
    * Datos del panel de despacho (dashboard del Charlie): carreras de "hoy" + las que
-   * sigan en proceso de días anteriores, con la ventana de gracia de 23:30-23:59.
+   * sigan en proceso de jornadas anteriores, con la ventana de gracia de 03:30-03:59.
    * Filtramos primero por un rango ancho e indexado (createdAt >= cutoff OR estado en
    * proceso) para que el motor use el índice y no escanee la tabla entera; la regla
    * exacta (con el corte por minuto) se aplica en memoria sobre ese subconjunto ya

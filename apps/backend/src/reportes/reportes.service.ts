@@ -4,10 +4,15 @@ import PDFDocument from 'pdfkit';
 import { PrismaService } from '../prisma/prisma.service';
 import { WhatsappService } from './whatsapp.service';
 import { Prisma } from '../../generated/prisma/client';
+import { HORA_INICIO_JORNADA } from '../carreras/carreras.service';
 
 // Número al que llega el informe diario (destinatario final).
 const DESTINO = process.env.REPORTE_WHATSAPP || '593982232889';
 const TZ = 'America/Guayaquil';
+// Derivado de HORA_INICIO_JORNADA (fuente única de verdad, ver carreras.service.ts).
+const CORTE_JORNADA_SQL = `interval '${HORA_INICIO_JORNADA} hours'`;
+// "59:59 de la hora anterior al corte" = un segundo antes de que cierre la jornada.
+const CRON_CIERRE_JORNADA = `59 59 ${HORA_INICIO_JORNADA - 1} * * *`;
 
 export interface ReporteDia {
   fecha: string;
@@ -30,20 +35,18 @@ export class ReportesService {
   ) {}
 
   /**
-   * Junta los datos de un día o rango de días (hora de Ecuador). `desde`/`hasta` son
-   * 'YYYY-MM-DD' ya en hora de Ecuador (tal cual salen de un <input type="date">). Sin
-   * ninguno de los dos, es "hoy"; con solo `desde`, es ese día puntual (como antes); con
-   * ambos, es el rango completo [desde, hasta] inclusive. Usa $queryRaw (tagged template) en
-   * vez de $queryRawUnsafe porque acá SÍ entran valores que vienen del usuario — Prisma los
-   * bindea como parámetro, no los concatena, así que no hay riesgo de inyección SQL aunque
-   * `desde`/`hasta` sean arbitrarios.
+   * Junta los datos de un día o rango de días (hora de Ecuador, con jornada de 04:00 a 03:59:59).
+   * `desde`/`hasta` son 'YYYY-MM-DD' de la jornada operativa elegida. Sin ninguno de los dos,
+   * es la jornada actual; con solo `desde`, es esa jornada puntual; con ambos, es el rango
+   * completo [desde, hasta] inclusive. Al restar 4 horas a la hora de Ecuador, cualquier
+   * carrera entre las 00:00 y las 03:59:59 se agrupa en la jornada del día anterior.
    */
   async datosDelPeriodo(desde?: string, hasta?: string): Promise<ReporteDia> {
     const d = desde || hasta;
     const h = hasta || desde;
     const condicionFecha = d
-      ? Prisma.sql`(c.created_at AT TIME ZONE 'UTC' AT TIME ZONE '${Prisma.raw(TZ)}')::date BETWEEN ${d}::date AND ${h}::date`
-      : Prisma.sql`(c.created_at AT TIME ZONE 'UTC' AT TIME ZONE '${Prisma.raw(TZ)}')::date = (now() AT TIME ZONE '${Prisma.raw(TZ)}')::date`;
+      ? Prisma.sql`(c.created_at AT TIME ZONE 'UTC' AT TIME ZONE '${Prisma.raw(TZ)}' - ${Prisma.raw(CORTE_JORNADA_SQL)})::date BETWEEN ${d}::date AND ${h}::date`
+      : Prisma.sql`(c.created_at AT TIME ZONE 'UTC' AT TIME ZONE '${Prisma.raw(TZ)}' - ${Prisma.raw(CORTE_JORNADA_SQL)})::date = (now() AT TIME ZONE '${Prisma.raw(TZ)}' - ${Prisma.raw(CORTE_JORNADA_SQL)})::date`;
 
     const [porEstado, porHora, porUnidad] = await Promise.all([
       this.prisma.$queryRaw<Array<{ estado: string; cantidad: number }>>`
@@ -61,13 +64,12 @@ export class ReportesService {
     ]);
 
     // 'YYYY-MM-DD' -> 'DD/MM/YYYY' en JS directo (sin viaje a la DB) cuando ya tenemos la(s)
-    // fecha(s); si es "hoy" (sin desde ni hasta), sí hace falta preguntarle a la DB qué día es
-    // hoy en hora de Ecuador. Con rango real (d !== h), el label queda "DD/MM/YYYY al DD/MM/YYYY".
+    // fecha(s); si es "hoy" (sin desde ni hasta), preguntamos a la DB qué jornada es hoy en hora de Ecuador.
     const aDDMMYYYY = (ymd: string) => ymd.split('-').reverse().join('/');
     const fechaFormateada = d
       ? (d === h ? aDDMMYYYY(d) : `${aDDMMYYYY(d)} al ${aDDMMYYYY(h!)}`)
       : (await this.prisma.$queryRaw<Array<{ fecha: string }>>`
-          SELECT to_char(now() AT TIME ZONE '${Prisma.raw(TZ)}', 'DD/MM/YYYY') AS fecha
+          SELECT to_char(now() AT TIME ZONE '${Prisma.raw(TZ)}' - ${Prisma.raw(CORTE_JORNADA_SQL)}, 'DD/MM/YYYY') AS fecha
         `)[0]?.fecha || '';
 
     const m: Record<string, number> = {};
@@ -105,12 +107,14 @@ export class ReportesService {
       doc.fillColor('#16a34a').fontSize(22).font('Helvetica-Bold').text('Sistema UberLoxa', { continued: false });
       doc.moveDown(0.2);
       doc.fillColor('#111827').fontSize(14).text(esRango ? 'Informe de carreras por período' : 'Informe diario de carreras');
-      doc.fillColor('#6b7280').fontSize(10).font('Helvetica').text(`${esRango ? 'Período' : 'Fecha'}: ${d.fecha}`);
+      doc.fillColor('#6b7280').fontSize(10).font('Helvetica').text(
+        `${esRango ? 'Período' : 'Jornada'}: ${d.fecha}   ·   Horario: 04:00 AM a 03:59 AM (Corte diario 03:59 AM)`
+      );
       doc.moveTo(40, doc.y + 6).lineTo(555, doc.y + 6).strokeColor('#e5e7eb').stroke();
       doc.moveDown(1.2);
 
       // Resumen
-      doc.fillColor('#111827').fontSize(12).font('Helvetica-Bold').text('Resumen del día');
+      doc.fillColor('#111827').fontSize(12).font('Helvetica-Bold').text(esRango ? 'Resumen del período' : 'Resumen de la jornada (04:00 a 03:59)');
       doc.moveDown(0.4);
       const linea = (label: string, valor: string | number, color = '#111827') => {
         doc.font('Helvetica').fontSize(10).fillColor('#374151').text(label, { continued: true });
@@ -263,10 +267,10 @@ export class ReportesService {
     return { ok: false, detalle: 'PDF generado, pero WhatsApp no está conectado (escaneá el QR).' };
   }
 
-  // Todos los días a las 23:59:59, hora de Ecuador.
-  @Cron('59 59 23 * * *', { timeZone: TZ })
+  // Un segundo antes del cierre de jornada (ver CRON_CIERRE_JORNADA), hora de Ecuador.
+  @Cron(CRON_CIERRE_JORNADA, { timeZone: TZ })
   async tareaDiaria() {
-    this.logger.log('Ejecutando envío programado del informe diario (23:59:59 Ecuador)...');
+    this.logger.log(`Ejecutando envío programado del informe diario (${CRON_CIERRE_JORNADA} Ecuador)...`);
     try {
       await this.enviarReporteDiario();
     } catch (e) {

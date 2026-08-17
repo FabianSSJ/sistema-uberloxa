@@ -5,18 +5,13 @@ import type { EstadisticasResumen } from '../../features/estadisticas/services/e
 import { descargarInforme } from '../../features/reportes/hooks/useReportes';
 import { Button } from '../../components/ui/Button';
 import { rankBy, scoreUnidad } from '../../core/search/matchers';
-import { fechaCorta } from '../../core/tiempo';
+import { diaOperativoYMD, fechaCortaOperativa } from '../../core/tiempo';
 
 const pad = (n: number) => String(n).padStart(2, '0');
 /** "18:00 y las 19:00" — para usar como "entre las {franja} h". */
 const franjaHora = (h: number) => `${pad(h)}:00 y las ${pad((h + 1) % 24)}:00`;
 /** 'YYYY-MM-DD' (valor crudo de <input type="date">) -> 'DD/MM/YYYY' para mostrar. */
 const formatYMD = (ymd: string) => ymd.split('-').reverse().join('/');
-/** 'YYYY-MM-DD' de hoy, en hora de Ecuador (mismo criterio que el resto del sistema). */
-const hoyYMD = (): string => {
-  const [dd, mm, yyyy] = fechaCorta(new Date()).split('/');
-  return `${yyyy}-${mm}-${dd}`;
-};
 
 type ModoPdf = 'hoy' | 'dia' | 'rango';
 type ModoRanking = 'total' | 'hoy' | 'dia' | 'rango';
@@ -60,7 +55,7 @@ export const EstadisticasPage = () => {
   const { rankingDesde, rankingHasta } = useMemo(() => {
     if (!rankingListo) return { rankingDesde: undefined, rankingHasta: undefined };
     switch (modoRanking) {
-      case 'hoy': { const h = hoyYMD(); return { rankingDesde: h, rankingHasta: h }; }
+      case 'hoy': { const h = diaOperativoYMD(); return { rankingDesde: h, rankingHasta: h }; }
       case 'dia': return { rankingDesde: diaRanking, rankingHasta: diaRanking };
       case 'rango': return { rankingDesde: desdeRanking, rankingHasta: hastaRanking };
       default: return { rankingDesde: undefined, rankingHasta: totalHastaRanking || undefined };
@@ -71,7 +66,7 @@ export const EstadisticasPage = () => {
     modoRanking === 'total'
       ? (totalHastaRanking ? `Acumulado hasta el ${formatYMD(totalHastaRanking)}.` : 'Total acumulado de todas las carreras (sin filtro de fecha).')
       : modoRanking === 'hoy'
-        ? `Carreras de hoy (${formatYMD(hoyYMD())}) por unidad.`
+        ? `Carreras de hoy (${fechaCortaOperativa()}) por unidad.`
         : modoRanking === 'dia'
           ? (diaRanking ? `Carreras del ${formatYMD(diaRanking)} por unidad.` : 'Elegí un día para ver el ranking de esa fecha.')
           : (desdeRanking && hastaRanking ? `Carreras del ${formatYMD(desdeRanking)} al ${formatYMD(hastaRanking)} por unidad.` : 'Elegí las dos fechas del rango.');
@@ -91,7 +86,7 @@ export const EstadisticasPage = () => {
   const [desdePdf, setDesdePdf] = useState('');
   const [hastaPdf, setHastaPdf] = useState('');
 
-  const hoyLabel = fechaCorta(new Date());
+  const hoyLabel = fechaCortaOperativa();
   const puedeDescargarPdf =
     modoPdf === 'hoy' ? true : modoPdf === 'dia' ? Boolean(diaPdf) : Boolean(desdePdf && hastaPdf);
 
