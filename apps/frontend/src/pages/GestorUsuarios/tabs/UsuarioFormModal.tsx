@@ -5,7 +5,7 @@ import { Select } from '../../../components/ui/Select';
 import { Button } from '../../../components/ui/Button';
 import { ColorPicker } from '../../../components/ui/ColorPicker';
 import { Car, Clock } from 'lucide-react';
-import { getPaleta, estiloGradientePanel } from '../../../core/operadores/colores';
+import { getPaleta, estiloGradientePanel, parseColorPaneles } from '../../../core/operadores/colores';
 
 interface UsuarioFormModalProps {
   isOpen: boolean;
@@ -35,26 +35,10 @@ export const UsuarioFormModal: React.FC<UsuarioFormModalProps> = ({ isOpen, onCl
       setUsername(usuario.username);
       setRol(usuario.rol);
 
-      if (usuario.color) {
-        const parts = String(usuario.color).split('|');
-        if (parts.length >= 3) {
-          setColorIdentidad(parts[0]?.trim() || null);
-          setColorUnidades(parts[1]?.trim() || null);
-          setColorCarreras(parts[2]?.trim() || null);
-        } else if (parts.length === 2) {
-          setColorIdentidad(null);
-          setColorUnidades(parts[0]?.trim() || null);
-          setColorCarreras(parts[1]?.trim() || null);
-        } else {
-          setColorIdentidad(parts[0]?.trim() || null);
-          setColorUnidades(null);
-          setColorCarreras(null);
-        }
-      } else {
-        setColorIdentidad(null);
-        setColorUnidades(null);
-        setColorCarreras(null);
-      }
+      const { identidad, unidades, carreras } = parseColorPaneles(usuario.color);
+      setColorIdentidad(identidad);
+      setColorUnidades(unidades);
+      setColorCarreras(carreras);
 
       setPassword('');
     } else {
@@ -70,16 +54,9 @@ export const UsuarioFormModal: React.FC<UsuarioFormModalProps> = ({ isOpen, onCl
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    let finalColor: string | null = null;
-    const ident = colorIdentidad || '';
-    const u = colorUnidades || 'naranja';
-    const c = colorCarreras || 'verde';
-
-    if (ident && (!colorUnidades || colorUnidades === 'naranja') && (!colorCarreras || colorCarreras === 'verde')) {
-      finalColor = ident;
-    } else if (ident || colorUnidades || colorCarreras) {
-      finalColor = `${ident}|${u}|${c}`;
-    }
+    const finalColor = colorIdentidad || colorUnidades || colorCarreras
+      ? `${colorIdentidad || ''}|${colorUnidades || 'naranja'}|${colorCarreras || 'verde'}`
+      : null;
 
     const data: any = { nombre, username, rol, color: finalColor };
     if (!usuario || password) {

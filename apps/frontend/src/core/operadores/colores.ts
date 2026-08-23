@@ -191,6 +191,31 @@ const normalizar = (v: unknown): string =>
     .replace(/[̀-ͯ]/g, '')
     .trim();
 
+/** Busca el color legado por coincidencia de nombre; '' si nada matchea. */
+const legadoColorPorNombre = (nombre?: string | null): string => {
+  const n = normalizar(nombre);
+  for (const key of Object.keys(LEGADO_POR_NOMBRE)) {
+    if (n === key || n.split(/\s+/).includes(key)) return LEGADO_POR_NOMBRE[key];
+  }
+  return '';
+};
+
+/**
+ * Interpreta el `color` guardado en DB para un usuario. Formato actual (3 partes):
+ * "colorIdentidad|colorUnidades|colorCarreras". Formato legado (pre-paneles, un solo
+ * valor): se interpreta como identidad únicamente, unidades/carreras quedan sin definir.
+ */
+export const parseColorPaneles = (
+  raw?: string | null,
+): { identidad: string | null; unidades: string | null; carreras: string | null } => {
+  if (!raw) return { identidad: null, unidades: null, carreras: null };
+  const parts = raw.split('|').map((p) => p.trim());
+  if (parts.length >= 3) {
+    return { identidad: parts[0] || null, unidades: parts[1] || null, carreras: parts[2] || null };
+  }
+  return { identidad: parts[0] || null, unidades: null, carreras: null };
+};
+
 /**
  * Identidad de un OPERADOR (Charlie). Prioriza el `color` guardado en DB (preset o hex);
  * si no lo tiene, cae al mapeo legado por nombre; si nada matchea (admin, sistema) → neutro.
@@ -199,72 +224,30 @@ export const colorOperador = (
   operador?: { color?: string | null; nombre?: string | null } | null,
 ): Identidad => {
   if (!operador) return NEUTRO;
-  if (operador.color) {
-    const parts = operador.color.split('|');
-    const identColor = parts[0]?.trim();
-    if (identColor) return getPaleta(identColor);
-  }
-  const n = normalizar(operador.nombre);
-  for (const key of Object.keys(LEGADO_POR_NOMBRE)) {
-    if (n === key || n.split(/\s+/).includes(key)) return getPaleta(LEGADO_POR_NOMBRE[key]);
-  }
-  return NEUTRO;
+  const { identidad } = parseColorPaneles(operador.color);
+  if (identidad) return getPaleta(identidad);
+  const legado = legadoColorPorNombre(operador.nombre);
+  return legado ? getPaleta(legado) : NEUTRO;
 };
 
 /**
  * Resuelve los colores para los paneles (Unidades y Gestión de Carreras) de un usuario.
- * Formato guardado en DB: "colorIdentidad|colorUnidades|colorCarreras"
+ * Formato guardado en DB: "colorIdentidad|colorUnidades|colorCarreras" (ver parseColorPaneles).
  */
 export const coloresPanelesUsuario = (
   operador?: { color?: string | null; nombre?: string | null } | null,
 ): { colorUnidades: Identidad; colorCarreras: Identidad; rawIdentidad: string; rawUnidades: string; rawCarreras: string } => {
-  let raw = operador?.color;
-  let defaultIdent = '';
-  if (!raw && operador?.nombre) {
-    const n = normalizar(operador.nombre);
-    for (const key of Object.keys(LEGADO_POR_NOMBRE)) {
-      if (n === key || n.split(/\s+/).includes(key)) {
-        defaultIdent = LEGADO_POR_NOMBRE[key];
-        break;
-      }
-    }
-  }
-
-  if (!raw) {
-    return {
-      colorUnidades: getPaleta('naranja'),
-      colorCarreras: getPaleta('verde'),
-      rawIdentidad: defaultIdent,
-      rawUnidades: 'naranja',
-      rawCarreras: 'verde',
-    };
-  }
-
-  const parts = raw.split('|');
-  let rawIdent = '';
-  let rawU = 'naranja';
-  let rawC = 'verde';
-
-  if (parts.length >= 3) {
-    rawIdent = parts[0]?.trim() || '';
-    rawU = parts[1]?.trim() || 'naranja';
-    rawC = parts[2]?.trim() || 'verde';
-  } else if (parts.length === 2) {
-    rawIdent = parts[0]?.trim() || '';
-    rawU = parts[1]?.trim() || 'naranja';
-    rawC = 'verde';
-  } else if (parts.length === 1) {
-    rawIdent = parts[0]?.trim() || '';
-    rawU = 'naranja';
-    rawC = 'verde';
-  }
+  const { identidad, unidades, carreras } = parseColorPaneles(operador?.color);
+  const rawUnidades = unidades || 'naranja';
+  const rawCarreras = carreras || 'verde';
+  const rawIdentidad = identidad || legadoColorPorNombre(operador?.nombre);
 
   return {
-    colorUnidades: getPaleta(rawU) || getPaleta('naranja'),
-    colorCarreras: getPaleta(rawC) || getPaleta('verde'),
-    rawIdentidad: rawIdent || defaultIdent,
-    rawUnidades: rawU,
-    rawCarreras: rawC,
+    colorUnidades: getPaleta(rawUnidades),
+    colorCarreras: getPaleta(rawCarreras),
+    rawIdentidad,
+    rawUnidades,
+    rawCarreras,
   };
 };
 

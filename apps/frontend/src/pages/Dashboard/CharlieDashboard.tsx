@@ -44,10 +44,16 @@ export const CharlieDashboard = () => {
     return [...pendientes, ...resueltas];
   }, [allRidesData]);
 
-  // Últimas unidades despachadas hoy (con unidad asignada, más recientes primero)
+  // Últimas unidades despachadas hoy (con unidad asignada, más recientes primero).
+  // El conteo del badge usa el total del día; la columna solo renderiza las primeras 10 —
+  // cada tarjeta hace cómputo de color (mix/luminancia), y esto corre en cada poll (~1s).
   const ultimasUnidadesDespachadas = useMemo(() => {
     return carrerasDelDia.filter((c: any) => c.unidad && c.estado !== 'cancelada');
   }, [carrerasDelDia]);
+  const ultimasUnidadesDespachadasVisibles = useMemo(
+    () => ultimasUnidadesDespachadas.slice(0, 10),
+    [ultimasUnidadesDespachadas],
+  );
 
   // Resumen rápido del día por estado, sobre las mismas carreras que ya se ven en el panel.
   const resumenDia = useMemo(() => {
@@ -375,7 +381,7 @@ export const CharlieDashboard = () => {
           </div>
 
           <div className="flex-1 overflow-y-auto p-1.5 flex flex-row lg:flex-col gap-1.5 content-start bg-slate-50/50">
-            {ultimasUnidadesDespachadas.map((r: any) => {
+            {ultimasUnidadesDespachadasVisibles.map((r: any) => {
               const numU = r.unidad?.numeroUnidad;
               const colorU = colorUnidad(r.unidad);
               return (
