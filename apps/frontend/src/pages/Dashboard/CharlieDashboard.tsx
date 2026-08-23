@@ -16,12 +16,16 @@ import { Switch } from '../../components/ui/Switch';
 import { ESTADO_CARRERA_STYLES } from '../../features/carreras/components/EstadoCarreraBadge';
 import { notify } from '../../components/ui/toast';
 import { rankBy, scoreUnidad, scoreCliente } from '../../core/search/matchers';
-import { colorOperador, colorUnidad } from '../../core/operadores/colores';
+import { colorOperador, colorUnidad, coloresPanelesUsuario, estiloGradientePanel } from '../../core/operadores/colores';
 import { hora } from '../../core/tiempo';
 import { useAuth } from '../../features/auth/context/AuthContext';
 
 export const CharlieDashboard = () => {
   const { user } = useAuth();
+  const { colorUnidades: paletaUnidades, colorCarreras: paletaCarreras } = useMemo(
+    () => coloresPanelesUsuario(user),
+    [user]
+  );
   const { data: clientes = [] } = useClientes();
   // carreras viene del mismo poll combinado que unidades (ver useColaDespacho) — antes esta
   // pantalla pedía /carreras/panel y /unidades cada una por su cuenta cada 1s, el doble de
@@ -39,6 +43,11 @@ export const CharlieDashboard = () => {
     const resueltas = allRidesData.filter((r: any) => r.estado !== 'pendiente');
     return [...pendientes, ...resueltas];
   }, [allRidesData]);
+
+  // Últimas unidades despachadas hoy (con unidad asignada, más recientes primero)
+  const ultimasUnidadesDespachadas = useMemo(() => {
+    return carrerasDelDia.filter((c: any) => c.unidad && c.estado !== 'cancelada');
+  }, [carrerasDelDia]);
 
   // Resumen rápido del día por estado, sobre las mismas carreras que ya se ven en el panel.
   const resumenDia = useMemo(() => {
@@ -218,14 +227,17 @@ export const CharlieDashboard = () => {
 
   return (
     <div className="-mt-4 -mx-4 md:-mx-6 -mb-10 min-h-[calc(100vh-70px)] h-auto lg:h-[calc(100vh-70px)] bg-gray-100 p-4 animate-[fadeIn_0.5s_ease-in]">
-      <div className="flex flex-col lg:flex-row gap-5 h-full w-full">
+      <div className="flex flex-col lg:flex-row gap-3.5 h-full w-full">
 
         {/* Panel 1: Choferes / Unidades */}
         <div className="flex-1 bg-white rounded-2xl shadow-md border border-gray-200/60 flex flex-col overflow-hidden transition-all duration-300 hover:shadow-xl">
-          <div className="bg-gradient-to-r from-amber-500 to-amber-600 p-3 text-white flex items-center gap-3 shadow-sm">
+          <div
+            style={estiloGradientePanel(paletaUnidades, '#f97316')}
+            className="p-3 flex items-center gap-3 shadow-sm transition-colors duration-300"
+          >
             <div className="flex items-center gap-3 shrink-0">
               <div className="bg-white/20 p-2 rounded-xl backdrop-blur-sm shrink-0">
-                <Car size={24} className="text-white" />
+                <Car size={24} className="text-current" />
               </div>
               <h2 className="text-xl font-bold m-0 tracking-wide shrink-0">Unidades</h2>
             </div>
@@ -258,7 +270,7 @@ export const CharlieDashboard = () => {
                 <span className="text-sm font-black tabular-nums text-red-700">{resumenDia.canceladas}</span>
               </span>
             </div>
-            <span className="bg-amber-700/50 px-3 py-1 rounded-full text-sm font-bold shadow-inner shrink-0 ml-auto md:ml-0">
+            <span className="bg-black/20 px-3 py-1 rounded-full text-sm font-bold shadow-inner shrink-0 ml-auto md:ml-0">
               {filteredUnidades.length}
             </span>
           </div>
@@ -355,22 +367,67 @@ export const CharlieDashboard = () => {
           </div>
         </div>
 
+        {/* Columna Central: Últimas Despachadas */}
+        <div className="w-full lg:w-20 xl:w-24 bg-white rounded-2xl shadow-md border border-gray-200/60 flex flex-col overflow-hidden transition-all duration-300 hover:shadow-xl shrink-0">
+          <div className="bg-slate-800 text-white py-3 px-1 text-center flex flex-col items-center justify-center shadow-sm">
+            <span className="text-[0.6875rem] font-black uppercase tracking-wider text-slate-200">Últimas</span>
+            <span className="text-[0.5625rem] font-bold text-slate-400">({ultimasUnidadesDespachadas.length})</span>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-1.5 flex flex-row lg:flex-col gap-1.5 content-start bg-slate-50/50">
+            {ultimasUnidadesDespachadas.map((r: any) => {
+              const numU = r.unidad?.numeroUnidad;
+              const colorU = colorUnidad(r.unidad);
+              return (
+                <button
+                  key={r.id}
+                  type="button"
+                  onClick={() => {
+                    if (numU) {
+                      setNumUnidadRapido(numU.toString());
+                      setTimeout(() => unitInputRef.current?.focus(), 30);
+                    }
+                  }}
+                  className="group flex flex-col items-center justify-center py-1.5 px-1 rounded-lg border border-black/5 hover:scale-[1.03] active:scale-95 transition-all shadow-2xs cursor-pointer w-full shrink-0 min-w-[3.5rem] lg:min-w-0"
+                  style={{ ...colorU.card, ...colorU.borderLeft }}
+                  title={`Unidad Nº ${numU || 'S/N'} · ${r.unidad?.choferNombre || ''} · ${hora(r.fechaHora)} · Click para seleccionar`}
+                >
+                  <span className="text-base font-black leading-tight tracking-tight">
+                    {numU || 'S/N'}
+                  </span>
+                  <span className="text-[0.5625rem] font-bold opacity-75 leading-none tabular-nums mt-0.5">
+                    {hora(r.fechaHora)}
+                  </span>
+                </button>
+              );
+            })}
+            {ultimasUnidadesDespachadas.length === 0 && (
+              <div className="text-[0.625rem] text-gray-400 text-center py-6 w-full font-medium">
+                Sin datos
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* Panel 2: Gestión de Carreras y Clientes — buscar cliente + registrar carreras del día */}
         <div className="flex-1 bg-white rounded-2xl shadow-md border border-gray-200/60 flex flex-col overflow-hidden transition-all duration-300 hover:shadow-xl">
-          <div className="bg-gradient-to-r from-emerald-500 to-green-600 p-3 text-white flex justify-between items-center shadow-sm">
+          <div
+            style={estiloGradientePanel(paletaCarreras, '#10b981')}
+            className="p-3 flex justify-between items-center shadow-sm transition-colors duration-300"
+          >
             <div className="flex items-center gap-3">
               <div className="bg-white/20 p-2 rounded-xl backdrop-blur-sm">
-                <Clock size={24} className="text-white" />
+                <Clock size={24} className="text-current" />
               </div>
               <h2 className="text-lg font-bold m-0 tracking-wide">Gestión de Carreras y Clientes</h2>
             </div>
             <div className="flex items-center gap-3">
-              <span className="bg-green-700/50 px-3 py-1 rounded-full text-sm font-bold shadow-inner" title="Carreras de hoy">
+              <span className="bg-black/20 px-3 py-1 rounded-full text-sm font-bold shadow-inner" title="Carreras de hoy">
                 {carrerasDelDia.length}
               </span>
               <button
                 onClick={() => { setSelectedClienteId(undefined); setIsModalOpen(true); }}
-                className="bg-white text-green-600 p-1.5 rounded-lg hover:bg-green-50 hover:scale-105 transition-all shadow-sm cursor-pointer"
+                className="bg-white text-gray-800 p-1.5 rounded-lg hover:bg-gray-100 hover:scale-105 transition-all shadow-sm cursor-pointer"
                 title="Nueva Carrera"
               >
                 <Plus size={20} strokeWidth={3} />
@@ -423,6 +480,13 @@ export const CharlieDashboard = () => {
                   onChange={e => setRapidoTelefono(e.target.value)}
                   onKeyDown={handleRapidoKeyDown}
                 />
+                <Switch
+                  checked={rapidoEncomienda}
+                  onChange={setRapidoEncomienda}
+                  label="Encomienda"
+                  size="sm"
+                  className="shrink-0 bg-white px-2 py-1.5 rounded-lg border border-gray-200 shadow-2xs"
+                />
                 <button
                   type="button"
                   onClick={crearClienteRapidoYCarrera}
@@ -434,11 +498,11 @@ export const CharlieDashboard = () => {
                 </button>
                 <button
                   type="button"
-                  onClick={() => { setModoRapido(false); setRapidoNombre(''); setRapidoTelefono(''); }}
+                  onClick={() => { setModoRapido(false); setRapidoNombre(''); setRapidoTelefono(''); setRapidoEncomienda(false); }}
                   title="Volver a buscar"
                   className="shrink-0 inline-flex items-center justify-center w-9 h-9 rounded-lg border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 transition-colors shadow-sm"
                 >
-                <X size={16} />
+                  <X size={16} />
                 </button>
               </div>
             )}
@@ -485,117 +549,90 @@ export const CharlieDashboard = () => {
                       className={`border rounded-lg shadow-sm hover:shadow transition-all duration-200 group cursor-pointer ${esBusquedaCodigo ? 'p-3 flex flex-col gap-2 bg-white border-gray-200' : 'p-2.5 flex items-center justify-between gap-2 bg-white border-gray-100'} ${isDragOver ? 'bg-green-50 ring-2 ring-green-400 border-green-300 scale-[1.01]' : ''}`}
                     >
                       {esBusquedaCodigo ? (
-                        /* Vista por código: 2 columnas A UN LADITO (Izquierda: ÚLTIMAS UNIDADES | Derecha: DATOS CLIENTE) */
-                        <div className="w-full grid grid-cols-1 md:grid-cols-12 gap-3" onClick={(e) => e.stopPropagation()}>
-                          {/* Columna Izquierda (A un ladito): Últimas unidades despachadas */}
-                          <div className="md:col-span-4 bg-slate-50 p-2.5 rounded-xl border border-slate-200 flex flex-col gap-2">
-                            <div className="flex items-center justify-between pb-1 border-b border-slate-200">
-                              <span className="text-[0.6875rem] font-black text-gray-700 uppercase tracking-wider">Últimas Despachadas</span>
-                              <span className="text-[0.5625rem] text-gray-400 font-bold">Recientes</span>
+                        /* Vista por código: DATOS CLIENTE + DESPACHO directo */
+                        <div className="w-full flex flex-col justify-between gap-2.5 p-1" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex flex-col gap-1.5">
+                            <div className="flex items-start justify-between gap-2">
+                              <h3 className="font-black text-gray-900 m-0 text-xl leading-tight break-words">{c.nombre}</h3>
+                              <span className="shrink-0 inline-flex flex-col items-center bg-blue-50 text-blue-700 border border-blue-200 rounded-xl px-3 py-1 shadow-sm">
+                                <span className="text-[0.5625rem] font-bold uppercase tracking-widest text-blue-400">Código</span>
+                                <span className="text-2xl font-black font-mono leading-none">{formatCodigo(c.codigo)}</span>
+                              </span>
                             </div>
-                            <div className="flex flex-wrap gap-1.5 overflow-y-auto max-h-[220px]">
-                              {carrerasDelDia.slice(0, 10).map((r: any) => {
-                                const numU = r.unidad?.numeroUnidad;
-                                return (
-                                  <button
-                                    key={r.id}
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      if (numU) {
-                                        setNumUnidadRapido(numU.toString());
-                                        setTimeout(() => unitInputRef.current?.focus(), 30);
-                                      }
-                                    }}
-                                    className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white hover:bg-amber-100/80 active:bg-amber-200 rounded-lg border border-gray-200 shadow-2xs transition cursor-pointer"
-                                    title={numU ? `Unidad Nº ${numU} · Click para elegir` : 'Sin unidad'}
-                                  >
-                                    <Car size={14} className={numU ? 'text-amber-600' : 'text-gray-400'} />
-                                    <span className="font-black text-gray-900 text-sm font-mono">
-                                      {numU ? `Nº ${numU}` : 'S/N'}
-                                    </span>
-                                  </button>
-                                );
-                              })}
-                              {carrerasDelDia.length === 0 && (
-                                <div className="text-[0.6875rem] text-gray-400 text-center py-4 w-full">Sin carreras previas hoy</div>
-                              )}
-                            </div>
-                          </div>
 
-                          {/* Columna Derecha: Datos del Cliente + Despacho */}
-                          <div className="md:col-span-8 flex flex-col justify-between gap-2">
-                            <div className="flex flex-col gap-1.5">
-                              <div className="flex items-start justify-between gap-2">
-                                <h3 className="font-black text-gray-900 m-0 text-xl leading-tight break-words">{c.nombre}</h3>
-                                <span className="shrink-0 inline-flex flex-col items-center bg-blue-50 text-blue-700 border border-blue-200 rounded-xl px-3 py-1 shadow-sm">
-                                  <span className="text-[0.5625rem] font-bold uppercase tracking-widest text-blue-400">Código</span>
-                                  <span className="text-2xl font-black font-mono leading-none">{formatCodigo(c.codigo)}</span>
+                            {/* Sector */}
+                            {c.sector?.nombre ? (
+                              <div className="flex items-center gap-1.5 text-xs font-bold text-gray-800 bg-slate-100/80 border border-slate-200 rounded-lg px-2.5 py-1 w-fit shadow-2xs">
+                                <span className="text-[0.625rem] uppercase tracking-wider text-gray-500 font-extrabold">Sector:</span>
+                                <span className="font-bold text-gray-900">{c.sector.nombre}</span>
+                              </div>
+                            ) : (
+                              <span className="text-[0.6875rem] font-semibold text-gray-400 italic">
+                                Sin sector registrado
+                              </span>
+                            )}
+
+                            {c.direccion ? (
+                              <div className="flex items-start gap-1.5 text-gray-800 bg-slate-100/80 rounded-lg px-2.5 py-1.5 border border-slate-200 shadow-sm">
+                                <MapPin size={16} className="shrink-0 text-blue-600 mt-0.5" />
+                                <span className="text-xs font-bold leading-snug break-words">{c.direccion}</span>
+                              </div>
+                            ) : (
+                              <p className="text-[0.6875rem] font-semibold text-gray-400 uppercase tracking-wide m-0">Sin dirección registrada</p>
+                            )}
+
+                            {(c.telefono || c.telefonoAlt) && (
+                              <div className="flex items-center gap-1.5 text-gray-800">
+                                <Phone size={14} className="shrink-0 text-green-600" />
+                                <span className="text-xs font-bold tracking-wide">
+                                  {[c.telefono, c.telefonoAlt].filter(Boolean).join('   ·   ')}
                                 </span>
                               </div>
+                            )}
+                          </div>
 
-                              {c.direccion ? (
-                                <div className="flex items-start gap-1.5 text-gray-800 bg-slate-100/80 rounded-lg px-2.5 py-1.5 border border-slate-200 shadow-sm">
-                                  <MapPin size={16} className="shrink-0 text-blue-600 mt-0.5" />
-                                  <span className="text-xs font-bold leading-snug break-words">{c.direccion}</span>
-                                </div>
-                              ) : (
-                                <p className="text-[0.6875rem] font-semibold text-gray-400 uppercase tracking-wide m-0">Sin dirección registrada</p>
-                              )}
-
-                              {(c.telefono || c.telefonoAlt) && (
-                                <div className="flex items-center gap-1.5 text-gray-800">
-                                  <Phone size={14} className="shrink-0 text-green-600" />
-                                  <span className="text-xs font-bold tracking-wide">
-                                    {[c.telefono, c.telefonoAlt].filter(Boolean).join('   ·   ')}
-                                  </span>
-                                </div>
-                              )}
+                          {/* Campo de despacho + Encomienda switch */}
+                          <div className="pt-2 border-t border-gray-100 flex flex-col gap-2">
+                            <div className="flex items-center justify-between">
+                              <label className="text-[0.6875rem] font-bold uppercase tracking-wider text-gray-500">
+                                Despachar a Unidad
+                              </label>
+                              <Switch checked={rapidoEncomienda} onChange={setRapidoEncomienda} label="Encomienda" size="sm" />
                             </div>
-
-                            {/* Campo de despacho + Encomienda switch */}
-                            <div className="pt-2 border-t border-gray-100 flex flex-col gap-2">
-                              <div className="flex items-center justify-between">
-                                <label className="text-[0.6875rem] font-bold uppercase tracking-wider text-gray-500">
-                                  Despachar a Unidad
-                                </label>
-                                <Switch checked={rapidoEncomienda} onChange={setRapidoEncomienda} label="Encomienda" size="sm" />
+                            <form
+                              onSubmit={(e) => {
+                                e.preventDefault();
+                                despacharConUnidad(c.id, numUnidadRapido);
+                              }}
+                              className="w-full"
+                            >
+                              <div className="relative w-full">
+                                <Car className="absolute left-3 top-1/2 -translate-y-1/2 text-amber-500" size={18} />
+                                <input
+                                  ref={unitInputRef}
+                                  type="text"
+                                  placeholder="Nº de Unidad y Enter..."
+                                  value={numUnidadRapido}
+                                  onChange={(e) => setNumUnidadRapido(e.target.value)}
+                                  className="w-full pl-9 pr-4 py-1.5 bg-amber-50/60 border-2 border-amber-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 text-base font-black text-gray-900 rounded-xl outline-none transition shadow-sm placeholder:text-gray-400 placeholder:font-normal"
+                                />
                               </div>
-                              <form
-                                onSubmit={(e) => {
-                                  e.preventDefault();
-                                  despacharConUnidad(c.id, numUnidadRapido);
+                            </form>
+                            <div className="flex items-center justify-between text-[0.6875rem] text-gray-400 font-medium px-1">
+                              <span>Enter para despachar</span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  crearCarrera(
+                                    { clienteId: c.id, estado: 'perdida', notas: 'Sin unidad disponible' },
+                                    { onSuccess: () => { setSearchCliente(''); setNumUnidadRapido(''); } }
+                                  );
                                 }}
-                                className="w-full"
+                                className="text-orange-600 hover:text-orange-700 hover:underline font-semibold flex items-center gap-1 cursor-pointer"
                               >
-                                <div className="relative w-full">
-                                  <Car className="absolute left-3 top-1/2 -translate-y-1/2 text-amber-500" size={18} />
-                                  <input
-                                    ref={unitInputRef}
-                                    type="text"
-                                    placeholder="Nº de Unidad y Enter..."
-                                    value={numUnidadRapido}
-                                    onChange={(e) => setNumUnidadRapido(e.target.value)}
-                                    className="w-full pl-9 pr-4 py-1.5 bg-amber-50/60 border-2 border-amber-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 text-base font-black text-gray-900 rounded-xl outline-none transition shadow-sm placeholder:text-gray-400 placeholder:font-normal"
-                                  />
-                                </div>
-                              </form>
-                              <div className="flex items-center justify-between text-[0.6875rem] text-gray-400 font-medium px-1">
-                                <span>Enter para despachar</span>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    crearCarrera(
-                                      { clienteId: c.id, estado: 'perdida', notas: 'Sin unidad disponible' },
-                                      { onSuccess: () => { setSearchCliente(''); setNumUnidadRapido(''); } }
-                                    );
-                                  }}
-                                  className="text-orange-600 hover:text-orange-700 hover:underline font-semibold flex items-center gap-1 cursor-pointer"
-                                >
-                                  <AlertTriangle size={11} />
-                                  <span>Carrera Perdida</span>
-                                </button>
-                              </div>
+                                <AlertTriangle size={11} />
+                                <span>Carrera Perdida</span>
+                              </button>
                             </div>
                           </div>
                         </div>
@@ -603,7 +640,14 @@ export const CharlieDashboard = () => {
                         /* Vista compacta: búsqueda por nombre → lista con botón de Carrera Perdida únicamente */
                         <>
                           <div className="flex-1 min-w-0 pointer-events-none">
-                            <h3 className="font-bold text-gray-800 m-0 text-[0.875rem] leading-tight truncate">{c.nombre}</h3>
+                            <div className="flex items-center gap-2">
+                              <h3 className="font-bold text-gray-800 m-0 text-[0.875rem] leading-tight truncate">{c.nombre}</h3>
+                              {c.sector?.nombre && (
+                                <span className="text-[0.6875rem] font-bold text-gray-700 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded">
+                                  {c.sector.nombre}
+                                </span>
+                              )}
+                            </div>
                             {c.direccion ? (
                               <div className="flex items-start gap-1.5 mt-1 text-gray-800 bg-slate-100/80 rounded px-2 py-1.5 border border-slate-200 shadow-sm">
                                 <MapPin size={15} className="shrink-0 text-blue-600 mt-0.5" />

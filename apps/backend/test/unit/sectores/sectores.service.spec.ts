@@ -112,7 +112,7 @@ describe('SectoresService', () => {
       mockPrismaService.sector.findUnique.mockResolvedValue({ id: 1, nombre: 'Norte' });
       
       // Mock de la transacción simulando la función de callback
-      mockPrismaService.$transaction.mockImplementation(async (callback) => {
+      mockPrismaService.$transaction.mockImplementation(async (callback: any) => {
         const tx = {
           cliente: { updateMany: jest.fn().mockResolvedValue({ count: 5 }) },
           sector: { delete: jest.fn().mockResolvedValue({ id: 1 }) },

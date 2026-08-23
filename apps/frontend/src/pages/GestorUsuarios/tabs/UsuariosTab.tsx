@@ -4,7 +4,7 @@ import { Button } from '../../../components/ui/Button';
 import { ConfirmDialog } from '../../../components/ui/ConfirmDialog';
 import { Edit2, Plus, UserX, UserCheck } from 'lucide-react';
 import { UsuarioFormModal } from './UsuarioFormModal';
-import { getPaleta } from '../../../core/operadores/colores';
+import { colorOperador } from '../../../core/operadores/colores';
 
 export const UsuariosTab = () => {
   const { data: usuarios = [], isLoading } = useUsuarios();
@@ -56,26 +56,28 @@ export const UsuariosTab = () => {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {usuarios.map((u) => (
-              <tr key={u.id} className={u.activo ? '' : 'opacity-50 bg-gray-50'}>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="flex items-center gap-2">
-                    <span
-                      className="inline-block h-3 w-3 rounded-full shrink-0"
-                      style={getPaleta(u.color).swatch}
-                      title={u.color ? `Color: ${u.color}` : 'Sin color'}
-                    />
-                    <div>
-                      <div className="text-sm font-medium text-gray-900 flex items-center gap-2">
-                        {u.nombre}
-                        {!u.activo && (
-                          <span className="px-1.5 py-0.5 text-[0.625rem] font-bold rounded bg-gray-200 text-gray-600 uppercase">Inactivo</span>
-                        )}
+            {usuarios.map((u) => {
+              const op = colorOperador(u);
+              return (
+                <tr key={u.id} className={u.activo ? '' : 'opacity-50 bg-gray-50'}>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="inline-block h-3.5 w-3.5 rounded-full shrink-0"
+                        style={op.swatch}
+                        title={op.label ? `Color: ${op.label}` : 'Sin color'}
+                      />
+                      <div>
+                        <div className="text-sm font-medium text-gray-900 flex items-center gap-2">
+                          {u.nombre}
+                          {!u.activo && (
+                            <span className="px-1.5 py-0.5 text-[0.625rem] font-bold rounded bg-gray-200 text-gray-600 uppercase">Inactivo</span>
+                          )}
+                        </div>
+                        <div className="text-sm text-gray-500">@{u.username}</div>
                       </div>
-                      <div className="text-sm text-gray-500">@{u.username}</div>
                     </div>
-                  </div>
-                </td>
+                  </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${u.rol === 'SUPERADMIN' ? 'bg-purple-100 text-purple-800' : 'bg-green-100 text-green-800'}`}>
                     {u.rol}
@@ -101,9 +103,10 @@ export const UsuariosTab = () => {
                       <UserCheck size={18} />
                     </button>
                   )}
-                </td>
-              </tr>
-            ))}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

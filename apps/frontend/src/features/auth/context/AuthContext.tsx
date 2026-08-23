@@ -7,6 +7,7 @@ interface User {
   username: string;
   rol: string;
   modulosPermitidos: string[];
+  color?: string | null;
 }
 
 interface AuthContextType {

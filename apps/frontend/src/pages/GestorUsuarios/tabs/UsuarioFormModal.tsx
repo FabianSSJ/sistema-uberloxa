@@ -4,6 +4,8 @@ import { Input } from '../../../components/ui/Input';
 import { Select } from '../../../components/ui/Select';
 import { Button } from '../../../components/ui/Button';
 import { ColorPicker } from '../../../components/ui/ColorPicker';
+import { Car, Clock } from 'lucide-react';
+import { getPaleta, estiloGradientePanel } from '../../../core/operadores/colores';
 
 interface UsuarioFormModalProps {
   isOpen: boolean;
@@ -11,8 +13,6 @@ interface UsuarioFormModalProps {
   onSubmit: (data: any) => void;
   usuario?: any;
 }
-
-
 
 const ROLES = [
   { value: 'CHARLIE', label: 'CHARLIE' },
@@ -25,15 +25,36 @@ export const UsuarioFormModal: React.FC<UsuarioFormModalProps> = ({ isOpen, onCl
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [rol, setRol] = useState('CHARLIE');
-  const [color, setColor] = useState<string | null>(null);
-
+  const [colorIdentidad, setColorIdentidad] = useState<string | null>(null);
+  const [colorUnidades, setColorUnidades] = useState<string | null>(null);
+  const [colorCarreras, setColorCarreras] = useState<string | null>(null);
 
   useEffect(() => {
     if (usuario) {
       setNombre(usuario.nombre);
       setUsername(usuario.username);
       setRol(usuario.rol);
-      setColor(usuario.color ?? null);
+
+      if (usuario.color) {
+        const parts = String(usuario.color).split('|');
+        if (parts.length >= 3) {
+          setColorIdentidad(parts[0]?.trim() || null);
+          setColorUnidades(parts[1]?.trim() || null);
+          setColorCarreras(parts[2]?.trim() || null);
+        } else if (parts.length === 2) {
+          setColorIdentidad(null);
+          setColorUnidades(parts[0]?.trim() || null);
+          setColorCarreras(parts[1]?.trim() || null);
+        } else {
+          setColorIdentidad(parts[0]?.trim() || null);
+          setColorUnidades(null);
+          setColorCarreras(null);
+        }
+      } else {
+        setColorIdentidad(null);
+        setColorUnidades(null);
+        setColorCarreras(null);
+      }
 
       setPassword('');
     } else {
@@ -41,21 +62,36 @@ export const UsuarioFormModal: React.FC<UsuarioFormModalProps> = ({ isOpen, onCl
       setUsername('');
       setPassword('');
       setRol('CHARLIE');
-      setColor(null);
-
+      setColorIdentidad(null);
+      setColorUnidades(null);
+      setColorCarreras(null);
     }
   }, [usuario, isOpen]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const data: any = { nombre, username, rol, color };
+    let finalColor: string | null = null;
+    const ident = colorIdentidad || '';
+    const u = colorUnidades || 'naranja';
+    const c = colorCarreras || 'verde';
+
+    if (ident && (!colorUnidades || colorUnidades === 'naranja') && (!colorCarreras || colorCarreras === 'verde')) {
+      finalColor = ident;
+    } else if (ident || colorUnidades || colorCarreras) {
+      finalColor = `${ident}|${u}|${c}`;
+    }
+
+    const data: any = { nombre, username, rol, color: finalColor };
     if (!usuario || password) {
       data.password = password;
     }
     onSubmit(data);
   };
 
-
+  const paletaU = getPaleta(colorUnidades || 'naranja');
+  const paletaC = getPaleta(colorCarreras || 'verde');
+  const styleU = estiloGradientePanel(paletaU, '#f97316');
+  const styleC = estiloGradientePanel(paletaC, '#10b981');
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={usuario ? 'Editar Usuario' : 'Nuevo Usuario'}>
@@ -97,11 +133,49 @@ export const UsuarioFormModal: React.FC<UsuarioFormModalProps> = ({ isOpen, onCl
           />
         </div>
 
+        {/* Color de Identidad del Charlie */}
         <ColorPicker
-          label="Color de identidad"
-          value={color}
-          onChange={setColor}
+          label="Color de identidad (Distingue a este Charlie en carreras y reportes)"
+          value={colorIdentidad}
+          onChange={setColorIdentidad}
+          allowNone={true}
         />
+
+        {/* Colores de Paneles para este Operador */}
+        <div className="flex flex-col gap-3 p-3.5 bg-slate-50 border border-slate-200 rounded-xl">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-bold text-gray-800">Colores de Paneles de su Tablero</span>
+            <span className="text-xs text-gray-500 font-medium">Personalización visual</span>
+          </div>
+
+          <div className="flex flex-col gap-3">
+            <ColorPicker
+              label="Color del Panel Unidades"
+              value={colorUnidades}
+              onChange={setColorUnidades}
+              allowNone={true}
+            />
+
+            <ColorPicker
+              label="Color del Panel Gestión de Carreras"
+              value={colorCarreras}
+              onChange={setColorCarreras}
+              allowNone={true}
+            />
+          </div>
+
+          {/* Vista previa en vivo para el Administrador */}
+          <div className="grid grid-cols-2 gap-2 mt-1 pt-2 border-t border-slate-200">
+            <div style={styleU} className="p-2 rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-2xs">
+              <Car size={14} className="text-current" />
+              <span className="truncate">Unidades</span>
+            </div>
+            <div style={styleC} className="p-2 rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-2xs">
+              <Clock size={14} className="text-current" />
+              <span className="truncate">Carreras</span>
+            </div>
+          </div>
+        </div>
 
         <div className="flex justify-end gap-3 mt-4 pt-4 border-t border-gray-100">
           <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>

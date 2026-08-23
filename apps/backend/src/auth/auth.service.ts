@@ -82,6 +82,7 @@ export class AuthService {
         username: usuario.username,
         rol: usuario.rol,
         modulosPermitidos: usuario.modulosPermitidos,
+        color: usuario.color,
       }
     };
   }

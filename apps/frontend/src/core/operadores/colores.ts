@@ -199,12 +199,89 @@ export const colorOperador = (
   operador?: { color?: string | null; nombre?: string | null } | null,
 ): Identidad => {
   if (!operador) return NEUTRO;
-  if (operador.color) return getPaleta(operador.color);
+  if (operador.color) {
+    const parts = operador.color.split('|');
+    const identColor = parts[0]?.trim();
+    if (identColor) return getPaleta(identColor);
+  }
   const n = normalizar(operador.nombre);
   for (const key of Object.keys(LEGADO_POR_NOMBRE)) {
     if (n === key || n.split(/\s+/).includes(key)) return getPaleta(LEGADO_POR_NOMBRE[key]);
   }
   return NEUTRO;
+};
+
+/**
+ * Resuelve los colores para los paneles (Unidades y Gestión de Carreras) de un usuario.
+ * Formato guardado en DB: "colorIdentidad|colorUnidades|colorCarreras"
+ */
+export const coloresPanelesUsuario = (
+  operador?: { color?: string | null; nombre?: string | null } | null,
+): { colorUnidades: Identidad; colorCarreras: Identidad; rawIdentidad: string; rawUnidades: string; rawCarreras: string } => {
+  let raw = operador?.color;
+  let defaultIdent = '';
+  if (!raw && operador?.nombre) {
+    const n = normalizar(operador.nombre);
+    for (const key of Object.keys(LEGADO_POR_NOMBRE)) {
+      if (n === key || n.split(/\s+/).includes(key)) {
+        defaultIdent = LEGADO_POR_NOMBRE[key];
+        break;
+      }
+    }
+  }
+
+  if (!raw) {
+    return {
+      colorUnidades: getPaleta('naranja'),
+      colorCarreras: getPaleta('verde'),
+      rawIdentidad: defaultIdent,
+      rawUnidades: 'naranja',
+      rawCarreras: 'verde',
+    };
+  }
+
+  const parts = raw.split('|');
+  let rawIdent = '';
+  let rawU = 'naranja';
+  let rawC = 'verde';
+
+  if (parts.length >= 3) {
+    rawIdent = parts[0]?.trim() || '';
+    rawU = parts[1]?.trim() || 'naranja';
+    rawC = parts[2]?.trim() || 'verde';
+  } else if (parts.length === 2) {
+    rawIdent = parts[0]?.trim() || '';
+    rawU = parts[1]?.trim() || 'naranja';
+    rawC = 'verde';
+  } else if (parts.length === 1) {
+    rawIdent = parts[0]?.trim() || '';
+    rawU = 'naranja';
+    rawC = 'verde';
+  }
+
+  return {
+    colorUnidades: getPaleta(rawU) || getPaleta('naranja'),
+    colorCarreras: getPaleta(rawC) || getPaleta('verde'),
+    rawIdentidad: rawIdent || defaultIdent,
+    rawUnidades: rawU,
+    rawCarreras: rawC,
+  };
+};
+
+/**
+ * Genera el estilo de fondo con gradiente y contraste de texto para la cabecera de un panel.
+ */
+export const estiloGradientePanel = (
+  identidad: Identidad,
+  defaultBase: string,
+): { background: string; color: string } => {
+  const base = identidad.base || defaultBase;
+  const darker = mix(base, '#000000', 0.18);
+  const color = textoContraste(base);
+  return {
+    background: `linear-gradient(to right, ${base}, ${darker})`,
+    color,
+  };
 };
 
 /** Identidad de una UNIDAD según su color (preset o hex en DB). */
