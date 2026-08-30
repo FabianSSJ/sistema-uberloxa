@@ -3,6 +3,7 @@ import { Routes, Route } from 'react-router-dom';
 import MainLayout from './layouts/MainLayout';
 import { PrivateRoute } from './features/auth/components/PrivateRoute';
 import { AppToaster } from './components/ui/toast';
+import { ErrorBoundary } from './components/ui/ErrorBoundary';
 
 // Code-splitting: cada página se baja solo al entrar a su ruta (bundle inicial más liviano).
 const Dashboard = lazy(() => import('./pages/Dashboard/Dashboard'));
@@ -22,7 +23,7 @@ const PageLoader = () => (
 
 function App() {
   return (
-    <>
+    <ErrorBoundary>
       <AppToaster />
       <Suspense fallback={<PageLoader />}>
         <Routes>
@@ -50,7 +51,7 @@ function App() {
           </Route>
         </Routes>
       </Suspense>
-    </>
+    </ErrorBoundary>
   );
 }
 

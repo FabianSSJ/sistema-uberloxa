@@ -2,6 +2,7 @@ import { Controller, Get, Post, Body, Param, ParseIntPipe, Patch, Query, UseGuar
 import { CarrerasService } from './carreras.service';
 import { CreateCarreraDto } from './dto/create-carrera.dto';
 import { FindCarrerasQueryDto } from './dto/find-carreras-query.dto';
+import { AssignUnidadDto } from './dto/assign-unidad.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ModulesGuard } from '../auth/guards/modules.guard';
 import { RequireModule } from '../auth/decorators/modules.decorator';
@@ -50,6 +51,17 @@ export class CarrerasController {
     @Req() req: any,
   ) {
     return this.carrerasService.completar(id, unidadId, req.user);
+  }
+
+  // Corrección de errores: reasigna la unidad de una carrera existente (pendiente, en curso
+  // o completada) sin cambiar su estado. Distinto de /completar, que además la resuelve.
+  @Patch(':id/unidad')
+  reasignarUnidad(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: AssignUnidadDto,
+    @Req() req: any,
+  ) {
+    return this.carrerasService.reasignarUnidad(id, dto.unidadId, req.user);
   }
 
   @Patch(':id/cancelar')

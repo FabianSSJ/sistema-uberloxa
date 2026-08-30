@@ -101,8 +101,13 @@ const MainLayout = () => {
             <div className="h-8 w-px bg-gray-300 hidden sm:block" />
             <span className="font-bold text-slate-800 text-sm whitespace-nowrap">{user?.nombre}</span>
             <span className="px-2 py-0.5 text-[0.6875rem] font-bold bg-amber-100 text-amber-800 rounded-full">{user?.rol}</span>
-            <button onClick={handleLogout} className="text-gray-500 hover:text-red-600 transition-colors cursor-pointer" title="Cerrar Sesión">
-              <LogOut size={18} />
+            <button
+              onClick={handleLogout}
+              title="Cerrar Sesión"
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-sm font-semibold bg-red-50 text-red-700 border border-red-200 hover:bg-red-600 hover:text-white transition-colors cursor-pointer shrink-0"
+            >
+              <LogOut size={16} />
+              <span>Cerrar Sesión</span>
             </button>
           </div>
         </div>

@@ -1,64 +1,113 @@
 # ──────────────────────────────────────────────
-#  Dependencias
+#  Dependencias y Monorepo
 # ──────────────────────────────────────────────
 node_modules/
+**/node_modules/
 .pnp
 .pnp.*
 .pnpm-store/
+.turbo/
+**/.turbo/
 
 # ──────────────────────────────────────────────
-#  Salidas de build
+#  Salidas de build y artefactos
 # ──────────────────────────────────────────────
 dist/
+**/dist/
 dist-ssr/
 build/
+**/build/
 out/
+.vite/
+**/.vite/
 *.tsbuildinfo
 
-# Vite (frontend)
-apps/frontend/dist/
-.vite/
-
-# NestJS (backend)
-apps/backend/dist/
-
-# Turborepo
-.turbo/
-
-# ──────────────────────────────────────────────
-#  Prisma — cliente generado (se regenera con `prisma generate`)
-# ──────────────────────────────────────────────
+# Prisma — cliente generado y artefactos compilados
 apps/backend/generated/
-
-# Artefactos COMPILADOS de prisma.config.ts (los genera tsc/ts-node localmente, quedan
-# tirados al lado del .ts real). Se ignoran a propósito para que nunca aparezcan en
-# `git status` como "archivo de más" — el .ts real (apps/backend/prisma.config.ts) NO
-# está acá, es código fuente y va commiteado siempre. Confundir uno con el otro y borrar
-# los dos con un `rm prisma.config.*` ya rompió el deploy dos veces (Prisma necesita el
-# .ts para resolver DATABASE_URL en `migrate deploy`).
 apps/backend/prisma.config.js
 apps/backend/prisma.config.d.ts
 apps/backend/prisma.config.js.map
 
 # ──────────────────────────────────────────────
-#  Variables de entorno  —  NUNCA commitear secretos
-#  Ignora .env, .env.test, .env.local, etc. pero deja los .example
+#  Variables de entorno — NUNCA commitear secretos
 # ──────────────────────────────────────────────
 .env
 .env.*
+*.env
+*.env.*
 !.env.example
 !.env.*.example
 
 # ──────────────────────────────────────────────
-#  Logs
+#  Certificados, Claves y Secretos
+# ──────────────────────────────────────────────
+*.pem
+*.key
+*.crt
+*.cer
+*.pfx
+*.p12
+
+# ──────────────────────────────────────────────
+#  Sesiones de WhatsApp (Baileys) — Credenciales privadas
+# ──────────────────────────────────────────────
+wa-auth/
+**/wa-auth/
+**/wa-auth*
+**/baileys_auth_info/
+**/session/
+**/sessions/
+wa-qr.png
+**/wa-qr.png
+*wa-qr*
+
+# ──────────────────────────────────────────────
+#  Dumps, backups y volcados de base de datos
+# ──────────────────────────────────────────────
+backups/
+**/backups/
+*.dump
+*.backup
+*.bak
+*.sqlite
+*.sqlite3
+*.db
+seed_admin.sql
+**/seed_admin.sql
+*.sql
+!apps/backend/prisma/migrations/**/*.sql
+
+# ──────────────────────────────────────────────
+#  Excels, CSVs y Datos de Clientes Migrados
+# ──────────────────────────────────────────────
+*.xlsx
+*.xls
+*.csv
+*.pdf
+_parsed*.json
+*_parsed*.json
+/preview_*
+/CLIENTES*
+out.txt
+stash_diff.txt
+REVISION_*.md
+BARRIOS_MAESTRO.md
+
+# ──────────────────────────────────────────────
+#  Logs y Procesos
 # ──────────────────────────────────────────────
 logs/
+**/logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
+pids
+*.pid
+*.seed
+*.pid.lock
 
 # ──────────────────────────────────────────────
 #  Tests / cobertura
@@ -67,7 +116,7 @@ coverage/
 .nyc_output/
 
 # ──────────────────────────────────────────────
-#  Editores / IDEs
+#  Editores e IDEs
 # ──────────────────────────────────────────────
 .vscode/*
 !.vscode/extensions.json
@@ -84,55 +133,9 @@ coverage/
 # ──────────────────────────────────────────────
 .DS_Store
 Thumbs.db
-
-# Archivos temporales de Office (Excel/Word abiertos)
 ~$*
 
-# ──────────────────────────────────────────────
-#  Artefactos de trabajo locales (NO van al repo)
-# ──────────────────────────────────────────────
-# Scripts y data temporal del parser de migración de clientes
-/_*
-
-# Notas de revisión de sectores y barrios (working notes)
-/REVISION_*.md
-/BARRIOS_MAESTRO.md
-
-# Dumps, backups y volcados de base de datos
-backups/
-/backup_*.sql
-*.local.sql
-*.dump
-*.sql
-!apps/backend/prisma/migrations/**/*.sql
-*.backup
-*.sqlite
-*.sqlite3
-*.db
-
-# Archivos de Excel, CSV y volcados de datos
-/*.xlsx
-/CLIENTES*
-/preview_*.csv
-/preview_*.md
-/extract-*.js
-/read-excel.js
-*.xlsx
-*.xls
-*.csv
-*_parsed*.json
-_parsed*.json
-out.txt
-stash_diff.txt
-
-# Sesión de WhatsApp (Baileys) — credenciales, NO commitear
-wa-auth/
-**/wa-auth/
-wa-qr.png
-**/wa-qr.png
-Ejemplo_Informe_UberLoxa.pdf
-
-# Videos de reportes de bugs (WhatsApp, capturas, etc.) — NUNCA commitear
+# Videos y multimedia de pruebas
 *.mp4
 *.mov
 *.avi

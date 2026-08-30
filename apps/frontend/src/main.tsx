@@ -7,6 +7,13 @@ import { AuthProvider } from './features/auth/context/AuthContext';
 import { notify, getErrorMessage } from './components/ui/toast';
 import App from './App.tsx';
 
+// Auto-recuperación ante nuevos deploys: si un chunk JS ya no existe en el servidor,
+// recarga automáticamente para obtener la versión fresca sin romperle la sesión al operador.
+window.addEventListener('vite:preloadError', (event) => {
+  event.preventDefault();
+  window.location.reload();
+});
+
 const queryClient = new QueryClient({
   // Red de seguridad global: CUALQUIER mutación que falle (crear/editar/eliminar/asignar,
   // en cualquier página) avisa acá, siempre — antes, la enorme mayoría de los hooks no

@@ -55,9 +55,9 @@ export const UnidadDetailsModal: React.FC<UnidadDetailsModalProps> = ({ isOpen, 
           {/* Placa y Vehiculo */}
           <div>
             <div className="flex flex-wrap items-center gap-3 mb-2">
-              {unidad.numero && (
+              {unidad.numeroUnidad && (
                 <span className="px-3 py-1.5 bg-gray-800 text-white font-bold text-xl rounded-md shadow-sm">
-                  Unidad {unidad.numero}
+                  Unidad {unidad.numeroUnidad}
                 </span>
               )}
               <span className="px-3 py-1.5 bg-yellow-50 text-yellow-800 border border-yellow-200 font-mono font-bold text-xl rounded-md tracking-wider shadow-sm">

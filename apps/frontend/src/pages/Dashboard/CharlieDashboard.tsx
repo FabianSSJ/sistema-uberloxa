@@ -7,7 +7,7 @@ import { useCambiarEstadoUnidad } from '../../features/unidades/hooks/useUnidade
 import { ESTADO_UNIDAD_STYLES } from '../../features/unidades/components/EstadoUnidadBadge';
 import { UnidadDetalleModal } from '../../features/unidades/components/UnidadDetalleModal';
 import { CarreraDetalleModal } from '../../features/carreras/components/CarreraDetalleModal';
-import { useCreateCarrera, useCompletarCarrera, useCancelarCarrera, usePerderCarrera, useDeleteCarrera } from '../../features/carreras/hooks/useCarreras';
+import { useCreateCarrera, useCompletarCarrera, useCancelarCarrera, usePerderCarrera, useDeleteCarrera, useReasignarCarreraCancelada } from '../../features/carreras/hooks/useCarreras';
 import type { CreateCarreraDto } from '../../features/carreras/services/carreras.service';
 import { CarreraFormModal } from './CarreraFormModal';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
@@ -72,6 +72,7 @@ export const CharlieDashboard = () => {
   const cancelarMutation = useCancelarCarrera();
   const perderMutation = usePerderCarrera();
   const deleteCarreraMutation = useDeleteCarrera();
+  const reasignarCanceladaMutation = useReasignarCarreraCancelada();
   const cambiarEstadoMutation = useCambiarEstadoUnidad();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -696,25 +697,34 @@ export const CharlieDashboard = () => {
                 {carrerasDelDia.map((r: any) => {
                   const op = colorOperador(r.creadoPor);
                   const esPendiente = r.estado === 'pendiente';
+                  const esCancelada = r.estado === 'cancelada';
+                  // Pendiente: arrastrar una unidad la completa. Cancelada: arrastrar una unidad la
+                  // reasigna y reactiva (completa) sin tener que crear la carrera de nuevo.
+                  const puedeRecibirUnidad = esPendiente || esCancelada;
                   const estadoCls = ESTADO_CARRERA_STYLES[r.estado as keyof typeof ESTADO_CARRERA_STYLES] || 'bg-gray-200 text-gray-800 border-gray-300';
-                  const isDragOverCarrera = esPendiente && dragOverItem?.type === 'CARRERA' && dragOverItem.id === r.id;
+                  const isDragOverCarrera = puedeRecibirUnidad && dragOverItem?.type === 'CARRERA' && dragOverItem.id === r.id;
                   return (
                     <div
                       key={r.id}
                       style={op.borderLeft}
                       onClick={() => setDetalleCarrera(r)}
-                      title="Click para ver detalle del cliente y la carrera"
-                      onDragOver={esPendiente ? (e) => {
+                      title={esCancelada ? 'Click para ver detalle · arrastrá una unidad acá para reasignar y completar' : 'Click para ver detalle del cliente y la carrera'}
+                      onDragOver={puedeRecibirUnidad ? (e) => {
                         e.preventDefault();
                         if (draggedItem?.type === 'CHOFER') setDragOverItem({ type: 'CARRERA', id: r.id });
                       } : undefined}
-                      onDragLeave={esPendiente ? () => setDragOverItem(null) : undefined}
-                      onDrop={esPendiente ? (e) => {
+                      onDragLeave={puedeRecibirUnidad ? () => setDragOverItem(null) : undefined}
+                      onDrop={puedeRecibirUnidad ? (e) => {
                         e.preventDefault();
                         if (draggedItem?.type === 'CHOFER') {
                           const unidadDrag = todasUnidades.find((u: any) => u.id === draggedItem.id);
                           if (unidadDrag?.estado === 'inactivo') {
                             notify.error(`La unidad Nº ${unidadDrag.numeroUnidad || 'S/N'} está inactiva — activala antes de asignarle una carrera.`);
+                          } else if (esCancelada) {
+                            reasignarCanceladaMutation.mutate(
+                              { id: r.id, unidadId: draggedItem.id },
+                              { onSuccess: () => notify.success(`Carrera reasignada y completada con Unidad Nº ${unidadDrag?.numeroUnidad || draggedItem.id}`) }
+                            );
                           } else {
                             completarMutation.mutate({ id: r.id, unidadId: draggedItem.id });
                           }
@@ -725,7 +735,7 @@ export const CharlieDashboard = () => {
                         r.esEncomienda
                           ? 'bg-amber-50/90 border-amber-300'
                           : isDragOverCarrera
-                            ? 'bg-amber-50 ring-2 ring-amber-400 border-amber-300 scale-[1.01]'
+                            ? (esCancelada ? 'bg-red-50 ring-2 ring-red-400 border-red-300 scale-[1.01]' : 'bg-amber-50 ring-2 ring-amber-400 border-amber-300 scale-[1.01]')
                             : esPendiente
                               ? 'bg-white border-y-amber-200 border-r-amber-200'
                               : 'bg-white border-y-gray-100 border-r-gray-100'
@@ -785,17 +795,22 @@ export const CharlieDashboard = () => {
         />
       )}
 
-      <UnidadDetalleModal
-        unidad={detalleUnidad}
-        carrerasHoy={detalleUnidad ? (carrerasHoy.get(detalleUnidad.id) || 0) : 0}
-        onClose={() => setDetalleUnidad(null)}
-      />
+      {detalleUnidad && (
+        <UnidadDetalleModal
+          unidad={detalleUnidad}
+          carrerasHoy={detalleUnidad ? (carrerasHoy.get(detalleUnidad.id) || 0) : 0}
+          onClose={() => setDetalleUnidad(null)}
+        />
+      )}
 
-      <CarreraDetalleModal
-        carrera={detalleCarrera}
-        clientes={clientes}
-        onClose={() => setDetalleCarrera(null)}
-      />
+      {detalleCarrera && (
+        <CarreraDetalleModal
+          carrera={detalleCarrera}
+          clientes={clientes}
+          unidades={todasUnidades}
+          onClose={() => setDetalleCarrera(null)}
+        />
+      )}
 
       <ConfirmDialog
         isOpen={careerToDelete !== null}

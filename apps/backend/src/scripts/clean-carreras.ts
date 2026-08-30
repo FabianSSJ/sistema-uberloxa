@@ -4,9 +4,13 @@ import * as dotenv from 'dotenv';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
 
+import { assertSafeEnvironment } from './guard-production';
+
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 const dbUrl = (process.env.DATABASE_URL || '').replace('localhost', '127.0.0.1');
+assertSafeEnvironment('clean-carreras.ts', dbUrl);
+
 const pool = new Pool({ connectionString: dbUrl });
 const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });

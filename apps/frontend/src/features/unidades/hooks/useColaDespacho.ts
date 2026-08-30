@@ -11,7 +11,10 @@ import type { Unidad } from '../services/unidades.service';
  *  - `inactivas`   : unidades fuera de la cola (disponibles para activar).
  *  - `proximaId`   : primera de la cola que esté 'disponible' (la próxima a despachar).
  *  - `carreras`    : carreras del panel (hoy + en proceso), tal cual las devuelve el server.
- *  - `carrerasHoy` : Map unidadId -> cantidad de carreras de HOY (cualquier estado).
+ *  - `carrerasHoy` : Map unidadId -> cantidad de carreras de HOY (excluye cancelada/perdida:
+ *                     no deben inflar el conteo de carreras realizadas por el chofer, aunque
+ *                     sí siguen contando en el resumen general del día — ver resumenDia en
+ *                     CharlieDashboard, que suma sobre `carreras` sin este filtro).
  *
  * Pollea usePanelCompleto (un solo request de 1s que trae unidades + carreras juntas) en vez
  * de dos hooks independientes — ver el comentario de usePanelCompleto para el porqué.
@@ -25,7 +28,9 @@ export const useColaDespacho = () => {
     const carrerasHoy = new Map<number, number>();
     for (const c of carreras as any[]) {
       const uid = c.unidad?.id ?? c.unidadId;
-      if (uid && esHoy(c.createdAt)) carrerasHoy.set(uid, (carrerasHoy.get(uid) || 0) + 1);
+      if (uid && esHoy(c.createdAt) && c.estado !== 'cancelada' && c.estado !== 'perdida') {
+        carrerasHoy.set(uid, (carrerasHoy.get(uid) || 0) + 1);
+      }
     }
 
     const activas = (unidades as Unidad[])

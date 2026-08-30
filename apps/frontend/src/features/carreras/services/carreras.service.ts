@@ -63,6 +63,13 @@ export const carrerasService = {
     return response.data;
   },
 
+  // Corrige la unidad de una carrera existente sin tocar su estado (ver /completar para el
+  // caso de completar+asignar). Usado por "Cambiar Unidad" en el modal de detalle.
+  reasignarUnidad: async (id: number, unidadId: number): Promise<Carrera> => {
+    const response = await api.patch(`/carreras/${id}/unidad`, { unidadId });
+    return response.data;
+  },
+
   cancelar: async (id: number): Promise<Carrera> => {
     const response = await api.patch(`/carreras/${id}/cancelar`);
     return response.data;

@@ -335,6 +335,38 @@ export class CarrerasService {
     return updated;
   }
 
+  /**
+   * Corrige la unidad asignada a una carrera ya existente (pendiente, en curso o completada),
+   * sin tocar su estado — a diferencia de completar(), que además la marca 'completada'. Cubre
+   * el caso "me equivoqué de unidad al despachar" sin tener que cancelar y recrear la carrera.
+   * No hay columna de trazabilidad de unidad en historial_estados_carrera (esa tabla solo
+   * versiona estado), así que la corrección queda anotada en `notas` como rastro auditable.
+   */
+  async reasignarUnidad(id: number, unidadId: number, user?: any) {
+    const carrera = await this.findOne(id, user);
+    const unidadAnteriorLabel = carrera.unidad
+      ? `Nº ${carrera.unidad.numeroUnidad ?? carrera.unidadId}`
+      : 'sin unidad';
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const nuevaUnidad = await this.assertUnidadAsignable(tx, unidadId, id);
+
+      const fechaHora = new Date().toLocaleString('es-EC', { timeZone: 'America/Guayaquil' });
+      const notaCambio = `[Unidad corregida: ${unidadAnteriorLabel} → Nº ${nuevaUnidad.numeroUnidad ?? nuevaUnidad.id}${user?.nombre ? ` por ${user.nombre}` : ''}, ${fechaHora}]`;
+
+      return tx.carrera.update({
+        where: { id },
+        data: {
+          unidadId,
+          notas: carrera.notas ? `${carrera.notas}\n${notaCambio}` : notaCambio,
+        },
+        include: INCLUDE_CARRERA,
+      });
+    });
+
+    return updated;
+  }
+
   async actualizarEstado(id: number, nuevoEstado: EstadoCarrera, user?: any) {
     const carrera = await this.findOne(id, user);
 

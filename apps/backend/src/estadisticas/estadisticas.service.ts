@@ -95,6 +95,7 @@ export class EstadisticasService {
                COUNT(c.id)::int AS cantidad
         FROM unidades u
         LEFT JOIN carreras c ON c.unidad_id = u.id
+          AND c.estado != 'cancelada'
           AND (c.created_at AT TIME ZONE 'UTC' AT TIME ZONE '${Prisma.raw(TZ)}' - ${Prisma.raw(CORTE_JORNADA_SQL)})::date BETWEEN ${desde}::date AND ${h}::date
         GROUP BY u.id, u.numero_unidad, u.chofer_nombre
         ORDER BY cantidad DESC, u.numero_unidad ASC
@@ -107,6 +108,7 @@ export class EstadisticasService {
                COUNT(c.id)::int AS cantidad
         FROM unidades u
         LEFT JOIN carreras c ON c.unidad_id = u.id
+          AND c.estado != 'cancelada'
           AND (c.created_at AT TIME ZONE 'UTC' AT TIME ZONE '${Prisma.raw(TZ)}' - ${Prisma.raw(CORTE_JORNADA_SQL)})::date <= ${hasta}::date
         GROUP BY u.id, u.numero_unidad, u.chofer_nombre
         ORDER BY cantidad DESC, u.numero_unidad ASC
@@ -117,7 +119,7 @@ export class EstadisticasService {
       SELECT u.id AS "unidadId", u.numero_unidad AS "numeroUnidad", u.chofer_nombre AS "choferNombre",
              COUNT(c.id)::int AS cantidad
       FROM unidades u
-      LEFT JOIN carreras c ON c.unidad_id = u.id
+      LEFT JOIN carreras c ON c.unidad_id = u.id AND c.estado != 'cancelada'
       GROUP BY u.id, u.numero_unidad, u.chofer_nombre
       ORDER BY cantidad DESC, u.numero_unidad ASC
     `;
