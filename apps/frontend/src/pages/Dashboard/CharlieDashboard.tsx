@@ -7,7 +7,7 @@ import { useCambiarEstadoUnidad } from '../../features/unidades/hooks/useUnidade
 import { ESTADO_UNIDAD_STYLES } from '../../features/unidades/components/EstadoUnidadBadge';
 import { UnidadDetalleModal } from '../../features/unidades/components/UnidadDetalleModal';
 import { CarreraDetalleModal } from '../../features/carreras/components/CarreraDetalleModal';
-import { useCreateCarrera, useCompletarCarrera, useCancelarCarrera, usePerderCarrera, useDeleteCarrera, useReasignarCarreraCancelada } from '../../features/carreras/hooks/useCarreras';
+import { useCreateCarrera, useCompletarCarrera, useCancelarCarrera, usePerderCarrera, useDeleteCarrera, useReasignarCarreraCancelada, useAsignarUnidadCarreraDirecta } from '../../features/carreras/hooks/useCarreras';
 import type { CreateCarreraDto } from '../../features/carreras/services/carreras.service';
 import { CarreraFormModal } from './CarreraFormModal';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
@@ -73,6 +73,7 @@ export const CharlieDashboard = () => {
   const perderMutation = usePerderCarrera();
   const deleteCarreraMutation = useDeleteCarrera();
   const reasignarCanceladaMutation = useReasignarCarreraCancelada();
+  const asignarUnidadDirectaMutation = useAsignarUnidadCarreraDirecta();
   const cambiarEstadoMutation = useCambiarEstadoUnidad();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -698,17 +699,35 @@ export const CharlieDashboard = () => {
                   const op = colorOperador(r.creadoPor);
                   const esPendiente = r.estado === 'pendiente';
                   const esCancelada = r.estado === 'cancelada';
-                  // Pendiente: arrastrar una unidad la completa. Cancelada: arrastrar una unidad la
-                  // reasigna y reactiva (completa) sin tener que crear la carrera de nuevo.
-                  const puedeRecibirUnidad = esPendiente || esCancelada;
+                  const esPerdida = r.estado === 'perdida';
+                  const esCompletada = r.estado === 'completada';
+                  // Se permite arrastrar una unidad sobre cualquier carrera (pendiente, completada, cancelada o perdida)
+                  // para asignar, reemplazar o reactivar la carrera directamente.
+                  const puedeRecibirUnidad = true;
                   const estadoCls = ESTADO_CARRERA_STYLES[r.estado as keyof typeof ESTADO_CARRERA_STYLES] || 'bg-gray-200 text-gray-800 border-gray-300';
                   const isDragOverCarrera = puedeRecibirUnidad && dragOverItem?.type === 'CARRERA' && dragOverItem.id === r.id;
+
+                  const getTooltip = () => {
+                    if (esCancelada) return 'Click para ver detalle · Arrastrá una unidad acá para reactivar y completar';
+                    if (esPerdida) return 'Click para ver detalle · Arrastrá una unidad acá para reactivar y completar';
+                    if (esCompletada) return 'Click para ver detalle · Arrastrá una unidad acá para reemplazar la unidad asignada';
+                    if (esPendiente) return 'Click para ver detalle · Arrastrá una unidad acá para asignar y completar';
+                    return 'Click para ver detalle del cliente y la carrera';
+                  };
+
+                  const getDragOverStyle = () => {
+                    if (esCancelada) return 'bg-red-50 ring-2 ring-red-400 border-red-300 scale-[1.01]';
+                    if (esPerdida) return 'bg-orange-50 ring-2 ring-orange-400 border-orange-300 scale-[1.01]';
+                    if (esCompletada) return 'bg-emerald-50 ring-2 ring-emerald-400 border-emerald-300 scale-[1.01]';
+                    return 'bg-amber-50 ring-2 ring-amber-400 border-amber-300 scale-[1.01]';
+                  };
+
                   return (
                     <div
                       key={r.id}
                       style={op.borderLeft}
                       onClick={() => setDetalleCarrera(r)}
-                      title={esCancelada ? 'Click para ver detalle · arrastrá una unidad acá para reasignar y completar' : 'Click para ver detalle del cliente y la carrera'}
+                      title={getTooltip()}
                       onDragOver={puedeRecibirUnidad ? (e) => {
                         e.preventDefault();
                         if (draggedItem?.type === 'CHOFER') setDragOverItem({ type: 'CARRERA', id: r.id });
@@ -720,13 +739,32 @@ export const CharlieDashboard = () => {
                           const unidadDrag = todasUnidades.find((u: any) => u.id === draggedItem.id);
                           if (unidadDrag?.estado === 'inactivo') {
                             notify.error(`La unidad Nº ${unidadDrag.numeroUnidad || 'S/N'} está inactiva — activala antes de asignarle una carrera.`);
-                          } else if (esCancelada) {
-                            reasignarCanceladaMutation.mutate(
-                              { id: r.id, unidadId: draggedItem.id },
-                              { onSuccess: () => notify.success(`Carrera reasignada y completada con Unidad Nº ${unidadDrag?.numeroUnidad || draggedItem.id}`) }
-                            );
+                          } else if (esCompletada && r.unidadId === draggedItem.id) {
+                            notify.info(`Esta carrera ya tiene asignada la Unidad Nº ${unidadDrag?.numeroUnidad || draggedItem.id}`);
                           } else {
-                            completarMutation.mutate({ id: r.id, unidadId: draggedItem.id });
+                            const numNueva = unidadDrag?.numeroUnidad || draggedItem.id;
+                            const numAnterior = r.unidad?.numeroUnidad ?? (r.unidadId ? String(r.unidadId) : null);
+
+                            asignarUnidadDirectaMutation.mutate(
+                              { id: r.id, unidadId: draggedItem.id },
+                              {
+                                onSuccess: () => {
+                                  if (esCancelada) {
+                                    notify.success(`Carrera cancelada reactivada y asignada a Unidad Nº ${numNueva}`);
+                                  } else if (esPerdida) {
+                                    notify.success(`Carrera perdida reactivada y asignada a Unidad Nº ${numNueva}`);
+                                  } else if (esCompletada) {
+                                    notify.success(
+                                      numAnterior
+                                        ? `Unidad reemplazada: Nº ${numAnterior} → Nº ${numNueva}`
+                                        : `Unidad Nº ${numNueva} asignada a la carrera`
+                                    );
+                                  } else {
+                                    notify.success(`Carrera completada con Unidad Nº ${numNueva}`);
+                                  }
+                                },
+                              }
+                            );
                           }
                         }
                         setDraggedItem(null); setDragOverItem(null);
@@ -735,7 +773,7 @@ export const CharlieDashboard = () => {
                         r.esEncomienda
                           ? 'bg-amber-50/90 border-amber-300'
                           : isDragOverCarrera
-                            ? (esCancelada ? 'bg-red-50 ring-2 ring-red-400 border-red-300 scale-[1.01]' : 'bg-amber-50 ring-2 ring-amber-400 border-amber-300 scale-[1.01]')
+                            ? getDragOverStyle()
                             : esPendiente
                               ? 'bg-white border-y-amber-200 border-r-amber-200'
                               : 'bg-white border-y-gray-100 border-r-gray-100'
@@ -759,7 +797,7 @@ export const CharlieDashboard = () => {
                           <Car size={11} className="shrink-0" />
                           {r.unidad
                             ? `${r.unidad.numeroUnidad || 'S/N'} · ${r.unidad.choferNombre}`
-                            : esPendiente ? 'Esperando unidad — arrastrá una acá' : 'Sin unidad'}
+                            : esPendiente ? 'Esperando unidad — arrastrá una acá' : 'Sin unidad — arrastrá una acá'}
                         </p>
                       </div>
 
@@ -772,8 +810,7 @@ export const CharlieDashboard = () => {
                       <div className="flex items-center gap-1 shrink-0">
                         {r.estado !== 'cancelada' && btnEstado(<XCircle size={12} />, 'Marcar cancelada', 'bg-red-500', () => cancelarMutation.mutate(r.id))}
                         {r.estado !== 'perdida' && btnEstado(<AlertTriangle size={12} />, 'Marcar perdida', 'bg-orange-500', () => perderMutation.mutate(r.id))}
-                        {(user?.rol === 'SUPERADMIN' || (esPendiente && r.creadoPorId === user?.id)) &&
-                          btnEstado(<Trash2 size={12} />, 'Eliminar carrera', 'bg-gray-400', () => setCareerToDelete(r.id))}
+                        {btnEstado(<Trash2 size={12} />, 'Eliminar carrera', 'bg-gray-400', () => setCareerToDelete(r.id))}
                       </div>
                     </div>
                   );
@@ -805,7 +842,7 @@ export const CharlieDashboard = () => {
 
       {detalleCarrera && (
         <CarreraDetalleModal
-          carrera={detalleCarrera}
+          carrera={carrerasDelDia.find((c: any) => c.id === detalleCarrera.id) || detalleCarrera}
           clientes={clientes}
           unidades={todasUnidades}
           onClose={() => setDetalleCarrera(null)}

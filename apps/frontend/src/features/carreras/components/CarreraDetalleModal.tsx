@@ -28,7 +28,8 @@ const renderSafeText = (val: any, fallback: React.ReactNode = '—'): React.Reac
   return fallback;
 };
 
-export const CarreraDetalleModal = ({ carrera, clientes = [], unidades = [], onClose }: CarreraDetalleModalProps) => {
+export const CarreraDetalleModal = ({ carrera: propCarrera, clientes = [], unidades = [], onClose }: CarreraDetalleModalProps) => {
+  const [carreraLocal, setCarreraLocal] = useState(propCarrera);
   const [editandoUnidad, setEditandoUnidad] = useState(false);
   const [nuevaUnidadId, setNuevaUnidadId] = useState('');
   const [busquedaUnidad, setBusquedaUnidad] = useState('');
@@ -38,6 +39,12 @@ export const CarreraDetalleModal = ({ carrera, clientes = [], unidades = [], onC
   const inputRef = useRef<HTMLInputElement>(null);
 
   const reasignarUnidadMutation = useReasignarUnidadCarrera();
+
+  useEffect(() => {
+    setCarreraLocal(propCarrera);
+  }, [propCarrera]);
+
+  const carrera = carreraLocal || propCarrera;
 
   const safeClientes = useMemo(() => (Array.isArray(clientes) ? clientes : []), [clientes]);
   const safeUnidades = useMemo(() => (Array.isArray(unidades) ? unidades : []), [unidades]);
@@ -130,7 +137,10 @@ export const CarreraDetalleModal = ({ carrera, clientes = [], unidades = [], onC
     reasignarUnidadMutation.mutate(
       { id: carrera.id, unidadId: id },
       {
-        onSuccess: () => {
+        onSuccess: (data: any) => {
+          if (data) {
+            setCarreraLocal(data);
+          }
           setEditandoUnidad(false);
           setNuevaUnidadId('');
           setBusquedaUnidad('');

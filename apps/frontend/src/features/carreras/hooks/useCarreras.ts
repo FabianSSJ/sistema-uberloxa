@@ -81,16 +81,14 @@ export const useReasignarUnidadCarrera = () => {
       carrerasService.reasignarUnidad(id, unidadId),
     onSuccess: () => {
       invalidarCarreras(queryClient);
-      notify.success('Unidad corregida con éxito');
+      notify.success('Unidad asignada y carrera completada');
     },
   });
 };
 
-// Reasigna+completa una carrera CANCELADA (drag&drop de una unidad sobre la tarjeta). Sin
-// toast propio a propósito: el caller (CharlieDashboard) arma un mensaje con el número de
-// unidad ("Carrera reasignada y completada con Unidad Nº X"), así que usa el mismo endpoint
-// que useCompletarCarrera pero sin duplicar el aviso genérico de esa.
-export const useReasignarCarreraCancelada = () => {
+// Asigna o reemplaza la unidad y completa/reactiva una carrera (drag&drop de unidad sobre cualquier tarjeta).
+// Sin toast propio para que el caller (CharlieDashboard) arme un mensaje contextual según el estado previo.
+export const useAsignarUnidadCarreraDirecta = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -101,6 +99,8 @@ export const useReasignarCarreraCancelada = () => {
     },
   });
 };
+
+export const useReasignarCarreraCancelada = useAsignarUnidadCarreraDirecta;
 
 export const useCancelarCarrera = () => {
   const queryClient = useQueryClient();

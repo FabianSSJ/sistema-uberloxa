@@ -309,8 +309,21 @@ export class CarrerasService {
     const carrera = await this.findOne(id, user);
 
     const updated = await this.prisma.$transaction(async (tx) => {
+      let nuevaUnidad: any = null;
       if (unidadId) {
-        await this.assertUnidadAsignable(tx, Number(unidadId), id);
+        nuevaUnidad = await this.assertUnidadAsignable(tx, Number(unidadId), id);
+      }
+
+      const unidadAnteriorLabel = carrera.unidad
+        ? `Nº ${carrera.unidad.numeroUnidad ?? carrera.unidadId}`
+        : (carrera.unidadId ? `Nº ${carrera.unidadId}` : null);
+
+      let notas = carrera.notas;
+      if (unidadId && carrera.unidadId && Number(unidadId) !== carrera.unidadId) {
+        const fechaHora = new Date().toLocaleString('es-EC', { timeZone: 'America/Guayaquil' });
+        const numNueva = nuevaUnidad?.numeroUnidad ?? nuevaUnidad?.id ?? unidadId;
+        const notaCambio = `[Unidad reemplazada: ${unidadAnteriorLabel} → Nº ${numNueva}${user?.nombre ? ` por ${user.nombre}` : ''}, ${fechaHora}]`;
+        notas = notas ? `${notas}\n${notaCambio}` : notaCambio;
       }
 
       return tx.carrera.update({
@@ -318,19 +331,22 @@ export class CarrerasService {
         data: {
           estado: 'completada',
           fechaFin: new Date(),
-          unidadId: unidadId !== undefined ? unidadId : carrera.unidadId
+          unidadId: unidadId !== undefined ? Number(unidadId) : carrera.unidadId,
+          notas,
         },
         include: INCLUDE_CARRERA,
       });
     });
 
-    await this.prisma.historialEstadoCarrera.create({
-      data: {
-        carreraId: id,
-        estadoAnterior: carrera.estado,
-        estadoNuevo: 'completada'
-      }
-    });
+    if (carrera.estado !== 'completada') {
+      await this.prisma.historialEstadoCarrera.create({
+        data: {
+          carreraId: id,
+          estadoAnterior: carrera.estado,
+          estadoNuevo: 'completada'
+        }
+      });
+    }
 
     return updated;
   }
@@ -358,11 +374,23 @@ export class CarrerasService {
         where: { id },
         data: {
           unidadId,
+          estado: 'completada',
+          fechaFin: carrera.fechaFin ?? new Date(),
           notas: carrera.notas ? `${carrera.notas}\n${notaCambio}` : notaCambio,
         },
         include: INCLUDE_CARRERA,
       });
     });
+
+    if (carrera.estado !== 'completada') {
+      await this.prisma.historialEstadoCarrera.create({
+        data: {
+          carreraId: id,
+          estadoAnterior: carrera.estado,
+          estadoNuevo: 'completada'
+        }
+      });
+    }
 
     return updated;
   }
