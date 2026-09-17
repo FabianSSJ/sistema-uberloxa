@@ -1,11 +1,12 @@
 import api from '../../../core/api/axios';
 
 export const reportesService = {
-  /** Descarga el PDF del informe (Blob). Sin `fecha`, es el de hoy; con `fecha` y `hasta`, un rango. */
-  descargarPDF: async (fecha?: string, hasta?: string): Promise<Blob> => {
-    const params: Record<string, string> = {};
+  /** Descarga el PDF del informe (Blob). Sin `fecha`, es el de hoy; con `fecha` y `hasta`, un rango; con `hora`, franja horaria. */
+  descargarPDF: async (fecha?: string, hasta?: string, hora?: string | number): Promise<Blob> => {
+    const params: Record<string, string | number> = {};
     if (fecha) params.fecha = fecha;
     if (hasta) params.hasta = hasta;
+    if (hora !== undefined && hora !== '') params.hora = hora;
     const { data } = await api.get('/reportes/pdf', { responseType: 'blob', params });
     return data as Blob;
   },

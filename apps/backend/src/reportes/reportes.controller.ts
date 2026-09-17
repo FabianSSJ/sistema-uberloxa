@@ -23,15 +23,39 @@ export class ReportesController {
 
   /**
    * PDF de un día puntual ('YYYY-MM-DD', hora de Ecuador), de un rango [fecha, hasta] si se
-   * pasan ambos, o de hoy si no se pasa ninguno.
+   * pasan ambos, o filtrado por horario (hora puntual o franja hh:mm a hh:mm).
    */
   @Get('pdf')
-  async pdf(@Res() res: Response, @Query('fecha') fecha?: string, @Query('hasta') hasta?: string) {
-    const datos = await this.reportes.datosDelPeriodo(fecha, hasta);
+  async pdf(
+    @Res() res: Response,
+    @Query('fecha') fecha?: string,
+    @Query('hasta') hasta?: string,
+    @Query('hora') hora?: string,
+    @Query('horaInicio') horaInicio?: string,
+    @Query('horaFin') horaFin?: string,
+  ) {
+    let hInicio = horaInicio;
+    let hFin = horaFin;
+
+    if (!hInicio && hora) {
+      if (hora.includes('-')) {
+        const partes = hora.split('-');
+        hInicio = partes[0];
+        hFin = partes[1];
+      } else if (!isNaN(Number(hora)) && Number(hora) >= 0 && Number(hora) <= 23) {
+        const pad = (n: number) => String(n).padStart(2, '0');
+        const num = parseInt(hora, 10);
+        hInicio = `${pad(num)}:00`;
+        hFin = `${pad((num + 1) % 24)}:00`;
+      }
+    }
+
+    const datos = await this.reportes.datosDelPeriodo(fecha, hasta, hInicio, hFin);
     const pdf = await this.reportes.generarPDF(datos);
+    const sufijoHora = hInicio && hFin ? `_${hInicio.replace(':', '')}_a_${hFin.replace(':', '')}` : '';
     res.set({
       'Content-Type': 'application/pdf',
-      'Content-Disposition': `inline; filename="informe-${datos.fecha.replace(/[\/\s]+/g, '-')}.pdf"`,
+      'Content-Disposition': `inline; filename="informe-${datos.fecha.replace(/[\/\s]+/g, '-')}${sufijoHora}.pdf"`,
     });
     res.send(pdf);
   }

@@ -20,16 +20,23 @@ export const useEnviarReporte = () =>
 
 /**
  * Descarga el PDF y dispara la bajada en el navegador. Sin `fecha`, es el informe de hoy;
- * con `fecha` y `hasta` (distintos), el informe del rango completo.
+ * con `fecha` y `hasta` (distintos), el informe del rango completo; con `hora`, franja horaria.
  */
-export const descargarInforme = async (fecha?: string, hasta?: string) => {
+export const descargarInforme = async (fecha?: string, hasta?: string, hora?: string | number) => {
   try {
-    const blob = await reportesService.descargarPDF(fecha, hasta);
+    const blob = await reportesService.descargarPDF(fecha, hasta, hora);
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
+    const pad = (n: number) => String(n).padStart(2, '0');
+    let sufijoHora = '';
+    if (typeof hora === 'string' && hora) {
+      sufijoHora = `_${hora.replace(':', '-').replace('-', '_a_').replace(':', '-')}`;
+    } else if (typeof hora === 'number' && !isNaN(hora)) {
+      sufijoHora = `_${pad(hora)}hs_a_${pad((hora + 1) % 24)}hs`;
+    }
     const nombre = fecha && hasta && hasta !== fecha ? `${fecha}_al_${hasta}` : (fecha || 'hoy');
-    a.download = `Informe_UberLoxa_${nombre}.pdf`;
+    a.download = `Informe_UberLoxa_${nombre}${sufijoHora}.pdf`;
     document.body.appendChild(a);
     a.click();
     a.remove();

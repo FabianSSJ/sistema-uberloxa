@@ -5,7 +5,7 @@ import type { EstadisticasResumen } from '../../features/estadisticas/services/e
 import { descargarInforme } from '../../features/reportes/hooks/useReportes';
 import { Button } from '../../components/ui/Button';
 import { rankBy, scoreUnidad } from '../../core/search/matchers';
-import { diaOperativoYMD, fechaCortaOperativa } from '../../core/tiempo';
+import { diaOperativoYMD, fechaCortaOperativa, fechaCorta } from '../../core/tiempo';
 
 const pad = (n: number) => String(n).padStart(2, '0');
 /** "18:00 y las 19:00" — para usar como "entre las {franja} h". */
@@ -15,6 +15,38 @@ const formatYMD = (ymd: string) => ymd.split('-').reverse().join('/');
 
 type ModoPdf = 'hoy' | 'dia' | 'rango';
 type ModoRanking = 'total' | 'hoy' | 'dia' | 'rango';
+
+// Franjas de 1 hora (iniciando cada 30 min): 00:00 a 01:00, 00:30 a 01:30, 01:00 a 02:00, 01:30 a 02:30...
+const OPCIONES_1_HORA = Array.from({ length: 48 }, (_, i) => {
+  const hInicio = Math.floor(i / 2);
+  const mInicio = (i % 2) * 30;
+  const minutosInicioTotal = hInicio * 60 + mInicio;
+  const minutosFinTotal = (minutosInicioTotal + 60) % (24 * 60);
+  const hFin = Math.floor(minutosFinTotal / 60);
+  const mFin = minutosFinTotal % 60;
+  const inicioStr = `${pad(hInicio)}:${pad(mInicio)}`;
+  const finStr = `${pad(hFin)}:${pad(mFin)}`;
+  return {
+    valor: `${inicioStr}-${finStr}`,
+    label: `${inicioStr} a ${finStr}`,
+  };
+});
+
+// Franjas de 30 minutos: 00:00 a 00:30, 00:30 a 01:00, 01:00 a 01:30, 01:30 a 02:00...
+const OPCIONES_30_MIN = Array.from({ length: 48 }, (_, i) => {
+  const hInicio = Math.floor(i / 2);
+  const mInicio = (i % 2) * 30;
+  const minutosInicioTotal = hInicio * 60 + mInicio;
+  const minutosFinTotal = (minutosInicioTotal + 30) % (24 * 60);
+  const hFin = Math.floor(minutosFinTotal / 60);
+  const mFin = minutosFinTotal % 60;
+  const inicioStr = `${pad(hInicio)}:${pad(mInicio)}`;
+  const finStr = `${pad(hFin)}:${pad(mFin)}`;
+  return {
+    valor: `${inicioStr}-${finStr}`,
+    label: `${inicioStr} a ${finStr}`,
+  };
+});
 
 const Kpi = ({ label, value, sub, color }: { label: string; value: number | string; sub?: string; color: string }) => (
   <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
@@ -77,12 +109,12 @@ export const EstadisticasPage = () => {
     [ranking, searchUnidad]
   );
 
-  // Descarga del informe PDF: 3 modos EXPLÍCITOS y mutuamente excluyentes (no 2 inputs
-  // vacíos/llenos de los que hay que "adivinar" qué van a descargar — heurística de Nielsen
-  // #6, reconocer en vez de recordar). Cada modo muestra SOLO el/los campo(s) que le
-  // corresponden (heurística #8, diseño minimalista: no mostrar controles irrelevantes).
+  // Descarga del informe PDF: 3 modos originales (Hoy, Día específico, Rango de fechas).
+  // Para Hoy y Día específico, se muestra al lado el panel de Horario para poder filtrar
+  // opcionalmente por una franja de 1 hora puntual o descargar el día completo.
   const [modoPdf, setModoPdf] = useState<ModoPdf>('hoy');
   const [diaPdf, setDiaPdf] = useState('');
+  const [horaPdf, setHoraPdf] = useState('');
   const [desdePdf, setDesdePdf] = useState('');
   const [hastaPdf, setHastaPdf] = useState('');
 
@@ -90,19 +122,35 @@ export const EstadisticasPage = () => {
   const puedeDescargarPdf =
     modoPdf === 'hoy' ? true : modoPdf === 'dia' ? Boolean(diaPdf) : Boolean(desdePdf && hastaPdf);
 
+  const sufijoHoraStatus =
+    horaPdf !== ''
+      ? (horaPdf.includes('-')
+          ? ` de ${horaPdf.replace('-', ' a ')}`
+          : ` entre las ${franjaHora(Number(horaPdf))} h`)
+      : '';
+
   // Heurística #1 (visibilidad del estado del sistema): siempre se ve, en texto plano, qué
   // es EXACTAMENTE lo que se va a descargar antes de tocar el botón.
   const statusPdf =
     modoPdf === 'hoy'
-      ? `Se descarga el informe de hoy (${hoyLabel}).`
+      ? `Se descarga el informe de hoy (${horaPdf ? fechaCorta() : hoyLabel})${sufijoHoraStatus}.`
       : modoPdf === 'dia'
-        ? (diaPdf ? `Se descarga el informe del ${formatYMD(diaPdf)}.` : 'Elegí un día para descargar su informe.')
+        ? (diaPdf ? `Se descarga el informe del ${formatYMD(diaPdf)}${sufijoHoraStatus}.` : 'Elegí un día para descargar su informe.')
         : (desdePdf && hastaPdf ? `Se descarga el informe del ${formatYMD(desdePdf)} al ${formatYMD(hastaPdf)}.` : 'Elegí las dos fechas del rango.');
 
   const handleDescargarPdf = () => {
-    if (modoPdf === 'hoy') descargarInforme();
-    else if (modoPdf === 'dia') descargarInforme(diaPdf);
-    else descargarInforme(desdePdf, hastaPdf);
+    const horaParam = horaPdf !== '' ? horaPdf : undefined;
+    if (modoPdf === 'hoy') {
+      if (horaParam !== undefined) {
+        descargarInforme(undefined, undefined, horaParam);
+      } else {
+        descargarInforme();
+      }
+    } else if (modoPdf === 'dia') {
+      descargarInforme(diaPdf, undefined, horaParam);
+    } else {
+      descargarInforme(desdePdf, hastaPdf);
+    }
   };
 
   if (isLoading) {
@@ -130,15 +178,14 @@ export const EstadisticasPage = () => {
       </div>
 
       {/* Descarga de informe PDF: selector de 3 modos EXCLUYENTES (tabs), campos condicionales
-          por modo (progressive disclosure) y una línea de estado que dice, en criollo, qué se
-          va a descargar antes de apretar el botón. Mismo patrón de "barra de filtro" que ya
-          usamos en Carreras (heurística de Nielsen #4: consistencia entre pantallas). */}
+          por modo (progressive disclosure) y selector de Horario al lado para filtrar por hora. */}
       <div className="mb-8 flex flex-wrap items-center gap-3 bg-white p-3 rounded-lg border border-gray-200 shadow-sm">
         <div className="flex items-center gap-2 text-gray-500 text-sm font-semibold shrink-0">
           <Download size={18} className="text-blue-600" />
           Informe PDF:
         </div>
 
+        {/* Las 3 opciones que ya había antes */}
         <div className="inline-flex rounded-lg border border-gray-200 bg-gray-50 p-1 gap-1 shrink-0">
           {([
             { m: 'hoy' as const, label: 'Hoy' },
@@ -148,7 +195,10 @@ export const EstadisticasPage = () => {
             <button
               key={m}
               type="button"
-              onClick={() => setModoPdf(m)}
+              onClick={() => {
+                setModoPdf(m);
+                if (m === 'rango') setHoraPdf('');
+              }}
               aria-pressed={modoPdf === m}
               className={`px-3 py-1.5 text-sm font-semibold rounded-md transition-all duration-200 ease-out ${
                 modoPdf === m
@@ -161,6 +211,7 @@ export const EstadisticasPage = () => {
           ))}
         </div>
 
+        {/* Panel que sale al lado con las opciones */}
         {modoPdf === 'dia' && (
           <label className="flex items-center gap-1.5 text-sm text-gray-600">
             Fecha
@@ -170,6 +221,35 @@ export const EstadisticasPage = () => {
               onChange={(e) => setDiaPdf(e.target.value)}
               className="border border-gray-200 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
+          </label>
+        )}
+
+        {/* Selector de horario al lado (para Hoy y Día específico) */}
+        {modoPdf !== 'rango' && (
+          <label className="flex items-center gap-1.5 text-sm text-gray-600">
+            <Clock size={16} className="text-blue-600" />
+            Horario
+            <select
+              value={horaPdf}
+              onChange={(e) => setHoraPdf(e.target.value)}
+              className="border border-gray-200 rounded-md px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white max-w-xs"
+            >
+              <option value="">Todo el día (04:00 a 03:59)</option>
+              <optgroup label="Franjas de 1 hora (ej: 06:30 a 07:30)">
+                {OPCIONES_1_HORA.map((h) => (
+                  <option key={`1h-${h.valor}`} value={h.valor}>
+                    {h.label}
+                  </option>
+                ))}
+              </optgroup>
+              <optgroup label="Franjas de 30 minutos (ej: 06:30 a 07:00)">
+                {OPCIONES_30_MIN.map((h) => (
+                  <option key={`30m-${h.valor}`} value={h.valor}>
+                    {h.label}
+                  </option>
+                ))}
+              </optgroup>
+            </select>
           </label>
         )}
 

@@ -16,6 +16,8 @@ const CRON_CIERRE_JORNADA = `59 59 ${HORA_INICIO_JORNADA - 1} * * *`;
 
 export interface ReporteDia {
   fecha: string;
+  horario?: string;
+  hora?: number;
   total: number;
   completadas: number;
   canceladas: number;
@@ -35,18 +37,63 @@ export class ReportesService {
   ) {}
 
   /**
-   * Junta los datos de un día o rango de días (hora de Ecuador, con jornada de 04:00 a 03:59:59).
-   * `desde`/`hasta` son 'YYYY-MM-DD' de la jornada operativa elegida. Sin ninguno de los dos,
-   * es la jornada actual; con solo `desde`, es esa jornada puntual; con ambos, es el rango
-   * completo [desde, hasta] inclusive. Al restar 4 horas a la hora de Ecuador, cualquier
-   * carrera entre las 00:00 y las 03:59:59 se agrupa en la jornada del día anterior.
+   * Junta los datos de un día, rango de días o franja horaria puntual (hora de Ecuador).
+   * Si se pasa `horaInicio` y `horaFin` (ej. "06:30" y "07:30"), filtra exactamente ese rango horario.
+   * Si no se pasan, usa la jornada operativa (04:00 a 03:59:59).
    */
-  async datosDelPeriodo(desde?: string, hasta?: string): Promise<ReporteDia> {
+  async datosDelPeriodo(
+    desde?: string,
+    hasta?: string,
+    horaInicio?: string,
+    horaFin?: string,
+  ): Promise<ReporteDia> {
+    let hInicio = horaInicio;
+    let hFin = horaFin;
+
+    // Normalización: si vino un número a secas (ej. "14")
+    if (hInicio && !hInicio.includes(':')) {
+      const num = parseInt(hInicio, 10);
+      if (!isNaN(num)) {
+        const pad = (n: number) => String(n).padStart(2, '0');
+        hInicio = `${pad(num)}:00`;
+        if (!hFin) hFin = `${pad((num + 1) % 24)}:00`;
+      }
+    }
+
+    const esHorario = Boolean(hInicio && hFin);
+    const horarioStr = esHorario ? `${hInicio} a ${hFin}` : undefined;
+
     const d = desde || hasta;
     const h = hasta || desde;
-    const condicionFecha = d
-      ? Prisma.sql`(c.created_at AT TIME ZONE 'UTC' AT TIME ZONE '${Prisma.raw(TZ)}' - ${Prisma.raw(CORTE_JORNADA_SQL)})::date BETWEEN ${d}::date AND ${h}::date`
-      : Prisma.sql`(c.created_at AT TIME ZONE 'UTC' AT TIME ZONE '${Prisma.raw(TZ)}' - ${Prisma.raw(CORTE_JORNADA_SQL)})::date = (now() AT TIME ZONE '${Prisma.raw(TZ)}' - ${Prisma.raw(CORTE_JORNADA_SQL)})::date`;
+
+    let condicionFecha: Prisma.Sql;
+    if (esHorario) {
+      const condicionDia = d
+        ? Prisma.sql`(c.created_at AT TIME ZONE 'UTC' AT TIME ZONE '${Prisma.raw(TZ)}')::date = ${d}::date`
+        : Prisma.sql`(c.created_at AT TIME ZONE 'UTC' AT TIME ZONE '${Prisma.raw(TZ)}')::date = (now() AT TIME ZONE '${Prisma.raw(TZ)}')::date`;
+
+      if (hFin! <= hInicio!) {
+        // Cruza medianoche (ej. 23:30 a 00:30 o 23:00 a 00:00)
+        condicionFecha = Prisma.sql`
+          (
+            ( ${condicionDia} AND (c.created_at AT TIME ZONE 'UTC' AT TIME ZONE '${Prisma.raw(TZ)}')::time >= ${hInicio}::time )
+            OR
+            ( (c.created_at AT TIME ZONE 'UTC' AT TIME ZONE '${Prisma.raw(TZ)}')::date = (${d ? Prisma.sql`${d}::date` : Prisma.sql`(now() AT TIME ZONE '${Prisma.raw(TZ)}')::date`} + interval '1 day')::date
+              AND (c.created_at AT TIME ZONE 'UTC' AT TIME ZONE '${Prisma.raw(TZ)}')::time < ${hFin}::time )
+          )
+        `;
+      } else {
+        condicionFecha = Prisma.sql`
+          ${condicionDia}
+          AND (c.created_at AT TIME ZONE 'UTC' AT TIME ZONE '${Prisma.raw(TZ)}')::time >= ${hInicio}::time
+          AND (c.created_at AT TIME ZONE 'UTC' AT TIME ZONE '${Prisma.raw(TZ)}')::time < ${hFin}::time
+        `;
+      }
+    } else {
+      condicionFecha = d
+        ? Prisma.sql`(c.created_at AT TIME ZONE 'UTC' AT TIME ZONE '${Prisma.raw(TZ)}' - ${Prisma.raw(CORTE_JORNADA_SQL)})::date BETWEEN ${d}::date AND ${h}::date`
+        : Prisma.sql`(c.created_at AT TIME ZONE 'UTC' AT TIME ZONE '${Prisma.raw(TZ)}' - ${Prisma.raw(CORTE_JORNADA_SQL)})::date = (now() AT TIME ZONE '${Prisma.raw(TZ)}' - ${Prisma.raw(CORTE_JORNADA_SQL)})::date`;
+    }
 
     const [porEstado, porHora, porUnidad] = await Promise.all([
       this.prisma.$queryRaw<Array<{ estado: string; cantidad: number }>>`
@@ -69,7 +116,7 @@ export class ReportesService {
     const fechaFormateada = d
       ? (d === h ? aDDMMYYYY(d) : `${aDDMMYYYY(d)} al ${aDDMMYYYY(h!)}`)
       : (await this.prisma.$queryRaw<Array<{ fecha: string }>>`
-          SELECT to_char(now() AT TIME ZONE '${Prisma.raw(TZ)}' - ${Prisma.raw(CORTE_JORNADA_SQL)}, 'DD/MM/YYYY') AS fecha
+          SELECT to_char(now() AT TIME ZONE '${Prisma.raw(TZ)}'${esHorario ? Prisma.empty : Prisma.sql` - ${Prisma.raw(CORTE_JORNADA_SQL)}`}, 'DD/MM/YYYY') AS fecha
         `)[0]?.fecha || '';
 
     const m: Record<string, number> = {};
@@ -81,6 +128,7 @@ export class ReportesService {
 
     return {
       fecha: fechaFormateada,
+      horario: horarioStr,
       total: completadas + canceladas + perdidas + enCurso,
       completadas,
       canceladas,
@@ -102,19 +150,26 @@ export class ReportesService {
 
       const pad = (n: number) => String(n).padStart(2, '0');
       const esRango = d.fecha.includes(' al ');
+      const esHorario = Boolean(d.horario);
 
       // Encabezado principal (Página 1)
       doc.fillColor('#16a34a').fontSize(22).font('Helvetica-Bold').text('Sistema UberLoxa', { continued: false });
       doc.moveDown(0.2);
-      doc.fillColor('#111827').fontSize(14).text(esRango ? 'Informe de carreras por período' : 'Informe diario de carreras');
+      doc.fillColor('#111827').fontSize(14).text(
+        esHorario ? 'Informe de carreras por franja horaria' : esRango ? 'Informe de carreras por período' : 'Informe diario de carreras'
+      );
       doc.fillColor('#6b7280').fontSize(10).font('Helvetica').text(
-        `${esRango ? 'Período' : 'Jornada'}: ${d.fecha}   ·   Horario: 04:00 AM a 03:59 AM (Corte diario 03:59 AM)`
+        esHorario
+          ? `Fecha: ${d.fecha}   ·   Horario: ${d.horario}`
+          : `${esRango ? 'Período' : 'Jornada'}: ${d.fecha}   ·   Horario: 04:00 AM a 03:59 AM (Corte diario 03:59 AM)`
       );
       doc.moveTo(40, doc.y + 6).lineTo(555, doc.y + 6).strokeColor('#e5e7eb').stroke();
       doc.moveDown(1.2);
 
       // Resumen
-      doc.fillColor('#111827').fontSize(12).font('Helvetica-Bold').text(esRango ? 'Resumen del período' : 'Resumen de la jornada (04:00 a 03:59)');
+      doc.fillColor('#111827').fontSize(12).font('Helvetica-Bold').text(
+        esHorario ? `Resumen de la franja (${d.horario})` : esRango ? 'Resumen del período' : 'Resumen de la jornada (04:00 a 03:59)'
+      );
       doc.moveDown(0.4);
       const linea = (label: string, valor: string | number, color = '#111827') => {
         doc.font('Helvetica').fontSize(10).fillColor('#374151').text(label, { continued: true });
@@ -126,7 +181,10 @@ export class ReportesService {
       linea('Perdidas:', d.perdidas, '#ea580c');
       if (d.enCurso) linea('En curso:', d.enCurso, '#2563eb');
       doc.moveDown(0.4);
-      if (d.horaPico) {
+      if (esHorario) {
+        doc.font('Helvetica').fontSize(10).fillColor('#374151').text('Franja horaria evaluada:', { continued: true });
+        doc.font('Helvetica-Bold').fillColor('#16a34a').text(`   ${d.horario} (${d.total} carreras registradas)`);
+      } else if (d.horaPico) {
         doc.font('Helvetica').fontSize(10).fillColor('#374151').text('Hora pico:', { continued: true });
         doc.font('Helvetica-Bold').fillColor('#16a34a').text(`   entre las ${pad(d.horaPico.hora)}:00 y las ${pad((d.horaPico.hora + 1) % 24)}:00  (${d.horaPico.cantidad} carreras)`);
       } else {
@@ -140,7 +198,9 @@ export class ReportesService {
       doc.moveDown(0.5);
 
       if (d.porUnidad.length === 0) {
-        doc.font('Helvetica').fontSize(10).fillColor('#6b7280').text(`No hubo carreras asignadas a unidades ${esRango ? `en el período ${d.fecha}` : `el ${d.fecha}`}.`);
+        doc.font('Helvetica').fontSize(10).fillColor('#6b7280').text(
+          `No hubo carreras asignadas a unidades ${esHorario ? `el ${d.fecha} entre las ${d.horario}` : esRango ? `en el período ${d.fecha}` : `el ${d.fecha}`}.`
+        );
       } else {
         // 2 columnas (en vez de la única columna a todo el ancho de antes): entran más
         // unidades por página sin tener que sacrificar la columna de chofer/conductor
@@ -227,7 +287,11 @@ export class ReportesService {
           if (startIndex < items.length) {
             doc.addPage();
             yCurr = 40;
-            doc.font('Helvetica-Bold').fontSize(9).fillColor('#6b7280').text(`Informe diario de carreras (${d.fecha}) - Continuación`, 40, yCurr);
+            doc.font('Helvetica-Bold').fontSize(9).fillColor('#6b7280').text(
+              `Informe ${esHorario ? 'de carreras por franja horaria' : esRango ? 'de carreras por período' : 'diario de carreras'} (${d.fecha}${d.horario ? ` · ${d.horario}` : ''}) - Continuación`,
+              40,
+              yCurr,
+            );
             yCurr += 16;
           }
         }
