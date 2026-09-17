@@ -1,5 +1,5 @@
 import { useState, useMemo, type ReactNode } from 'react';
-import { BarChart3, TrendingUp, Clock, Car, Users, AlertTriangle, Download, Search } from 'lucide-react';
+import { BarChart3, TrendingUp, Clock, Car, Users, AlertTriangle, Download, Search, X } from 'lucide-react';
 import { useEstadisticas, useRankingUnidades } from '../../features/estadisticas/hooks/useEstadisticas';
 import type { EstadisticasResumen } from '../../features/estadisticas/services/estadisticas.service';
 import { descargarInforme } from '../../features/reportes/hooks/useReportes';
@@ -15,38 +15,6 @@ const formatYMD = (ymd: string) => ymd.split('-').reverse().join('/');
 
 type ModoPdf = 'hoy' | 'dia' | 'rango';
 type ModoRanking = 'total' | 'hoy' | 'dia' | 'rango';
-
-// Franjas de 1 hora (iniciando cada 30 min): 00:00 a 01:00, 00:30 a 01:30, 01:00 a 02:00, 01:30 a 02:30...
-const OPCIONES_1_HORA = Array.from({ length: 48 }, (_, i) => {
-  const hInicio = Math.floor(i / 2);
-  const mInicio = (i % 2) * 30;
-  const minutosInicioTotal = hInicio * 60 + mInicio;
-  const minutosFinTotal = (minutosInicioTotal + 60) % (24 * 60);
-  const hFin = Math.floor(minutosFinTotal / 60);
-  const mFin = minutosFinTotal % 60;
-  const inicioStr = `${pad(hInicio)}:${pad(mInicio)}`;
-  const finStr = `${pad(hFin)}:${pad(mFin)}`;
-  return {
-    valor: `${inicioStr}-${finStr}`,
-    label: `${inicioStr} a ${finStr}`,
-  };
-});
-
-// Franjas de 30 minutos: 00:00 a 00:30, 00:30 a 01:00, 01:00 a 01:30, 01:30 a 02:00...
-const OPCIONES_30_MIN = Array.from({ length: 48 }, (_, i) => {
-  const hInicio = Math.floor(i / 2);
-  const mInicio = (i % 2) * 30;
-  const minutosInicioTotal = hInicio * 60 + mInicio;
-  const minutosFinTotal = (minutosInicioTotal + 30) % (24 * 60);
-  const hFin = Math.floor(minutosFinTotal / 60);
-  const mFin = minutosFinTotal % 60;
-  const inicioStr = `${pad(hInicio)}:${pad(mInicio)}`;
-  const finStr = `${pad(hFin)}:${pad(mFin)}`;
-  return {
-    valor: `${inicioStr}-${finStr}`,
-    label: `${inicioStr} a ${finStr}`,
-  };
-});
 
 const Kpi = ({ label, value, sub, color }: { label: string; value: number | string; sub?: string; color: string }) => (
   <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
@@ -110,11 +78,12 @@ export const EstadisticasPage = () => {
   );
 
   // Descarga del informe PDF: 3 modos originales (Hoy, Día específico, Rango de fechas).
-  // Para Hoy y Día específico, se muestra al lado el panel de Horario para poder filtrar
-  // opcionalmente por una franja de 1 hora puntual o descargar el día completo.
+  // Permite ingresar libremente las horas que el usuario desee (Hora Desde / Hora Hasta).
+  // Si no se ingresan horas, se descarga el período completo (sin filtro de hora).
   const [modoPdf, setModoPdf] = useState<ModoPdf>('hoy');
   const [diaPdf, setDiaPdf] = useState('');
-  const [horaPdf, setHoraPdf] = useState('');
+  const [horaDesdePdf, setHoraDesdePdf] = useState('');
+  const [horaHastaPdf, setHoraHastaPdf] = useState('');
   const [desdePdf, setDesdePdf] = useState('');
   const [hastaPdf, setHastaPdf] = useState('');
 
@@ -122,24 +91,40 @@ export const EstadisticasPage = () => {
   const puedeDescargarPdf =
     modoPdf === 'hoy' ? true : modoPdf === 'dia' ? Boolean(diaPdf) : Boolean(desdePdf && hastaPdf);
 
-  const sufijoHoraStatus =
-    horaPdf !== ''
-      ? (horaPdf.includes('-')
-          ? ` de ${horaPdf.replace('-', ' a ')}`
-          : ` entre las ${franjaHora(Number(horaPdf))} h`)
-      : '';
+  const rangoHorario = useMemo(() => {
+    if (!horaDesdePdf && !horaHastaPdf) return null;
+    const padStr = (n: number) => String(n).padStart(2, '0');
+    if (horaDesdePdf && !horaHastaPdf) {
+      const [h, m] = horaDesdePdf.split(':').map(Number);
+      const finH = (h + 1) % 24;
+      return { inicio: horaDesdePdf, fin: `${padStr(finH)}:${padStr(m)}`, str: `${horaDesdePdf} a ${padStr(finH)}:${padStr(m)}` };
+    }
+    if (!horaDesdePdf && horaHastaPdf) {
+      const [h, m] = horaHastaPdf.split(':').map(Number);
+      const iniH = (h - 1 + 24) % 24;
+      return { inicio: `${padStr(iniH)}:${padStr(m)}`, fin: horaHastaPdf, str: `${padStr(iniH)}:${padStr(m)} a ${horaHastaPdf}` };
+    }
+    if (horaDesdePdf === horaHastaPdf) {
+      const [h, m] = horaDesdePdf.split(':').map(Number);
+      const finH = (h + 1) % 24;
+      return { inicio: horaDesdePdf, fin: `${padStr(finH)}:${padStr(m)}`, str: `${horaDesdePdf} a ${padStr(finH)}:${padStr(m)}` };
+    }
+    return { inicio: horaDesdePdf, fin: horaHastaPdf, str: `${horaDesdePdf} a ${horaHastaPdf}` };
+  }, [horaDesdePdf, horaHastaPdf]);
+
+  const sufijoHoraStatus = rangoHorario ? ` de ${rangoHorario.str}` : '';
 
   // Heurística #1 (visibilidad del estado del sistema): siempre se ve, en texto plano, qué
   // es EXACTAMENTE lo que se va a descargar antes de tocar el botón.
   const statusPdf =
     modoPdf === 'hoy'
-      ? `Se descarga el informe de hoy (${horaPdf ? fechaCorta() : hoyLabel})${sufijoHoraStatus}.`
+      ? `Se descarga el informe de hoy (${rangoHorario ? fechaCorta() : hoyLabel})${sufijoHoraStatus}.`
       : modoPdf === 'dia'
         ? (diaPdf ? `Se descarga el informe del ${formatYMD(diaPdf)}${sufijoHoraStatus}.` : 'Elegí un día para descargar su informe.')
-        : (desdePdf && hastaPdf ? `Se descarga el informe del ${formatYMD(desdePdf)} al ${formatYMD(hastaPdf)}.` : 'Elegí las dos fechas del rango.');
+        : (desdePdf && hastaPdf ? `Se descarga el informe del ${formatYMD(desdePdf)} al ${formatYMD(hastaPdf)}${sufijoHoraStatus}.` : 'Elegí las dos fechas del rango.');
 
   const handleDescargarPdf = () => {
-    const horaParam = horaPdf !== '' ? horaPdf : undefined;
+    const horaParam = rangoHorario ? `${rangoHorario.inicio}-${rangoHorario.fin}` : undefined;
     if (modoPdf === 'hoy') {
       if (horaParam !== undefined) {
         descargarInforme(undefined, undefined, horaParam);
@@ -149,7 +134,7 @@ export const EstadisticasPage = () => {
     } else if (modoPdf === 'dia') {
       descargarInforme(diaPdf, undefined, horaParam);
     } else {
-      descargarInforme(desdePdf, hastaPdf);
+      descargarInforme(desdePdf, hastaPdf, horaParam);
     }
   };
 
@@ -195,10 +180,7 @@ export const EstadisticasPage = () => {
             <button
               key={m}
               type="button"
-              onClick={() => {
-                setModoPdf(m);
-                if (m === 'rango') setHoraPdf('');
-              }}
+              onClick={() => setModoPdf(m)}
               aria-pressed={modoPdf === m}
               className={`px-3 py-1.5 text-sm font-semibold rounded-md transition-all duration-200 ease-out ${
                 modoPdf === m
@@ -224,35 +206,6 @@ export const EstadisticasPage = () => {
           </label>
         )}
 
-        {/* Selector de horario al lado (para Hoy y Día específico) */}
-        {modoPdf !== 'rango' && (
-          <label className="flex items-center gap-1.5 text-sm text-gray-600">
-            <Clock size={16} className="text-blue-600" />
-            Horario
-            <select
-              value={horaPdf}
-              onChange={(e) => setHoraPdf(e.target.value)}
-              className="border border-gray-200 rounded-md px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white max-w-xs"
-            >
-              <option value="">Todo el día (04:00 a 03:59)</option>
-              <optgroup label="Franjas de 1 hora (ej: 06:30 a 07:30)">
-                {OPCIONES_1_HORA.map((h) => (
-                  <option key={`1h-${h.valor}`} value={h.valor}>
-                    {h.label}
-                  </option>
-                ))}
-              </optgroup>
-              <optgroup label="Franjas de 30 minutos (ej: 06:30 a 07:00)">
-                {OPCIONES_30_MIN.map((h) => (
-                  <option key={`30m-${h.valor}`} value={h.valor}>
-                    {h.label}
-                  </option>
-                ))}
-              </optgroup>
-            </select>
-          </label>
-        )}
-
         {modoPdf === 'rango' && (
           <>
             <label className="flex items-center gap-1.5 text-sm text-gray-600">
@@ -275,6 +228,45 @@ export const EstadisticasPage = () => {
             </label>
           </>
         )}
+
+        {/* Selector de horario personalizado al lado (el usuario pone las horas que quiera) */}
+        <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1 text-sm text-gray-700">
+          <Clock size={16} className="text-blue-600 shrink-0" />
+          <span className="font-medium text-xs text-gray-600">Horas:</span>
+          <label className="flex items-center gap-1 text-xs text-gray-600">
+            De
+            <input
+              type="time"
+              value={horaDesdePdf}
+              onChange={(e) => setHoraDesdePdf(e.target.value)}
+              className="border border-gray-300 rounded bg-white px-1.5 py-1 text-xs text-gray-800 focus:outline-none focus:ring-1 focus:ring-blue-500 font-medium"
+              title="Hora inicio"
+            />
+          </label>
+          <label className="flex items-center gap-1 text-xs text-gray-600">
+            A
+            <input
+              type="time"
+              value={horaHastaPdf}
+              onChange={(e) => setHoraHastaPdf(e.target.value)}
+              className="border border-gray-300 rounded bg-white px-1.5 py-1 text-xs text-gray-800 focus:outline-none focus:ring-1 focus:ring-blue-500 font-medium"
+              title="Hora fin"
+            />
+          </label>
+          {(horaDesdePdf || horaHastaPdf) && (
+            <button
+              type="button"
+              onClick={() => {
+                setHoraDesdePdf('');
+                setHoraHastaPdf('');
+              }}
+              title="Limpiar horas (descargar período completo)"
+              className="p-1 text-gray-400 hover:text-red-500 rounded hover:bg-gray-200 transition-colors"
+            >
+              <X size={14} />
+            </button>
+          )}
+        </div>
 
         <Button
           variant="secondary"

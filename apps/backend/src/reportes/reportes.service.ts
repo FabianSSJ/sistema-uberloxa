@@ -69,7 +69,9 @@ export class ReportesService {
     let condicionFecha: Prisma.Sql;
     if (esHorario) {
       const condicionDia = d
-        ? Prisma.sql`(c.created_at AT TIME ZONE 'UTC' AT TIME ZONE '${Prisma.raw(TZ)}')::date = ${d}::date`
+        ? (d === h
+            ? Prisma.sql`(c.created_at AT TIME ZONE 'UTC' AT TIME ZONE '${Prisma.raw(TZ)}')::date = ${d}::date`
+            : Prisma.sql`(c.created_at AT TIME ZONE 'UTC' AT TIME ZONE '${Prisma.raw(TZ)}')::date BETWEEN ${d}::date AND ${h}::date`)
         : Prisma.sql`(c.created_at AT TIME ZONE 'UTC' AT TIME ZONE '${Prisma.raw(TZ)}')::date = (now() AT TIME ZONE '${Prisma.raw(TZ)}')::date`;
 
       if (hFin! <= hInicio!) {
