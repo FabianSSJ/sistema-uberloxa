@@ -28,6 +28,7 @@ export interface HistorialParams {
   hasta?: string; // ISO — límite superior exclusivo
   cursor?: number; // id de la última carrera cargada (keyset pagination)
   take?: number;
+  search?: string;
 }
 
 export interface HistorialPage {

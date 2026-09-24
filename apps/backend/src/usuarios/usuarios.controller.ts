@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Req } from '@nestjs/common';
 import { UsuariosService } from './usuarios.service';
 import { CreateUsuarioDto } from './dto/create-usuario.dto';
 import { UpdateUsuarioDto } from './dto/update-usuario.dto';
@@ -8,7 +8,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 
 @Controller('usuarios')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('SUPERADMIN') // Solo SUPERADMIN puede manejar usuarios
+@Roles('SUPERADMIN', 'ADMIN')
 export class UsuariosController {
   constructor(private readonly usuariosService: UsuariosService) {}
 
@@ -23,17 +23,17 @@ export class UsuariosController {
   }
 
   @Post()
-  create(@Body() createUsuarioDto: CreateUsuarioDto) {
-    return this.usuariosService.create(createUsuarioDto);
+  create(@Body() createUsuarioDto: CreateUsuarioDto, @Req() req: any) {
+    return this.usuariosService.create(createUsuarioDto, req.user);
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateUsuarioDto: UpdateUsuarioDto) {
-    return this.usuariosService.update(+id, updateUsuarioDto);
+  update(@Param('id') id: string, @Body() updateUsuarioDto: UpdateUsuarioDto, @Req() req: any) {
+    return this.usuariosService.update(+id, updateUsuarioDto, req.user);
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.usuariosService.remove(+id);
+  remove(@Param('id') id: string, @Req() req: any) {
+    return this.usuariosService.remove(+id, req.user);
   }
 }

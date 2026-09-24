@@ -26,6 +26,7 @@ export class CarrerasController {
       hasta: query.hasta ? new Date(query.hasta) : undefined,
       cursor: query.cursor,
       take: query.take,
+      search: query.search,
     });
   }
 

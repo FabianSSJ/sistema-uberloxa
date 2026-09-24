@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '../../../features/auth/context/AuthContext';
 import { Modal } from '../../../components/ui/Modal';
 import { Input } from '../../../components/ui/Input';
 import { Select } from '../../../components/ui/Select';
@@ -21,6 +22,7 @@ const ROLES = [
 ];
 
 export const UsuarioFormModal: React.FC<UsuarioFormModalProps> = ({ isOpen, onClose, onSubmit, usuario }) => {
+  const { user } = useAuth();
   const [nombre, setNombre] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -104,7 +106,7 @@ export const UsuarioFormModal: React.FC<UsuarioFormModalProps> = ({ isOpen, onCl
           />
           <Select
             label="Rol"
-            options={ROLES}
+            options={user?.rol === 'SUPERADMIN' ? ROLES : ROLES.filter((r) => r.value !== 'SUPERADMIN')}
             value={rol}
             onChange={(val) => setRol(String(val))}
           />

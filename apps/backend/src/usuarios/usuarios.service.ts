@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUsuarioDto } from './dto/create-usuario.dto';
 import { UpdateUsuarioDto } from './dto/update-usuario.dto';
@@ -34,7 +34,11 @@ export class UsuariosService {
     });
   }
 
-  async create(data: CreateUsuarioDto) {
+  async create(data: CreateUsuarioDto, currentUser?: any) {
+    if (currentUser?.rol !== 'SUPERADMIN' && data.rol === 'SUPERADMIN') {
+      throw new ForbiddenException('Solo un SUPERADMIN puede asignar el rol SUPERADMIN');
+    }
+
     const existing = await this.prisma.usuario.findUnique({ where: { username: data.username } });
     if (existing) {
       throw new BadRequestException('El nombre de usuario ya existe');
@@ -59,7 +63,21 @@ export class UsuariosService {
     });
   }
 
-  async update(id: number, data: UpdateUsuarioDto) {
+  async update(id: number, data: UpdateUsuarioDto, currentUser?: any) {
+    const target = await this.prisma.usuario.findUnique({ where: { id } });
+    if (!target) {
+      throw new BadRequestException('Usuario no encontrado');
+    }
+
+    if (currentUser?.rol !== 'SUPERADMIN') {
+      if (target.rol === 'SUPERADMIN') {
+        throw new ForbiddenException('No tienes permisos para modificar a un usuario SUPERADMIN');
+      }
+      if (data.rol === 'SUPERADMIN') {
+        throw new ForbiddenException('Solo un SUPERADMIN puede asignar el rol SUPERADMIN');
+      }
+    }
+
     // undefined → Prisma ignora el campo; null → lo limpia. Así 'color' se puede setear o borrar.
     const updateData: any = {
       nombre: data.nombre,
@@ -90,19 +108,24 @@ export class UsuariosService {
 
   // "Eliminar" = DESACTIVAR (soft-delete): bloquea el login pero conserva el historial
   // de carreras y su atribución. Reversible reactivando (update con activo=true).
-  async remove(id: number) {
+  async remove(id: number, currentUser?: any) {
     const usuario = await this.prisma.usuario.findUnique({ where: { id } });
     if (!usuario) {
       throw new BadRequestException('Usuario no encontrado');
     }
 
-    // Anti-lockout: no permitir desactivar al último SUPERADMIN activo.
-    if (usuario.rol === 'SUPERADMIN' && usuario.activo) {
-      const superadminsActivos = await this.prisma.usuario.count({
-        where: { rol: 'SUPERADMIN', activo: true },
-      });
-      if (superadminsActivos <= 1) {
-        throw new BadRequestException('No se puede desactivar al último SUPERADMIN activo');
+    // Anti-lockout y protección:
+    if (usuario.rol === 'SUPERADMIN') {
+      if (currentUser?.rol !== 'SUPERADMIN') {
+        throw new ForbiddenException('No tienes permisos para desactivar a un usuario SUPERADMIN');
+      }
+      if (usuario.activo) {
+        const superadminsActivos = await this.prisma.usuario.count({
+          where: { rol: 'SUPERADMIN', activo: true },
+        });
+        if (superadminsActivos <= 1) {
+          throw new BadRequestException('No se puede desactivar al último SUPERADMIN activo');
+        }
       }
     }
 

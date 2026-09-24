@@ -41,7 +41,7 @@ function App() {
               <Route element={<PrivateRoute requiredModule="unidades" />}>
                 <Route path="unidades" element={<UnidadesPage />} />
               </Route>
-              <Route element={<PrivateRoute allowedRoles={['SUPERADMIN']} />}>
+              <Route element={<PrivateRoute allowedRoles={['SUPERADMIN', 'ADMIN']} />}>
                 <Route path="gestor-usuarios" element={<GestorUsuariosPage />} />
               </Route>
               <Route element={<PrivateRoute allowedRoles={['SUPERADMIN', 'ADMIN']} />}>

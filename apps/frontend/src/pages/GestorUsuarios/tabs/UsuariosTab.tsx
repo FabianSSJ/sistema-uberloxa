@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useUsuarios, useCreateUsuario, useUpdateUsuario, useDeleteUsuario } from '../../../features/usuarios/hooks/useUsuarios';
+import { useAuth } from '../../../features/auth/context/AuthContext';
 import { Button } from '../../../components/ui/Button';
 import { ConfirmDialog } from '../../../components/ui/ConfirmDialog';
 import { Edit2, Plus, UserX, UserCheck } from 'lucide-react';
@@ -7,6 +8,7 @@ import { UsuarioFormModal } from './UsuarioFormModal';
 import { colorOperador } from '../../../core/operadores/colores';
 
 export const UsuariosTab = () => {
+  const { user } = useAuth();
   const { data: usuarios = [], isLoading } = useUsuarios();
   const createMutation = useCreateUsuario();
   const updateMutation = useUpdateUsuario();
@@ -91,17 +93,23 @@ export const UsuariosTab = () => {
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  <button onClick={() => setModalData({ isOpen: true, usuario: u })} className="text-indigo-600 hover:text-indigo-900 mr-4" title="Editar">
-                    <Edit2 size={18} />
-                  </button>
-                  {u.activo ? (
-                    <button onClick={() => handleDeactivate(u)} className="text-red-600 hover:text-red-900" title="Desactivar (bloquear acceso)">
-                      <UserX size={18} />
-                    </button>
+                  {user?.rol === 'SUPERADMIN' || u.rol !== 'SUPERADMIN' ? (
+                    <>
+                      <button onClick={() => setModalData({ isOpen: true, usuario: u })} className="text-indigo-600 hover:text-indigo-900 mr-4" title="Editar">
+                        <Edit2 size={18} />
+                      </button>
+                      {u.activo ? (
+                        <button onClick={() => handleDeactivate(u)} className="text-red-600 hover:text-red-900" title="Desactivar (bloquear acceso)">
+                          <UserX size={18} />
+                        </button>
+                      ) : (
+                        <button onClick={() => handleReactivate(u)} className="text-green-600 hover:text-green-900" title="Reactivar">
+                          <UserCheck size={18} />
+                        </button>
+                      )}
+                    </>
                   ) : (
-                    <button onClick={() => handleReactivate(u)} className="text-green-600 hover:text-green-900" title="Reactivar">
-                      <UserCheck size={18} />
-                    </button>
+                    <span className="text-xs text-gray-400 italic">Solo Superadmin</span>
                   )}
                   </td>
                 </tr>

@@ -186,8 +186,8 @@ export class CarrerasService {
    * `desde`/`hasta` filtran por rango de fecha usando el índice (creado_por, created_at)
    * o (created_at) según el rol.
    */
-  async findAll(user: any, params: { desde?: Date; hasta?: Date; cursor?: number; take?: number } = {}) {
-    const take = params.take ?? 30;
+  async findAll(user: any, params: { desde?: Date; hasta?: Date; cursor?: number; take?: number; search?: string } = {}) {
+    const take = params.take ?? 50;
 
     const where: Prisma.CarreraWhereInput = {};
     if (user?.rol === 'CHARLIE' && user?.sub) {
@@ -200,6 +200,36 @@ export class CarrerasService {
       };
     }
     if (params.cursor) where.id = { lt: params.cursor };
+
+    if (params.search && params.search.trim()) {
+      const q = params.search.trim();
+      const directNum = /^\d+$/.test(q) ? parseInt(q, 10) : null;
+      const codMatch = q.match(/^(?:c[oó]d\.?|cliente)\s*(\d+)$/i);
+      const codNum = directNum ?? (codMatch ? parseInt(codMatch[1], 10) : null);
+
+      const orConditions: Prisma.CarreraWhereInput[] = [
+        { cliente: { nombre: { contains: q, mode: 'insensitive' } } },
+        { cliente: { direccion: { contains: q, mode: 'insensitive' } } },
+        { cliente: { telefono: { contains: q } } },
+        { cliente: { telefonoAlt: { contains: q } } },
+        { cliente: { sector: { nombre: { contains: q, mode: 'insensitive' } } } },
+        { unidad: { numeroUnidad: { contains: q, mode: 'insensitive' } } },
+        { unidad: { placa: { contains: q, mode: 'insensitive' } } },
+        { unidad: { choferNombre: { contains: q, mode: 'insensitive' } } },
+        { creadoPor: { nombre: { contains: q, mode: 'insensitive' } } },
+        { creadoPor: { username: { contains: q, mode: 'insensitive' } } },
+        { notas: { contains: q, mode: 'insensitive' } },
+      ];
+
+      if (codNum !== null && !isNaN(codNum)) {
+        orConditions.push({ cliente: { codigo: codNum } });
+      }
+      if (directNum !== null && !isNaN(directNum)) {
+        orConditions.push({ numeroDiario: directNum });
+      }
+
+      where.OR = orConditions;
+    }
 
     // Pedimos una de más para saber si hay página siguiente sin un segundo roundtrip (count aparte).
     const filas = await this.prisma.carrera.findMany({

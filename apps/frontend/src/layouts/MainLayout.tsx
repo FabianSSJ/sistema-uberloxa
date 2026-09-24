@@ -42,7 +42,7 @@ const MainLayout = () => {
     allNavItems.push({ path: '/estadisticas', icon: BarChart3, label: 'Estadísticas', reqModule: null });
   }
 
-  if (user?.rol === 'SUPERADMIN') {
+  if (esAdmin) {
     allNavItems.push({ path: '/gestor-usuarios', icon: Settings, label: 'Gestor de Usuarios', reqModule: null });
   }
 

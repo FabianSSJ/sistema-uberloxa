@@ -22,4 +22,7 @@ export class FindCarrerasQueryDto {
   @Max(100)
   @IsOptional()
   take?: number;
+
+  @IsOptional()
+  search?: string;
 }

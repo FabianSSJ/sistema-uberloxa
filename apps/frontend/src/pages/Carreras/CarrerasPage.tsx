@@ -1,6 +1,7 @@
-import { useMemo, useState } from 'react';
-import { Clock, Plus, MapPin, CheckCircle2, Search, Trash2, CalendarDays, X } from 'lucide-react';
+import { useMemo, useState, useEffect, useRef } from 'react';
+import { Clock, Plus, MapPin, CheckCircle2, Search, Trash2, CalendarDays, X, Loader2 } from 'lucide-react';
 import { useCarrerasHistorial, useDeleteCarrera } from '../../features/carreras/hooks/useCarreras';
+import { HistorialParams } from '../../features/carreras/services/carreras.service';
 import { CarreraFormModal } from '../Dashboard/CarreraFormModal';
 import { Button } from '../../components/ui/Button';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
@@ -16,30 +17,73 @@ export const CarrerasPage = () => {
   const [desdeYMD, setDesdeYMD] = useState('');
   const [hastaYMD, setHastaYMD] = useState('');
 
+  const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+
+  // Debounce para consultar al servidor sin saturar con cada tecla (300ms)
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 300);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
+
   // "Hoy" es un atajo de la jornada operativa actual (04:00 a 03:59:59 AM)
   const filtroActivo = Boolean(desdeYMD || hastaYMD);
   const esHoyActivo = desdeYMD === diaOperativoYMD() && hastaYMD === diaOperativoYMD();
 
   const filtros = useMemo(() => {
-    if (!filtroActivo) return {};
-    const d = desdeYMD || hastaYMD;
-    const h = hastaYMD || desdeYMD;
-    return { desde: inicioDiaEcuadorDesdeYMD(d).toISOString(), hasta: finDiaEcuadorDesdeYMD(h).toISOString() };
-  }, [desdeYMD, hastaYMD, filtroActivo]);
+    const f: HistorialParams = {};
+    if (filtroActivo) {
+      const d = desdeYMD || hastaYMD;
+      const h = hastaYMD || desdeYMD;
+      f.desde = inicioDiaEcuadorDesdeYMD(d).toISOString();
+      f.hasta = finDiaEcuadorDesdeYMD(h).toISOString();
+    }
+    if (debouncedSearch.trim()) {
+      f.search = debouncedSearch.trim();
+    }
+    return f;
+  }, [desdeYMD, hastaYMD, filtroActivo, debouncedSearch]);
 
-  const { data, isLoading, isError, fetchNextPage, hasNextPage, isFetchingNextPage } = useCarrerasHistorial(filtros);
+  const { data, isLoading, isError, fetchNextPage, hasNextPage, isFetchingNextPage, isFetching } = useCarrerasHistorial(filtros);
   const carreras = useMemo(() => data?.pages.flatMap((p) => p.data) ?? [], [data]);
+
+  const isSearching = searchQuery !== debouncedSearch || (isFetching && !isFetchingNextPage);
+
+  // Scroll infinito automático: carga páginas siguientes al acercarse al final tanto en móvil como en PC
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!hasNextPage || isFetchingNextPage) return;
+    const el = sentinelRef.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
+          fetchNextPage();
+        }
+      },
+      { rootMargin: '250px' }
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   const deleteCarreraMutation = useDeleteCarrera();
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
   const [careerToDelete, setCareerToDelete] = useState<number | null>(null);
 
   // Hora de Ecuador (fuente única en core/tiempo).
   const formatTime = (isoString: string) => { try { return hora(isoString); } catch { return ''; } };
   const formatDate = (isoString: string) => { try { return fechaCorta(isoString); } catch { return ''; } };
 
-  const filteredCarreras = rankBy(carreras, searchQuery, scoreCarrera);
+  const filteredCarreras = useMemo(() => {
+    if (!debouncedSearch.trim()) return carreras;
+    return rankBy(carreras, debouncedSearch.trim(), scoreCarrera);
+  }, [carreras, debouncedSearch]);
 
   return (
     <div className="animate-[fadeIn_0.5s_ease-in]">
@@ -63,9 +107,24 @@ export const CarrerasPage = () => {
           type="text"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Buscar por cliente, código, placa, chofer, dirección, operador, Nº..."
-          className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 shadow-sm"
+          placeholder="Buscar por código de cliente, nombre, teléfono, placa, chofer, dirección, operador, Nº..."
+          className="w-full pl-10 pr-10 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 shadow-sm"
         />
+        {isSearching && (
+          <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+            <Loader2 size={18} className="animate-spin text-green-600" />
+          </div>
+        )}
+        {!isSearching && searchQuery && (
+          <button
+            type="button"
+            onClick={() => setSearchQuery('')}
+            className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
+            title="Limpiar búsqueda"
+          >
+            <X size={18} />
+          </button>
+        )}
       </div>
 
       {/* Filtros de fecha: Hoy es un atajo del mismo rango, no un modo aparte */}
@@ -119,13 +178,27 @@ export const CarrerasPage = () => {
         </div>
       ) : carreras.length === 0 ? (
         <div className="text-center py-[60px] px-5 text-gray-500 bg-white rounded-lg border border-gray-200 border-dashed">
-          <Clock size={64} className="mx-auto mb-5 opacity-50 text-green-600" />
-          <p className="text-[1.125rem]">No se encontraron carreras registradas.</p>
+          {debouncedSearch ? (
+            <>
+              <Search size={64} className="mx-auto mb-5 opacity-30 text-gray-500" />
+              <p className="text-[1.125rem] font-medium text-gray-700">No se encontraron resultados para "{searchQuery}".</p>
+              <p className="text-sm text-gray-400 mt-1">Verifica el código, nombre, placa o rango de fechas seleccionado.</p>
+            </>
+          ) : (
+            <>
+              <Clock size={64} className="mx-auto mb-5 opacity-50 text-green-600" />
+              <p className="text-[1.125rem] font-medium text-gray-700">No se encontraron carreras registradas.</p>
+              {filtroActivo && (
+                <p className="text-sm text-gray-400 mt-1">Intenta seleccionando otro rango de fechas o limpiando el filtro.</p>
+              )}
+            </>
+          )}
         </div>
       ) : filteredCarreras.length === 0 ? (
         <div className="text-center py-[60px] px-5 text-gray-500 bg-white rounded-lg border border-gray-200 border-dashed">
           <Search size={64} className="mx-auto mb-5 opacity-30 text-gray-500" />
-          <p className="text-[1.125rem]">No se encontraron resultados para "{searchQuery}".</p>
+          <p className="text-[1.125rem] font-medium text-gray-700">No se encontraron resultados para "{searchQuery}".</p>
+          <p className="text-sm text-gray-400 mt-1">Intenta con otro código de cliente, unidad, chofer o placa.</p>
         </div>
       ) : (
         <div className="grid gap-4">
@@ -225,13 +298,15 @@ export const CarrerasPage = () => {
       )}
 
       {hasNextPage && (
-        <div className="flex justify-center mt-6">
+        <div ref={sentinelRef} className="flex justify-center mt-6 py-4">
           <Button
+            variant="secondary"
             onClick={() => fetchNextPage()}
             disabled={isFetchingNextPage}
-            className="bg-white border border-gray-200 text-gray-700 hover:bg-gray-50"
+            className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 shadow-sm px-6 py-2.5 font-medium transition-all"
+            icon={isFetchingNextPage ? <Loader2 size={16} className="animate-spin text-green-600" /> : <Plus size={16} className="text-gray-500" />}
           >
-            {isFetchingNextPage ? 'Cargando...' : 'Cargar más'}
+            {isFetchingNextPage ? 'Cargando más carreras...' : 'Cargar más carreras'}
           </Button>
         </div>
       )}
