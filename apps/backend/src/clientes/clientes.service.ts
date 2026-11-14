@@ -70,7 +70,20 @@ export class ClientesService {
   async findPendientes() {
     return this.prisma.cliente.findMany({
       where: { activo: true, codigo: null },
-      include: { sector: true },
+      include: {
+        sector: true,
+        // Primera carrera del cliente: quién (Charlie) la registró, qué unidad mandó y cuándo.
+        carreras: {
+          orderBy: { createdAt: 'asc' },
+          take: 1,
+          select: {
+            id: true,
+            createdAt: true,
+            creadoPor: { select: { id: true, nombre: true, username: true } },
+            unidad: { select: { id: true, numeroUnidad: true, choferNombre: true } },
+          },
+        },
+      },
       orderBy: { id: 'desc' }, // los más recientes primero
       // Guardarraíl: esta bandeja se drena activamente (se completa cada cliente y sale
       // de la lista) — nunca debería crecer sin límite. Igual que arriba, defensivo.

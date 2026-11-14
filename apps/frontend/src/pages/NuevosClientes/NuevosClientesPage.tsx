@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { UserPlus, Phone, MapPin, CheckCircle2, Trash2, Inbox } from 'lucide-react';
+import { UserPlus, User, Car, Clock, CheckCircle2, Trash2, Inbox } from 'lucide-react';
 import { usePendientes, useDeleteCliente, useDeletePendientes } from '../../features/clientes/hooks/useClientes';
 import { ClienteFormModal } from '../Clientes/ClienteFormModal';
 import { Button } from '../../components/ui/Button';
@@ -63,16 +63,34 @@ export const NuevosClientesPage = () => {
                   <span className="px-2 py-0.5 text-[0.625rem] font-bold bg-amber-100 text-amber-700 rounded uppercase tracking-wide">Sin código</span>
                 </div>
                 <h3 className="text-[0.9375rem] font-bold text-gray-800 m-0 truncate">{c.nombre || 'Sin nombre'}</h3>
-                <div className="mt-2 space-y-1">
-                  <p className="text-[0.75rem] text-gray-500 flex items-center gap-1.5 m-0">
-                    <Phone size={13} className="shrink-0" />
-                    {c.telefono || c.telefonoAlt || <span className="italic text-gray-400">Sin teléfono</span>}
-                  </p>
-                  <p className="text-[0.75rem] text-gray-500 flex items-start gap-1.5 m-0">
-                    <MapPin size={13} className="shrink-0 mt-0.5" />
-                    <span className="truncate">{c.direccion || 'Sin dirección'} · {c.sector?.nombre || 'Sin sector'}</span>
-                  </p>
-                </div>
+                {(() => {
+                  const carrera = c.carreras?.[0];
+                  const fecha = carrera?.createdAt ? new Date(carrera.createdAt) : null;
+                  return (
+                    <div className="mt-2 space-y-1">
+                      <p className="text-[0.75rem] text-gray-500 flex items-center gap-1.5 m-0">
+                        <User size={13} className="shrink-0" />
+                        <span className="truncate">
+                          Charlie: {carrera?.creadoPor?.nombre || <span className="italic text-gray-400">Sin registro</span>}
+                        </span>
+                      </p>
+                      <p className="text-[0.75rem] text-gray-500 flex items-center gap-1.5 m-0">
+                        <Car size={13} className="shrink-0" />
+                        <span className="truncate">
+                          {carrera?.unidad
+                            ? `Unidad Nº ${carrera.unidad.numeroUnidad || 'S/N'}${carrera.unidad.choferNombre ? ` · ${carrera.unidad.choferNombre}` : ''}`
+                            : <span className="italic text-gray-400">Sin unidad asignada</span>}
+                        </span>
+                      </p>
+                      <p className="text-[0.75rem] text-gray-500 flex items-center gap-1.5 m-0">
+                        <Clock size={13} className="shrink-0" />
+                        {fecha
+                          ? `${fecha.toLocaleDateString('es-EC')} · ${fecha.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' })}`
+                          : <span className="italic text-gray-400">Sin fecha</span>}
+                      </p>
+                    </div>
+                  );
+                })()}
               </div>
               <div className="flex gap-2 pt-2 border-t border-gray-100">
                 <Button onClick={() => setCompletarId(c.id)} icon={<CheckCircle2 size={16} />} fullWidth>
