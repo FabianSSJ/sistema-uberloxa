@@ -34,7 +34,6 @@ export class CreateClienteDto {
   @ApiPropertyOptional({ description: 'Dirección del cliente' })
   @IsString()
   @IsOptional()
-  @MaxLength(255, { message: 'La dirección no puede exceder los 255 caracteres' })
   direccion?: string;
 
   @ApiPropertyOptional({ description: 'Descripción adicional' })
